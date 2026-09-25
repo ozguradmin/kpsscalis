@@ -284,7 +284,7 @@ function viewLesson(id) {
   const before = { lessons: { [id]: JSON.parse(JSON.stringify(s0.lessons[id] || {})) }, log: (s0.log || []).filter((x) => x.l === id) };
   const estBefore = estimate(s0).total;
 
-  const qCount = quiz.length;
+  let qCount = quiz.length;
   const tickHTML = () => steps.map((s, i) => `<i class="${s.k === 'quiz' ? 'q' : ''} ${i < st.i ? 'done' : ''} ${i === st.i ? 'cur' : ''}"></i>`).join('');
 
   $app.innerHTML = `<div class="view player" data-s="${lesson.s}">
@@ -379,7 +379,7 @@ function viewLesson(id) {
     } else if (step.k === 'quiz') {
       const pick = st.answers[step.i];
       html = questionHTML(step.q, pick, {
-        head: `<div class="eyebrow">Soru ${step.i + 1} / ${qCount}</div>`,
+        head: `<div class="eyebrow">Soru ${step.i + 1} / ${qCount}${step.q.real ? ' · sınav ayarı' : ''}</div>`,
         guess: pick == null ? !!st.guess[step.i] : st.guess[step.i], struck: st.struck,
       });
       bar = prevBtn + (pick == null
@@ -450,13 +450,35 @@ function viewLesson(id) {
 
   function answer(step, pick) {
     st.answers[step.i] = pick;
-    const wid = `${id}#${step.i}`;
-    const ok = pick === -1 ? -1 : pick === step.q.a ? 1 : 0;
-    logAnswer({ k: wid, l: id, s: lesson.s, ok, p: pick >= 0 && step.q._map ? step.q._map[pick] : pick, src: 'ders', g: st.guess[step.i] ? 1 : 0, sec: secSince(st.shown[st.i]) });
+    const q = step.q;
+    const wid = q.real ? q.key : `${id}#${step.i}`;
+    const ok = pick === -1 ? -1 : pick === q.a ? 1 : 0;
+    logAnswer({ k: wid, l: id, s: lesson.s, ok, p: pick >= 0 && q._map ? q._map[pick] : pick, src: q.real ? 'cikmis' : 'ders', g: st.guess[step.i] ? 1 : 0, sec: secSince(st.shown[st.i]) });
     store.update((s) => {
-      if (ok !== 1) s.wrong[wid] = { at: Date.now(), fixed: false };
-      else if (s.wrong[wid]) s.wrong[wid].fixed = true;
+      if (ok !== 1) {
+        s.wrong[wid] = { at: Date.now(), fixed: false };
+        if (q.real) (s.qbank ||= {})[wid] = { q: q.q, o: q.o, a: q.a, ex: q.ex, tip: q.tip, l: id, img: q.img, real: true, needimg: q.needimg, src: q.src, s: lesson.s };
+      } else if (s.wrong[wid]) s.wrong[wid].fixed = true;
     });
+  }
+
+  // Dersin sonuna o konunun gerçek ÖSYM soruları (sayısı konunun sınavdaki ağırlığına göre)
+  async function addRealQuestions() {
+    const n = Math.max(2, Math.min(6, Math.round((YIELD[id] || 1) / 1.6)));
+    const done = (store.get().log || []).filter((x) => x.ok === 1 && x.k && x.k.startsWith('real:')).map((x) => x.k).slice(-250);
+    try {
+      const r = await fetch(`/api/real?l=${id}&n=${n}&x=${done.join(',')}`);
+      const qs = ((await r.json()).questions || []);
+      if (!qs.length || st.completed) return;
+      const at = steps.findIndex((x) => x.k === 'result');
+      const add = qs.map((q) => {
+        quiz.push({ ...q, ex: q.bilgi ? `**Sınanan bilgi:** ${q.bilgi}` : '', tip: `Bu soru ${q.src} sınavında soruldu.` });
+        return { k: 'quiz', q: quiz[quiz.length - 1], i: quiz.length - 1 };
+      });
+      steps.splice(at, 0, ...add);
+      qCount = quiz.length;
+      if (steps[st.i].k !== 'result') render();
+    } catch (e) { /* çevrimdışı: sadece ders soruları */ }
   }
 
   function cardHTML(c, i) {
@@ -553,6 +575,7 @@ function viewLesson(id) {
   }
 
   render();
+  addRealQuestions();
   cleanup = () => timer();
 }
 
