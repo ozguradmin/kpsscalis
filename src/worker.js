@@ -22,6 +22,9 @@ const MODELS = {
 const NO_THINK = { chat_template_kwargs: { enable_thinking: false } };
 
 const PROFILE = 'ozgur';
+// Sözel mantık bulmacalarında modeller öncüller arası çelişkiyi güvenilir biçimde yakalayamıyor:
+// bu derslerde yalnızca elle kontrol edilmiş sorular kullanılır.
+const NO_AI_QUESTIONS = new Set(['tr4']);
 const DAILY_LIMIT_PER_IP = 600;
 const DAILY_LIMIT_TOTAL = 3000;
 
@@ -330,7 +333,7 @@ async function buildQuiz(env, args, profile, status) {
   }
   if (qs.length < n || args.kaynak === 'yeni') {
     const need = args.kaynak === 'yeni' ? n : n - qs.length;
-    const target = LESSONS[ids[0]];
+    const target = LESSONS[ids.find((id) => !NO_AI_QUESTIONS.has(id))];
     if (target) {
       await status('Yeni sorular yazıyorum ve her birini ikinci kez kontrol ediyorum (20-40 sn)…');
       try {
@@ -575,6 +578,7 @@ async function mapLimit(items, n, fn) {
 }
 
 async function generateQuestions(env, { subject, topic, summary, count, level, lessonId }) {
+  if (lessonId && NO_AI_QUESTIONS.has(lessonId)) throw new Error('Bu konuda yapay zekâ sorusu üretilmiyor; sözel mantıkta sadece kontrol edilmiş sorular kullanılıyor');
   const { qs, model } = await generateRaw(env, { subject, topic, summary, count: Math.min(10, count + 2), level });
   const checks = await mapLimit(qs, 2, (q) => verifyQuestion(env, q));
   const good = qs.filter((q, i) => checks[i].ok).map((q) => ({ ...q, verified: true }));
