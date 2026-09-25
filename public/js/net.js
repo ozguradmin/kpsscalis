@@ -28,6 +28,7 @@ const SUBJ_Q = Object.fromEntries(SUBJECTS.map((s) => [s.id, s.q]));
 // Kanıt ağırlığı (w) ve "sınav zorluğuna çevirme" katsayısı (k) kaynağa göre
 const SRC = {
   deneme: { w: 1, k: 1 },       // sınava en yakın kanıt
+  cikmis: { w: 1, k: 1 },       // geçmiş yılların gerçek ÖSYM soruları
   hoca: { w: 0.9, k: 0.95 },
   hata: { w: 0.5, k: 0.85 },    // daha önce görülmüş soru: kolaylaşmış olur
   ders: { w: 0.45, k: 0.85 },   // az önce anlatılan konudan hemen soru

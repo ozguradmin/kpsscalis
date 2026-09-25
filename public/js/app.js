@@ -96,6 +96,8 @@ const routes = [
   [/^#\/ayarlar$/, viewSettings, 'daha'],
   [/^#\/ekstra$/, viewExtra, 'daha'],
   [/^#\/uret$/, viewGenerate, 'daha'],
+  [/^#\/cikmis$/, viewPast, 'daha'],
+  [/^#\/cikmis\/([\w-]+)$/, (id) => startPast({ lessons: [id], title: LESSONS[id] ? strip(LESSONS[id].title) : 'Çıkmış sorular' }), null],
 ];
 
 function route() {
@@ -526,6 +528,7 @@ function viewLesson(id) {
       </div>
       <div class="stack" style="text-align:left">
         <button class="rowlink" data-ai-review><span class="ico ink">${icon.ai}</span><span><span class="t">Hoca sonucumu yorumlasın</span><span class="m">Yanlışlarının nedenini ve sıradaki adımı söyler</span></span><span class="go">${icon.chev}</span></button>
+        <a class="rowlink" href="#/cikmis/${id}"><span class="ico" style="color:var(--right)">${icon.flag}</span><span><span class="t">Bu konunun çıkmış soruları</span><span class="m">Geçmiş yıllarda ÖSYM'nin bu konudan sorduğu gerçek sorular</span></span><span class="go">${icon.chev}</span></a>
         <button class="rowlink" data-gen><span class="ico">${icon.spark}</span><span><span class="t">Bu konudan yeni sorularla test</span><span class="m">Hoca yeni ÖSYM tarzı sorular yazar, sohbette çözersin</span></span><span class="go">${icon.chev}</span></button>
         <button class="rowlink" data-restart><span class="ico">${icon.refresh}</span><span><span class="t">Dersi baştan tekrar et</span><span class="m">Tekrar, kalıcılığın en güçlü yolu</span></span><span class="go">${icon.chev}</span></button>
       </div>
@@ -663,7 +666,7 @@ function questionRunner({ title, eyebrow, qs, reveal = 'instant', minutes = null
       if (ok === 1) { if (s.wrong[q.key]) s.wrong[q.key].fixed = true; }
       else {
         s.wrong[q.key] = { at: Date.now(), fixed: false };
-        if (q.key.startsWith('ai:')) (s.qbank ||= {})[q.key] = { q: q.q, o: q._orig || q.o, a: q._origA ?? q.a, ex: q.ex, tip: q.tip, l: q.l };
+        if (q.key.startsWith('ai:') || q.key.startsWith('real:')) (s.qbank ||= {})[q.key] = { q: q.q, o: q._orig || q.o, a: q._origA ?? q.a, ex: q.ex, tip: q.tip, l: q.l, img: q.img, real: q.real, needimg: q.needimg, src: q.src, s: q.s };
       }
     });
   }
@@ -758,7 +761,7 @@ function flashSession(ids) {
 
 // ---------- Hata defteri ----------
 function mistakeQuestion(k) {
-  if (k.startsWith('ai:')) { const q = store.get().qbank?.[k]; return q ? { ...q } : null; }
+  if (k.startsWith('ai:') || k.startsWith('real:')) { const q = store.get().qbank?.[k]; return q ? { ...q } : null; }
   const [lid, qi] = k.split('#');
   if (!/^\d+$/.test(qi || '')) return null;
   const q = LESSONS[lid]?.quiz?.[Number(qi)];
@@ -804,6 +807,7 @@ function viewTutor() {
 function viewMore() {
   const mist = openMistakes().length;
   const items = [
+    ['#/cikmis', 'Çıkmış sorular', '2010-2026 arası gerçek ÖSYM soruları, konu konu', icon.flag],
     ['#/deneme', 'Mini deneme', 'Çalıştığın konulardan, süreli, net hesabıyla', icon.timer],
     ['#/hatalar', 'Hata defteri', `${mist} soru yeniden çözülmeyi bekliyor`, icon.notebook],
     ['#/strateji', 'Sınav stratejisi', '4 yanlış 1 doğru hesabı, süre planı, soru sırası', icon.target],
@@ -900,6 +904,13 @@ function viewMock() {
   };
   async function start() {
     let extra = [];
+    // Gerçek ÖSYM soruları: çalıştığın derslerden, sınava en yakın malzeme
+    try {
+      const done = new Set((store.get().log || []).filter((x) => x.ok === 1 && x.k && x.k.startsWith('real:')).map((x) => x.k));
+      const r = await fetch(`/api/real?l=${studied.join(',')}&n=${size * 2}&x=${[...done].slice(-200).join(',')}`);
+      const d = await r.json();
+      (d.questions || []).forEach((q) => pool.push({ ...q, w: 1.8 }));
+    } catch (e) { /* çevrimdışı */ }
     // Doğrulanmış yapay zekâ soru bankasından da çek (çevrimdışıysa atla)
     try {
       const r = await fetch(`/api/bank?l=${studied.join(',')}&n=${size}`);
@@ -958,6 +969,60 @@ function mockResult({ qs, answers, guess, sec }) {
     e.currentTarget.remove();
     document.getElementById('revbox').innerHTML = qs.map((q, j) => `<div class="card flat">${questionHTML(q, answers[j] == null ? -1 : answers[j], { head: `<div class="row between"><span class="eyebrow">Soru ${j + 1}</span>${q.s ? subjTag(q.s) : ''}</div>` })}</div>`).join('');
   };
+}
+
+// ---------- Çıkmış sorular ----------
+async function viewPast() {
+  const studied = new Set(studiedIds());
+  let stats = {};
+  let sub = 'all';
+  const draw = () => {
+    const total = Object.values(stats).reduce((a, b) => a + b, 0);
+    const ls = Object.values(LESSONS).filter((l) => (sub === 'all' || l.s === sub) && stats[l.id]).sort((a, b) => (a.day || 99) - (b.day || 99) || a.s.localeCompare(b.s));
+    $app.innerHTML = page({
+      top: topbar({ eyebrow: 'Çıkmış sorular', title: total ? `${total} gerçek ÖSYM sorusu` : 'Gerçek ÖSYM soruları', back: '#/daha' }),
+      body: `<p class="muted small" style="margin-top:14px">2010-2026 arası ön lisans, ortaöğretim ve lisans kitapçıklarından; senin derslerine göre ayrıldı. Soru kitapçıktaki orijinal hâliyle gelir (şekil, harita, altı çizili yerler dahil). Doğru çözdüğün soru tekrar gelmez. Ön lisans ve son yılların soruları önce gelir.</p>
+        <button class="btn ink block" id="mix" ${studied.size ? '' : 'disabled'}>${icon.bolt}Çalıştığım konulardan karışık 10 soru</button>
+        <div class="chips scroll-x" style="margin:14px 0 4px">${[['all', 'Tümü'], ...SUBJECTS.map((x) => [x.id, x.name])].map(([k, n]) => `<button class="chip ${sub === k ? 'on' : ''}" data-sub="${k}">${n}</button>`).join('')}</div>
+        ${total ? ls.map((l) => `<a class="rowlink" href="#/cikmis/${l.id}" data-s="${l.s}"><span class="bubble s ${studied.has(l.id) ? 'filled' : ''}">${SUBJECT[l.s]?.short || '+'}</span><span><span class="t">${esc(l.title)}</span><span class="m">${stats[l.id]} soru${studied.has(l.id) ? ' · çalıştın' : l.day ? ` · ${l.day}. gün` : ''}</span></span><span class="go">${icon.chev}</span></a>`).join('') : '<div class="empty"><p>Soru listesi yükleniyor… İnternet yoksa bu bölüm açılmaz.</p></div>'}`,
+    });
+    document.querySelectorAll('[data-sub]').forEach((b) => b.onclick = () => { sub = b.dataset.sub; draw(); });
+    const mix = document.getElementById('mix');
+    if (mix) mix.onclick = () => startPast({ lessons: [...studied], title: 'Çalıştığın konulardan' });
+  };
+  draw();
+  try { stats = await (await fetch('/api/real/stats')).json(); } catch (e) { stats = {}; }
+  if (location.hash === '#/cikmis') draw();
+}
+
+async function startPast({ lessons, title, n = 10 }) {
+  setTab(null);
+  $app.innerHTML = `<div class="view"><div class="empty" style="margin-top:30vh"><span class="typing"><i></i><i></i><i></i></span><p>Sorular getiriliyor…</p></div></div>`;
+  const done = (store.get().log || []).filter((x) => x.ok === 1 && x.k && x.k.startsWith('real:')).map((x) => x.k).slice(-250);
+  let qs = [];
+  try { qs = (await (await fetch(`/api/real?l=${lessons.join(',')}&n=${n}&x=${done.join(',')}`)).json()).questions || []; } catch (e) { qs = []; }
+  if (!qs.length) {
+    setTab('daha');
+    $app.innerHTML = page({ top: topbar({ eyebrow: 'Çıkmış sorular', title, back: '#/cikmis' }), body: `<div class="empty"><h2>Soru kalmadı ya da bağlantı yok</h2><p>Bu konunun çıkmış sorularının hepsini doğru çözmüş olabilirsin. Başka bir konu seç.</p><a class="btn" href="#/cikmis">Konulara dön</a></div>` });
+    return;
+  }
+  qs = qs.map((q) => ({ ...q, ex: q.bilgi ? `**Sınanan bilgi:** ${q.bilgi}` : '', tip: `Bu soru ${q.src} sınavında soruldu.` }));
+  questionRunner({
+    title, eyebrow: 'Çıkmış sorular', qs, reveal: 'instant', exit: '#/cikmis', src: 'cikmis',
+    onFinish: ({ answers, guess }) => {
+      const d = qs.filter((q, j) => answers[j] === q.a).length;
+      const y = qs.filter((q, j) => answers[j] != null && answers[j] !== -1 && answers[j] !== q.a).length;
+      setTab('daha');
+      $app.innerHTML = page({
+        top: topbar({ eyebrow: 'Çıkmış sorular', title: 'Sonuç', back: '#/cikmis' }),
+        body: `<div class="result" style="margin-top:14px"><span class="bubble hero-b filled"></span><div class="bigscore num">${d}/${qs.length}</div>
+          <p class="muted">${y} yanlış · net ${(d - y / 4).toFixed(2).replace('.', ',')}</p>
+          <p>Bunlar gerçek sınav soruları; tahmini netin bu sonuca tam ağırlıkla güncellendi. Yanlışların hata defterine eklendi.</p>
+          <div class="stack"><button class="btn ink block" id="ai">${icon.ai}Hoca sonucumu analiz etsin</button><a class="btn ghost block" href="#/cikmis">Başka konu seç</a></div></div>`,
+      });
+      document.getElementById('ai').onclick = () => openChat({ prompt: resultAnalysisPrompt(`Çıkmış sorular: ${title}`, qs, answers, guess) });
+    },
+  });
 }
 
 // ---------- Ekstra ----------

@@ -51,6 +51,13 @@ export default {
           const ls = (url.searchParams.get('l') || '').split(',').filter((id) => LESSONS[id]).slice(0, 60);
           return json({ questions: await bankQuestions(env, ls, Math.min(60, Number(url.searchParams.get('n')) || 20)) });
         }
+        case '/api/real':
+          return realQuestions(url, env);
+        case '/api/real/stats':
+          return realStats(env);
+        case '/api/real/put':
+          if (request.method === 'POST') return realPut(request, env);
+          break;
         case '/api/tts':
           if (request.method === 'POST') return tts(request, env, ctx);
           break;
@@ -63,6 +70,7 @@ export default {
         case '/api/search':
           return json({ results: await search(env, runAI, url.searchParams.get('q') || '', { k: 6 }) });
       }
+      if (url.pathname.startsWith('/api/realimg/')) return realImg(url.pathname.slice(13), env);
       return json({ error: 'Bulunamadı' }, 404);
     } catch (err) {
       console.error(err);
@@ -225,7 +233,7 @@ const TOOLS = [
           dersler: { type: 'array', items: { type: 'string' }, description: 'Ders kimlikleri (katalogdan, örn. ["tar1","tar2"]). Boş bırakılırsa Özgür\'ün çalıştığı derslerden karışık seçilir.' },
           konu: { type: 'string', description: 'Ders kimliği bilinmiyorsa konu adı' },
           adet: { type: 'integer', description: 'Soru sayısı, 3-10. Varsayılan 5' },
-          kaynak: { type: 'string', enum: ['karisik', 'yanlislarim', 'yeni'], description: 'karisik: bankadan; yanlislarim: daha önce yanlış yaptıkları; yeni: yapay zekâ yeni soru yazsın' },
+          kaynak: { type: 'string', enum: ['karisik', 'gercek', 'yanlislarim', 'yeni'], description: 'karisik: önce geçmiş yılların gerçek ÖSYM soruları, yetmezse ders ve banka soruları; gercek: SADECE çıkmış ÖSYM soruları (2010-2026, 1800+ soru); yanlislarim: daha önce yanlış yaptıkları; yeni: yapay zekâ yeni soru yazsın' },
           zorluk: { type: 'string', enum: ['kolay', 'sinav'] },
         },
       },
@@ -321,7 +329,13 @@ async function buildQuiz(env, args, profile, status) {
     qs = shuffle(qs).slice(0, n);
   }
   const ids = findLessons(args, profile);
+  // Önce gerçek ÖSYM soruları (sınava en yakın malzeme); doğru çözdükleri tekrar gelmez
   if (qs.length < n && args.kaynak !== 'yeni') {
+    const real = await realByLessons(env, ids, n - qs.length, { exclude: [...okSet].filter((k) => k.startsWith('real:')) });
+    qs.push(...real.map((q) => ({ ...q, ex: q.ex || (q.bilgi ? `**Sınanan bilgi:** ${q.bilgi}` : ''), tip: `Bu soru ${q.src} sınavında soruldu.` })));
+    if (real.length && title === 'Mini test') title = 'Gerçek ÖSYM soruları';
+  }
+  if (qs.length < n && args.kaynak !== 'yeni' && args.kaynak !== 'gercek') {
     const pool = [];
     ids.forEach((id) => (LESSONS[id].quiz || []).forEach((q, i) => {
       const key = `${id}#${i}`;
@@ -353,7 +367,7 @@ async function buildQuiz(env, args, profile, status) {
       } catch (e) { /* bankadakilerle devam */ }
     }
   }
-  qs = qs.slice(0, n).map((q) => ({ q: q.q, o: q.o, a: q.a, ex: q.ex || '', tip: q.tip || '', l: q.l, key: q.key, ai: !!q.ai, viz: q.viz || null }));
+  qs = qs.slice(0, n).map((q) => ({ q: q.q, o: q.o, a: q.a, ex: q.ex || '', tip: q.tip || '', l: q.l, key: q.key, ai: !!q.ai, viz: q.viz || null, img: q.img || null, needimg: !!q.needimg, real: !!q.real, src: q.src || null }));
   return { type: 'quiz', id: `t${Date.now().toString(36)}`, title, questions: qs };
 }
 
@@ -373,7 +387,9 @@ async function runTool(env, name, args, profile, emit, status) {
     case 'bilgi_ara': {
       const r = await search(env, runAI, String(args.sorgu || ''), { k: 5 });
       if (r.length) await emit({ sources: r.map((x) => ({ t: x.where })) });
-      return r.length ? r.map((x) => `[${x.where} · ${x.title}]\n${x.text}`).join('\n\n---\n\n') : 'Ders notlarında bu konuda bir şey bulunamadı. Gerekirse web_ara kullan ya da bildiğin kesin bilgiyle, emin olmadığını belirterek cevap ver.';
+      const past = await pastFacts(env, String(args.sorgu || ''));
+      const pastTxt = past.length ? `\n\n---\n\n[GEÇMİŞ SINAVLARDA BU KONUDA SORULAN BİLGİLER]\n${past.join('\n')}` : '';
+      return r.length ? r.map((x) => `[${x.where} · ${x.title}]\n${x.text}`).join('\n\n---\n\n') + pastTxt : pastTxt ? pastTxt.trim() : 'Ders notlarında bu konuda bir şey bulunamadı. Gerekirse web_ara kullan ya da bildiğin kesin bilgiyle, emin olmadığını belirterek cevap ver.';
     }
     case 'web_ara': {
       const r = await wikiSearch(String(args.sorgu || ''));
@@ -619,6 +635,105 @@ async function questionsEndpoint(request, env) {
   } catch (e) {
     return json({ error: 'Soru üretilemedi: ' + e.message }, 502);
   }
+}
+
+// Sorguyla ilgili, geçmiş ÖSYM sınavlarında gerçekten sorulmuş bilgiler
+async function pastFacts(env, query) {
+  if (!env.DB) return [];
+  const words = [...new Set(String(query).toLocaleLowerCase('tr').split(/[^a-zçğıöşüâîû0-9]+/).filter((w) => w.length >= 4))].slice(0, 5);
+  if (!words.length) return [];
+  const cond = words.map(() => '(LOWER(bilgi) LIKE ? OR LOWER(konu) LIKE ?)').join(' OR ');
+  const args = words.flatMap((w) => [`%${w.slice(0, 6)}%`, `%${w.slice(0, 6)}%`]);
+  try {
+    const rs = await env.DB.prepare(`SELECT year, level, bilgi FROM real_q WHERE bilgi IS NOT NULL AND (${cond}) ORDER BY year DESC LIMIT 8`).bind(...args).all();
+    return (rs.results || []).map((r) => `- ${r.year} ${LEVEL_NAME[r.level] || ''}: ${r.bilgi}`);
+  } catch (e) { return []; }
+}
+
+// ---------- Gerçek ÖSYM soruları (2010-2026 kitapçıkları) ----------
+// Soru metinleri ve görselleri depoda değil, sadece D1'de durur.
+// Yükleme parolasız ama güvenli: public/kb/realq-manifest.json her kaydın SHA-256 parmak izini içerir;
+// sadece parmak izi tutan veri yazılabilir.
+let MANIFEST = null;
+async function manifest(env) {
+  if (MANIFEST) return MANIFEST;
+  const r = await env.ASSETS.fetch(new Request('https://assets.local/kb/realq-manifest.json'));
+  MANIFEST = r.ok ? await r.json() : {};
+  return MANIFEST;
+}
+async function sha256hex(buf) {
+  const d = await crypto.subtle.digest('SHA-256', buf);
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+function b64ToBytes(b64) { const s = atob(b64); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+
+async function realPut(request, env) {
+  if (!env.DB) return json({ error: 'DB yok' }, 503);
+  const m = await manifest(env);
+  const body = await request.json();
+  const stmts = []; let ok = 0, bad = 0;
+  for (const it of body.items || []) {
+    const e = m[it.id];
+    if (!e) { bad++; continue; }
+    if (it.q) {
+      const raw = JSON.stringify(it.q);
+      if (await sha256hex(new TextEncoder().encode(raw)) !== e.q) { bad++; continue; }
+      const q = it.q;
+      stmts.push(env.DB.prepare('INSERT OR REPLACE INTO real_q (id, exam, level, year, sec, n, s, lesson, konu, tip, kok, stem, o, a, needimg, bilgi) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        .bind(it.id, q.exam, q.level, q.year, q.sec, q.n, q.s, q.lesson, q.konu, q.tip, q.kok, q.stem, JSON.stringify(q.o), q.a, q.needimg ? 1 : 0, q.bilgi));
+      ok++;
+    }
+    if (it.img) {
+      const bytes = b64ToBytes(it.img);
+      if (await sha256hex(bytes) !== e.i) { bad++; continue; }
+      stmts.push(env.DB.prepare('INSERT OR REPLACE INTO real_img (id, data) VALUES (?, ?)').bind(it.id, bytes));
+      ok++;
+    }
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+  return json({ ok, bad });
+}
+
+async function realImg(id, env) {
+  if (!env.DB || !/^[\w-]{5,40}$/.test(id)) return new Response('yok', { status: 404 });
+  const row = await env.DB.prepare('SELECT data FROM real_img WHERE id = ?').bind(id).first();
+  if (!row) return new Response('yok', { status: 404 });
+  const d = row.data;
+  const bytes = d instanceof ArrayBuffer ? new Uint8Array(d) : ArrayBuffer.isView(d) ? d : new Uint8Array(d);
+  return new Response(bytes, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=604800' } });
+}
+
+const LEVEL_NAME = { onl: 'Ön Lisans', ort: 'Ortaöğretim', lis: 'Lisans' };
+function realRow(r) {
+  return {
+    key: `real:${r.id}`, id: r.id, l: r.lesson, s: r.s, q: r.stem, o: JSON.parse(r.o || '[]'), a: r.a, konu: r.konu, bilgi: r.bilgi,
+    img: `/api/realimg/${r.id}`, needimg: !!r.needimg, real: true, src: `${r.year} KPSS ${LEVEL_NAME[r.level] || ''}`,
+  };
+}
+export async function realByLessons(env, lessons, n, { subject = null, exclude = [] } = {}) {
+  if (!env.DB) return [];
+  const where = [];
+  const args = [];
+  if (lessons && lessons.length) { where.push(`lesson IN (${lessons.map(() => '?').join(',')})`); args.push(...lessons); }
+  if (subject) { where.push('s = ?'); args.push(subject); }
+  where.push('a IS NOT NULL');
+  // ön lisans ve son yıllar önce gelsin: ağırlıklı rastgele sıralama
+  const rs = await env.DB.prepare(`SELECT * FROM real_q WHERE ${where.join(' AND ')} ORDER BY (CASE level WHEN 'onl' THEN 0 WHEN 'ort' THEN 1 ELSE 2 END) + (2026 - year) / 12.0 + (ABS(RANDOM()) % 1000) / 250.0 LIMIT ?`)
+    .bind(...args, n + exclude.length).all();
+  const ex = new Set(exclude);
+  return (rs.results || []).filter((r) => !ex.has(`real:${r.id}`)).slice(0, n).map(realRow);
+}
+async function realQuestions(url, env) {
+  const ls = (url.searchParams.get('l') || '').split(',').filter((id) => LESSONS[id]).slice(0, 80);
+  const s = url.searchParams.get('s');
+  const n = Math.min(60, Number(url.searchParams.get('n')) || 10);
+  const exclude = (url.searchParams.get('x') || '').split(',').filter(Boolean).slice(0, 300);
+  return json({ questions: await realByLessons(env, ls, n, { subject: s && SUBJECT_NAMES[s] ? s : null, exclude }) });
+}
+async function realStats(env) {
+  if (!env.DB) return json({});
+  const rs = await env.DB.prepare('SELECT lesson, COUNT(*) AS n FROM real_q WHERE a IS NOT NULL AND lesson IS NOT NULL GROUP BY lesson').all();
+  return json(Object.fromEntries((rs.results || []).map((r) => [r.lesson, r.n])));
 }
 
 // ---------- Sesli okuma: Cartesia (Türkçe ses) ----------

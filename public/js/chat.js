@@ -209,7 +209,7 @@ export function mountChat(container, ctx = {}, opts = {}) {
     if (key) store.update((s) => {
       if (ok !== 1) {
         s.wrong[key] = { at: Date.now(), fixed: false };
-        if (key.startsWith('ai:')) { (s.qbank ||= {})[key] = { q: q.q, o: q._orig || q.o, a: q._origA ?? q.a, ex: q.ex, tip: q.tip, l: q.l }; }
+        if (key.startsWith('ai:') || key.startsWith('real:')) { (s.qbank ||= {})[key] = { q: q.q, o: q._orig || q.o, a: q._origA ?? q.a, ex: q.ex, tip: q.tip, l: q.l, img: q.img, real: q.real, needimg: q.needimg, src: q.src }; }
       } else if (s.wrong[key]) s.wrong[key].fixed = true;
     });
   }

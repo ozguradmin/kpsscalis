@@ -49,7 +49,7 @@ export function buildProfile() {
   const wrong = openWrong.slice(-30).map(([k, w]) => {
     const n = log.filter((x) => x.k === k && x.ok === 0).length;
     const last = [...log].reverse().find((x) => x.k === k);
-    return { k, p: last ? last.p : null, n, q: k.startsWith('ai:') && st.qbank?.[k] ? st.qbank[k].q.slice(0, 300) : undefined };
+    return { k, p: last ? last.p : null, n, q: (k.startsWith('ai:') || k.startsWith('real:')) && st.qbank?.[k] ? st.qbank[k].q.slice(0, 300) : undefined };
   });
   return { today: `${todayKey()} (${day}. gün)`, day, studied: studiedIds(st), ok: okKeys, wrong, text: lines.join('\n') };
 }
