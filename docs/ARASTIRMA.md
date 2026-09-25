@@ -49,6 +49,24 @@ Bu rapor, uygulamadaki 9 günlük planın **neden böyle kurulduğunu** açıkla
 - **Türkçe:** Sözcükte ve cümlede anlam (boşluk doldurma, altı çizili söz), ses olayları, ögeler, ekler, noktalama, yazım, cümle sıralama, paragraf bölme ve akış, 14-15 paragraf sorusu, **4 soruluk sözel mantık grubu** (27-30).
 - **Matematik (31-60):** 4 işlem sorusu, basamak-rakam, denklem, kümeler, fonksiyon, problemler (fidan, yüzde, kesir, yaş), olasılık, **grafik (2 soru)**, **kural soruları** (“uyumlu sayı”, “artıl/eksil sayı”; 4 soru), 4 geometri.
 
+### 2014, 2018, 2020 ön lisans kitapçıkları: 294 sorunun konu analizi
+
+Üç tam kitapçık (ÖSYM) sayfa sayfa okunup her soru uygulamadaki derslere göre sınıflandırıldı (Workers AI ile, sonra elle kontrol; ham veri: `docs/soru-analizi-2014-2020.json`). 360 sorunun 294'ü sınıflandı; 7 sayfa PDF metni bozuk olduğu için dışarıda kaldı. Bu dönemde sınav 60 GY + 60 GK idi; oranlar bugünkü 120 soruluk yapıya aynen taşındı.
+
+| Ders | En sık çıkan | Plandaki karşılığı | Dikkat |
+|---|---|---|---|
+| Türkçe (68) | Paragraf yapısı 19, sözcük-söz anlamı / paragraf yorumu 18, ana düşünce 13 | tr1, tr2, tr3 | Soruların **~%75'i yorum**: Özgür'ün en güçlü alanı, en çok net buradan |
+| Matematik (60) | Sayısal-sözel mantık 18, problemler + geometri 18, kümeler-olasılık 6 | mat7, mat3, mat8 | 43 soru işlem; ~5 soru geometri/cebir planda yok (bilinçli olarak atlanıyor) |
+| Tarih (74) | **19. yy Osmanlı + 1945 sonrası 24**, sonra 7'şer soruyla Millî Mücadele, inkılaplar, ilkeler, ilk Türk-İslam | tar9 + yeni **ex-tar2** | Tahminlerimizin iki katı; bu yüzden yeni ekstra ders yazıldı |
+| Coğrafya (55) | Sanayi-ulaşım-turizm 9, tarım 9, yer şekilleri 8, nüfus 8, iklim 7 | cog8, cog6, cog3, cog5, cog2 | 13 soru öncüllü (I, II, III), en yüksek oran |
+| Vatandaşlık (21) | **657 DMK 5** (aday memurluk, izin, disiplin), yargı 4, kişiler hukuku 4 | vat7, vat6, vat2 | Hepsi bilgi; ezber kartları bu üç derse ağırlık veriyor |
+| Güncel (16) | **Kültür büyükleri 5**, ödüller 3, gündem 3 | gun6, gun5, gun3 | UNESCO tek başına az çıkıyor |
+
+Genel gözlemler:
+- **Olumsuz kök** (değildir, söylenemez…) tarih ve Türkçede soruların **~%27'si**. Uygulama bu yüzden hem ders sorularında hem yapay zekâ sorularında olumsuz köke ayrı pay ayırıyor.
+- Bilgi sorularında çeldiriciler hep **aynı kategoriden** (beş cemiyet, beş antlaşma, beş il). Soru üretici bu kurala göre eğitildi.
+- Net tahmin motorundaki ders ağırlıkları (`public/js/net.js`, `YIELD`) bu tablodan hesaplandı.
+
 ### 2026 KPSS Lisans (6 Eylül 2026): son eğilimler
 
 ÖSYM’nin en yeni tarzı: öğretmen-öğrenci diyaloğu biçiminde sorular (“Semih Öğretmen…”, “Aybüke Öğretmen…”), kavramı tarif edip adını sorma (çift-hane, Evlâd-ı Fâtihân, Gazavatname), kronolojiye dayalı eleme (Milletler Cemiyeti–Sadabat–Montrö). Uygulamadaki sorular bu tarza göre yazıldı.
@@ -102,7 +120,7 @@ Spor:
 
 ## Kaynaklar
 
-- ÖSYM: [2026-KPSS Ön Lisans başvuru ve kılavuz](https://www.osym.gov.tr/2026-kpss-on-lisans-kilavuz-ve-basvuru-bilgileri), [sınava giriş belgeleri](https://osym.gov.tr/2026-kpss-on-lisans-sinavi-sinava-giris-belgeleri-erisime-acildi), 2020 KPSS Ön Lisans soru kitapçığı ve cevap anahtarı, 2024 KPSS Ön Lisans %10 kitapçığı, 2026 KPSS Lisans %10 kitapçığı (dokuman.osym.gov.tr)
+- ÖSYM: [2026-KPSS Ön Lisans başvuru ve kılavuz](https://www.osym.gov.tr/2026-kpss-on-lisans-kilavuz-ve-basvuru-bilgileri), [sınava giriş belgeleri](https://osym.gov.tr/2026-kpss-on-lisans-sinavi-sinava-giris-belgeleri-erisime-acildi), 2014, 2018 ve 2020 KPSS Ön Lisans soru kitapçıkları ve cevap anahtarları, 2024 KPSS Ön Lisans %10 kitapçığı, 2026 KPSS Lisans %10 kitapçığı (dokuman.osym.gov.tr)
 - [Tarih Vakti: 2024 KPSS Ön Lisans tarih soruları](https://tarihvakti.com/2024-kpss-on-lisans-tarih-sorulari-ve-cevaplari/), [2026 KPSS Lisans tarih soruları](https://tarihvakti.com/2026-kpss-lisans-tarih-sorulari-ve-cevaplari/)
 - Konu dağılım tabloları: [kitapsec.com](https://www.kitapsec.com/blog/2026-kpss-onlisans-konulari-ve-soru-dagilimi-154.html), [ykskocum.com](https://ykskocum.com/kpss-onlisans-konulari-ve-soru-dagilimi/). Not: bu sitelerdeki yıl sütunları birbirinin kopyası gibi görünüyor, bu yüzden plan gerçek kitapçıklara dayandırıldı.
 - Net-puan: [takvim.com.tr](https://www.takvim.com.tr/egitim/kpss-on-lisans-kac-net-kac-puan-2024-kpss-on-lisans-puan-hesaplama-nasil-yapilir-50-60-70-80-85-90-puan-icin-kac-net-gerekir-5934459)

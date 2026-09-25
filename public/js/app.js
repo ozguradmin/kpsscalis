@@ -170,6 +170,7 @@ function viewHome() {
 
     ${behind.length ? `<a class="rowlink" href="#/gun/${behind[0].day}" style="border-color:color-mix(in srgb, var(--warn) 50%, transparent)"><span class="ico" style="color:var(--warn)">${icon.flag}</span><span><span class="t">${behind.length} ders önceki günlerden bekliyor</span><span class="m">Bugünküleri bitirince bunlara geç. Her biri ~10 dk.</span></span><span class="go">${icon.chev}</span></a>` : ''}
     ${mist ? `<a class="rowlink" href="#/hatalar"><span class="ico ink">${icon.notebook}</span><span><span class="t">Hata defterinde ${mist} soru</span><span class="m">Yanlışı doğruya çevirmek en ucuz net.</span></span><span class="go">${icon.chev}</span></a>` : ''}
+    ${!lessonState('ex-tar2').done && info.day >= 2 ? `<a class="rowlink" href="#/ders/ex-tar2" data-s="tarih"><span class="ico" style="color:var(--tar)">${icon.bolt}</span><span><span class="t">Yüksek getirili ekstra: son dönem Osmanlı ve 1945 sonrası</span><span class="m">Geçmiş sınavlarda tarih sorularının ~üçte biri · ~14 dk</span></span><span class="go">${icon.chev}</span></a>` : ''}
     <a class="rowlink" href="#/deneme"><span class="ico">${icon.timer}</span><span><span class="t">Mini deneme</span><span class="m">Sadece çalıştığın konulardan, süreli, net hesabıyla</span></span><span class="go">${icon.chev}</span></a>
 
     <section style="margin-top:22px">

@@ -102,7 +102,7 @@ async function underLimit(request, env) {
   return !row || row.count <= DAILY_LIMIT_PER_IP;
 }
 
-export async function runAI(env, model, input) {
+async function runOnce(env, model, input) {
   if (env.AI) return env.AI.run(model, input);
   const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/ai/run/${model}`, {
     method: 'POST',
@@ -113,6 +113,26 @@ export async function runAI(env, model, input) {
   if (input.stream) return res.body;
   const data = await res.json();
   return data.result;
+}
+
+const isBusy = (e) => /rate limit|429|capacity|overloaded|3040|too many/i.test(String(e && e.message));
+const FALLBACK = { [MODELS.fast]: MODELS.deep, [MODELS.deep]: MODELS.fast };
+
+// Dakikalık istek sınırına takılırsa kısa bekleyip dener, sonra yedek modele geçer.
+export async function runAI(env, model, input, { tries = 3 } = {}) {
+  let last;
+  for (let i = 0; i < tries; i++) {
+    try { return await runOnce(env, model, input); } catch (e) {
+      last = e;
+      if (!isBusy(e)) break;
+      await new Promise((r) => setTimeout(r, 900 * (i + 1) + Math.random() * 600));
+    }
+  }
+  const alt = FALLBACK[model];
+  if (alt) {
+    try { return await runOnce(env, alt, input); } catch (e) { last = e; }
+  }
+  throw last;
 }
 
 function textOf(result) {
@@ -448,9 +468,7 @@ async function chat(request, env, ctx) {
           max_completion_tokens: deep ? 5000 : 3500, ...NO_THINK,
           ...(lastRound ? {} : { tools: TOOLS }),
         };
-        let stream;
-        try { stream = await runAI(env, model, input); }
-        catch (e) { stream = await runAI(env, deep ? MODELS.fast : MODELS.deep, input); }
+        const stream = await runAI(env, model, input);
         res = await readStream(stream, async (t) => { answer += t; await emit({ t }); });
         if (!res.calls.length) break;
         if (res.text.trim()) await emit({ t: '\n\n' });
@@ -534,12 +552,24 @@ async function verifyQuestion(env, q) {
     const j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
     const fits = (j.siklar || []).filter((x) => x.uyar).map((x) => x.h);
     return { ok: j.cevap === 'ABCDE'[q.a] && fits.length === 1, got: j.cevap, note: j.kusur };
-  } catch (e) { return { ok: false, note: 'denetlenemedi' }; }
+  } catch (e) { return { ok: false, err: true, note: 'denetlenemedi: ' + String(e.message).slice(0, 80) }; }
+}
+
+async function mapLimit(items, n, fn) {
+  const out = new Array(items.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) { const k = i++; out[k] = await fn(items[k], k); }
+  }));
+  return out;
 }
 
 async function generateQuestions(env, { subject, topic, summary, count, level, lessonId }) {
   const { qs, model } = await generateRaw(env, { subject, topic, summary, count: Math.min(10, count + 2), level });
-  const checks = await Promise.all(qs.map((q) => verifyQuestion(env, q)));
+  const checks = await mapLimit(qs, 3, async (q) => {
+    const c = await verifyQuestion(env, q);
+    return c.err ? verifyQuestion(env, q) : c;
+  });
   const good = qs.filter((q, i) => checks[i].ok).map((q) => ({ ...q, verified: true }));
   if (env.DB && lessonId && good.length) {
     const now = Date.now();

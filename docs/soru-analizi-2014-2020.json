@@ -1,0 +1,2948 @@
+{
+"2014": [
+{
+"ozet": "Altı çizili sözle yazarla ilgili anlatılmak istenen",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük ve söz anlamı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 0
+},
+{
+"ozet": "Kalp ve gönül sözcüklerinin anlam değişikliği",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük ve söz anlamı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 0
+},
+{
+"ozet": "Parçada çıkarım yapılan cümle",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragrafın yapısı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 0
+},
+{
+"ozet": "Anlamca birbirine en yakın cümleler",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragrafın yapısı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 0
+},
+{
+"ozet": "Ayvalık parçasındaki cümlelerle ilgili yanlış yargıyı bulma",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragraf yorumu",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "'yeni' sözcüğünün farklı görevde kullanımı",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük anlamı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "Özne ve yüklemden oluşmayan cümleyi bulma",
+"ders": "turkce",
+"ders_id": "tr5",
+"konu": "Cümlenin ögeleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "Böcekler parçasında isim tamlaması olmayan cümle",
+"ders": "turkce",
+"ders_id": "tr7",
+"konu": "İsim tamlaması",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "Hediyelik eşya ve ayçiçeği yağı yazımı",
+"ders": "turkce",
+"ders_id": "tr6",
+"konu": "Yazım kuralları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 2
+},
+{
+"ozet": "Aile apartmanı noktalama işareti",
+"ders": "turkce",
+"ders_id": "tr6",
+"konu": "Noktalama işaretleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 2
+},
+{
+"ozet": "İspanya paragrafında akışı bozan cümle",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragraf akışı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 2
+},
+{
+"ozet": "Süt ürünleri paragrafında akışı bozan cümle",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragraf akışı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 2
+},
+{
+"ozet": "Anlatım bozukluğu olan cümle",
+"ders": "turkce",
+"ders_id": "tr8",
+"konu": "Anlatım bozuklukları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 2
+},
+{
+"ozet": "Parça iki paragrafa ayrılırsa ikinci paragraf hangi cümleyle başlar?",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragrafın yapısı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "Eleştirmenle ilgili diyalogda boşluğa hangi cümle gelir?",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük ve söz anlamı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "Türkiye'de resim eğitiminin eleştirilen yönü nedir?",
+"ders": "turkce",
+"ders_id": "tr8",
+"konu": "Anlatım bozuklukları",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "Yönetmenin son filmiyle ilgili hangisi söylenebilir?",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "Edebiyatçının öğretici dil kullanması ve eserlerin bakış açısını genişletmesi",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 4
+},
+{
+"ozet": "Grafoloji ile karakter analizi ve evrensel mesajlar",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 4
+},
+{
+"ozet": "Organ bağışı parçasından ulaşılamayacak yargı",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 6
+},
+{
+"ozet": "Karşılaştırma olmayan cümleler",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragrafın yapısı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 6
+},
+{
+"ozet": "Numaralandırılmış cümlelerle ilgili yanlış bilgi",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragrafın yapısı",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 6
+},
+{
+"ozet": "Nöbet listesinde hangi kişilerin çarşamba nöbeti olabilir?",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sözel mantık",
+"tip": "sozel_mantik",
+"kok": "olumlu",
+"oncullu": true,
+"page": 7
+},
+{
+"ozet": "Nöbet listesiyle ilgili kesin doğru ifade hangisidir?",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sözel mantık",
+"tip": "sozel_mantik",
+"kok": "olumlu",
+"oncullu": false,
+"page": 7
+},
+{
+"ozet": "Burak ile Fatih aynı haftadaysa hangi ifade yanlıştır?",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sözel mantık",
+"tip": "sozel_mantik",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 7
+},
+{
+"ozet": "Hangi kişilerin nöbet günleri kesinlikle farklıdır?",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sözel mantık",
+"tip": "sozel_mantik",
+"kok": "olumlu",
+"oncullu": false,
+"page": 7
+},
+{
+"ozet": "Ceviz ve badem fidanı kuruma problemi",
+"ders": "matematik",
+"ders_id": "mat5",
+"konu": "Yüzde problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 11
+},
+{
+"ozet": "Hisse senedi alım satım kâr yüzdesi",
+"ders": "matematik",
+"ders_id": "mat5",
+"konu": "Yüzde ve kâr",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 11
+},
+{
+"ozet": "Lokanta hesabı eşit paylaşma problemi",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 11
+},
+{
+"ozet": "Ardışık 9 sayının toplamı 72, ortanca unutulmuş, en küçük sayı",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 12
+},
+{
+"ozet": "İki makinenin 1 dakikada doldurduğu toplam su miktarı",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 12
+},
+{
+"ozet": "Erkek ve dişi penguen sayılarını eşitlemek için getirilen dişi sayısı",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 12
+},
+{
+"ozet": "İki aracın yarış pisti uzunluğu",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Hareket problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 12
+},
+{
+"ozet": "Kenan ve babasının yaş problemi",
+"ders": "matematik",
+"ders_id": "mat4",
+"konu": "Yaş problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 13
+},
+{
+"ozet": "Apartman dairelerinde kişi sayısı problemi",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 13
+},
+{
+"ozet": "Otomobil sıralama problemi",
+"ders": "matematik",
+"ders_id": "mat8",
+"konu": "Permütasyon",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 13
+},
+{
+"ozet": "Top çekme olasılığı problemi",
+"ders": "matematik",
+"ders_id": "mat8",
+"konu": "Olasılık",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 13
+},
+{
+"ozet": "Koordinat düzleminde simetri ile oluşan bölgelerin arakesit alanı",
+"ders": "matematik",
+"ders_id": "mat6",
+"konu": "Koordinat düzlemi ve simetri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "Orta Avrupa'da kurulan ve İstanbul'u kuşatan devlet",
+"ders": "tarih",
+"ders_id": "tar6",
+"konu": "İlk Türk devletleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "Türk-İslam bilginlerinin çalışma alanları",
+"ders": "tarih",
+"ders_id": "tar6",
+"konu": "Türk-İslam bilginleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "Anadolu Selçuklu tarih yazarları",
+"ders": "tarih",
+"ders_id": "tar6",
+"konu": "Anadolu Selçuklu kültürü",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "Osmanlı'da ustalık belgesi",
+"ders": "tarih",
+"ders_id": "tar8",
+"konu": "Osmanlı toplum yapısı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "XVII. yüzyıl Osmanlı isyanlarının nedeni",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlı isyanları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": true,
+"page": 15
+},
+{
+"ozet": "Islahat düşüncesinin öne çıktığı eserleri yazanlar",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlı ıslahat yazarları",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "Genç Osmanlılardan biri olmayan",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Genç Osmanlılar",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "İlk Türk kadın yazar ve hak savunucusu",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlı kadın yazarlar",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "İlk anayasaya dayalı parlamentolu sistem",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Meşrutiyet dönemi",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "Yenileşmeyi layihalarla yürüten padişah",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlı yenileşme hareketleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "Kanunuesasi'yi hazırlayan komisyon başkanı",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Kanunuesasi hazırlığı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "XIX. yüzyıl Osmanlı fikir akımları ve savunucuları eşleştirmesi",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlı fikir akımları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "Mustafa Kemal'in Gazeteci Şerif adıyla katıldığı savaş",
+"ders": "tarih",
+"ders_id": "tar2",
+"konu": "Milli Mücadele cepheleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "Atatürk'ün öğrenim gördüğü okullar",
+"ders": "tarih",
+"ders_id": "tar3",
+"konu": "Atatürk'ün hayatı",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "Mustafa Kemal'in askerlikten istifa ettiği gelişme",
+"ders": "tarih",
+"ders_id": "tar1",
+"konu": "Milli Mücadele hazırlık",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "İstanbul'un resmen işgal edilme nedenleri",
+"ders": "tarih",
+"ders_id": "tar1",
+"konu": "Milli Mücadele hazırlık",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "1921 Anayasası'nda cumhuriyete geçiş işareti",
+"ders": "tarih",
+"ders_id": "tar3",
+"konu": "Anayasa tarihi",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "Lozan Konferansı'na gözlemci katılan devlet",
+"ders": "tarih",
+"ders_id": "tar3",
+"konu": "Lozan Barış Konferansı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Laikleşme ve Osmanlı ailesinin çıkarılması sonucu",
+"ders": "tarih",
+"ders_id": "tar4",
+"konu": "Halifeliğin kaldırılması",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Türk Medeni Kanunu ile faaliyet alanı daralan kurum",
+"ders": "tarih",
+"ders_id": "tar4",
+"konu": "Türk Medeni Kanunu",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Millî irade politikasına işaret eden yönetim",
+"ders": "tarih",
+"ders_id": "tar5",
+"konu": "Atatürk ilkeleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Atatürk'ün kurumları değiştirme sözü ilkesi",
+"ders": "tarih",
+"ders_id": "tar5",
+"konu": "İnkılapçılık ilkesi",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Lahey Divanı'nın Türkiye lehine kararı",
+"ders": "tarih",
+"ders_id": "tar5",
+"konu": "Atatürk dönemi dış politika",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Caber Kalesi hangi devletin sınırları içindedir?",
+"ders": "tarih",
+"ders_id": "tar7",
+"konu": "Osmanlı mirası",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "II. Dünya Savaşı öncesi ittifak/antlaşma değildir",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Dış politika",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Demokrat Parti Dönemi'nde gerçekleşmeyen olay",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Demokrat Parti dönemi",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Şangay İşbirliği Örgütü üye ülkeleri",
+"ders": "guncel",
+"ders_id": "gun8",
+"konu": "Uluslararası örgütler",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Yükselti farkının en fazla olduğu doğrultu",
+"ders": "cografya",
+"ders_id": "cog3",
+"konu": "Yer şekilleri",
+"tip": "grafik",
+"kok": "olumlu",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Fiziki haritada renklerin yükseltiyle ilişkisi",
+"ders": "cografya",
+"ders_id": "cog3",
+"konu": "Fiziki harita renkleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 20
+},
+{
+"ozet": "Karstik şekillerin yaygın olduğu yerler",
+"ders": "cografya",
+"ders_id": "cog3",
+"konu": "Karstik şekiller",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": true,
+"page": 20
+},
+{
+"ozet": "Don olayının erken görüldüğü yöreler",
+"ders": "cografya",
+"ders_id": "cog2",
+"konu": "İklim ve don olayı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": true,
+"page": 20
+},
+{
+"ozet": "Nemlilik farklılıklarının nedenleri",
+"ders": "cografya",
+"ders_id": "cog2",
+"konu": "Nemlilik ve yağış",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 20
+},
+{
+"ozet": "Ankara, Mersin ve Trabzon'da en fazla yağış görülen mevsimler",
+"ders": "cografya",
+"ders_id": "cog2",
+"konu": "İklim ve yağış rejimi",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "Kuzey Anadolu Dağları'nda asit karakterli toprakların yaygın olma nedeni",
+"ders": "cografya",
+"ders_id": "cog2",
+"konu": "Toprak oluşumu ve bitki örtüsü",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "1927-2010 nüfus grafiğinden kesin çıkarım",
+"ders": "cografya",
+"ders_id": "cog5",
+"konu": "Nüfus artış hızı ve grafik yorumu",
+"tip": "grafik",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "Şehirlerin gelişiminde etkili faktör ve ekonomik fonksiyon eşleştirmesi",
+"ders": "cografya",
+"ders_id": "cog8",
+"konu": "Şehirlerin fonksiyonları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "Türkiye'de göçlerle ilgili yanlış ifade",
+"ders": "cografya",
+"ders_id": "cog5",
+"konu": "Nüfus, göç ve yerleşme",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "Turunçgil üretiminin kıyıda yoğunlaşma nedeni",
+"ders": "cografya",
+"ders_id": "cog6",
+"konu": "Tarım ve hayvancılık",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "Türkiye'de en geniş arazi varlığı",
+"ders": "cografya",
+"ders_id": "cog6",
+"konu": "Tarım ve hayvancılık",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "Türkiye'de hayvancılıkla ilgili yanlış ifade",
+"ders": "cografya",
+"ders_id": "cog6",
+"konu": "Tarım ve hayvancılık",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "Kıyı ve deniz turizminde az gelişmiş il",
+"ders": "cografya",
+"ders_id": "cog8",
+"konu": "Sanayi, ulaşım, turizm",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "Turizm gelişim koridorlarının doğru eşleştirmesi",
+"ders": "cografya",
+"ders_id": "cog8",
+"konu": "Turizm gelişim koridorları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Yerli enerji kaynağı türü sorusu",
+"ders": "cografya",
+"ders_id": "cog7",
+"konu": "Enerji kaynakları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Demir yolu ulaşımını etkileyen yer şekilleri",
+"ders": "cografya",
+"ders_id": "cog3",
+"konu": "Yer şekilleri ve ulaşım",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Yeni iş alanlarının etkileri",
+"ders": "cografya",
+"ders_id": "cog5",
+"konu": "Nüfus ve ekonomi",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": true,
+"page": 23
+},
+{
+"ozet": "Türk Ceza Kanunu'nun iktibas edildiği ülke",
+"ders": "tarih",
+"ders_id": "tar4",
+"konu": "İnkılaplar (hukuk)",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Devlet memurluğunda adaylık ile ilgili yanlış ifade",
+"ders": "vatandaslik",
+"ders_id": "vat7",
+"konu": "Adaylık süreci",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Belediye kurulması için asgari nüfus",
+"ders": "vatandaslik",
+"ders_id": "vat8",
+"konu": "Yerel yönetimler",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Adli kolluk olarak görev yapanlar",
+"ders": "vatandaslik",
+"ders_id": "vat6",
+"konu": "Adli kolluk",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": true,
+"page": 25
+},
+{
+"ozet": "İstanbul'un gözü lakaplı fotoğraf sanatçısı",
+"ders": "guncel",
+"ders_id": "gun6",
+"konu": "Kültür büyükleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Nastri d'Argento ödüllü yönetmen",
+"ders": "guncel",
+"ders_id": "gun5",
+"konu": "Ödüller",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Türkçe konuşulan ülkelerin şarkı yarışması",
+"ders": "guncel",
+"ders_id": "gun3",
+"konu": "Türkiye ve dünya gündemi",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "İskandinav ülkelerinden biri değildir",
+"ders": "cografya",
+"ders_id": "cog1",
+"konu": "Ülkeler ve konum",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Özgürlük Heykeli'ni ABD'ye hediye eden ülke",
+"ders": "guncel",
+"ders_id": "gun6",
+"konu": "Kültür ve tarih",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Mekteb-i Sanayi-i Nefise-i Şâhâne'nin günümüzdeki adı",
+"ders": "tarih",
+"ders_id": "tar4",
+"konu": "Eğitim kurumları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 26
+}
+],
+"2018": [
+{
+"ozet": "Altı çizili sözün yerine geçebilecek ifade",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük ve söz anlamı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 0
+},
+{
+"ozet": "Cümlede boş bırakılan yerlere uygun kelimeler",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük ve söz anlamı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 0
+},
+{
+"ozet": "Vurgulanan düşünceyi ifade eden özlü söz",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 0
+},
+{
+"ozet": "Benzetmeye yer verilmeyen cümleler",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Anlatım biçimleri",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 0
+},
+{
+"ozet": "Yazımı yanlış söz hangisidir?",
+"ders": "turkce",
+"ders_id": "tr6",
+"konu": "Yazım kuralları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "Yanlış noktalama işareti hangisidir?",
+"ders": "turkce",
+"ders_id": "tr6",
+"konu": "Noktalama işaretleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "Parçada hangi ses olayı yoktur?",
+"ders": "turkce",
+"ders_id": "tr7",
+"konu": "Ses olayları",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "Cümle ögeleri sıralamasına uygun tamamlama",
+"ders": "turkce",
+"ders_id": "tr5",
+"konu": "Cümlenin ögeleri",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "Altı çizili sözcüklerdeki eklerle ilgili yanlış bilgi",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük ve söz anlamı",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 2
+},
+{
+"ozet": "Altı çizili sözcüklerin türlerini sıralama",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük türleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 2
+},
+{
+"ozet": "Fiilimsi bulunmayan cümleyi bulma",
+"ders": "turkce",
+"ders_id": "tr7",
+"konu": "Fiilimsiler",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 2
+},
+{
+"ozet": "Parçanın anlatımıyla ilgili söylenemez",
+"ders": "turkce",
+"ders_id": "tr8",
+"konu": "Anlatım biçimleri",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "Düşüncenin akışını bozan cümle",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragrafın yapısı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "Anlamlı bütün için yer değiştirme",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragrafın yapısı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "İkinci paragrafın başlangıç cümlesi",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragrafın yapısı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "Parçada boş bırakılan yere düşüncenin akışına göre hangisi getirilmelidir?",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragrafın yapısı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 4
+},
+{
+"ozet": "Yapay zekâ ile ilgili parçadan hareketle hangisi söylenebilir?",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 4
+},
+{
+"ozet": "Elle yazmanın faydalarından hangisine değinilmemiştir?",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 5
+},
+{
+"ozet": "Stevya bitkisiyle ilgili hangisine değinilmemiştir?",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 5
+},
+{
+"ozet": "Altı çizili sözle anlatılmak istenen",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük ve söz anlamı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 7
+},
+{
+"ozet": "Parçada anlatılmak istenen",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 7
+},
+{
+"ozet": "Yazarın bilgiye bakışındaki değişim ve söylenemez ifade",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Paragraf yorumu",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 8
+},
+{
+"ozet": "Altı çizili sözün anlamı",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük ve söz anlamı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 8
+},
+{
+"ozet": "Yazarın savunması beklenmeyen görüş",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 8
+},
+{
+"ozet": "Hikaye ve roman türündeki eserlerin hazırlanma sırası sorusu",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "sozel_mantik",
+"kok": "olumlu",
+"oncullu": true,
+"page": 9
+},
+{
+"ozet": "Yalçın Usta'nın hazırladığı eser sıraları sorusu",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "sozel_mantik",
+"kok": "olumlu",
+"oncullu": true,
+"page": 9
+},
+{
+"ozet": "Eser türleri hakkında kesin doğru bilgi sorusu",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "sozel_mantik",
+"kok": "olumlu",
+"oncullu": false,
+"page": 9
+},
+{
+"ozet": "Aynı türdeki eserlerin belirlenmesi sorusu",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "sozel_mantik",
+"kok": "olumlu",
+"oncullu": false,
+"page": 9
+},
+{
+"ozet": "Kümelerde eleman sayısı en az kaçtır?",
+"ders": "matematik",
+"ders_id": "mat8",
+"konu": "Kümeler",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 12
+},
+{
+"ozet": "Fonksiyon eşitliğini sağlayan a değeri",
+"ders": "matematik",
+"ders_id": null,
+"konu": "Fonksiyonlar",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 12
+},
+{
+"ozet": "Denklemi sağlayan x değerlerinin toplamı",
+"ders": "matematik",
+"ders_id": null,
+"konu": "Denklem çözme",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 12
+},
+{
+"ozet": "İfadenin sadeleştirilmiş biçimi",
+"ders": "matematik",
+"ders_id": null,
+"konu": "Cebirsel ifadeler",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 12
+},
+{
+"ozet": "AB4 sayısı 4AB sayısından 405 fazla, A+B toplamı",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 13
+},
+{
+"ozet": "Eşit sayıda 1TL, 50kr, 25kr paralarla toplam 28TL, bir bölmedeki para sayısı",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 13
+},
+{
+"ozet": "Kırmızı, mavi, sarı top sayıları verilen ilişkilerle toplam top sayısı",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": true,
+"page": 13
+},
+{
+"ozet": "Araç 80 km/sa gidip 120 km/sa 3 saat kısa dönüyor, A-B uzaklığı",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Hareket problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 13
+},
+{
+"ozet": "Poli ve foli kavramları ile ilgili mantık sorusu",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Mantık ve kümeler",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 14
+},
+{
+"ozet": "Havuzu iki musluk birlikte kaç saatte doldurur?",
+"ders": "matematik",
+"ders_id": "ex-mat1",
+"konu": "Havuz problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 14
+},
+{
+"ozet": "A ve B kümelerinin elemanları ile çarpım sorusu",
+"ders": "matematik",
+"ders_id": "mat8",
+"konu": "Kümeler ve ortalama",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 14
+},
+{
+"ozet": "Selin, kardeşi ve annesinin yaşları toplamı",
+"ders": "matematik",
+"ders_id": "mat4",
+"konu": "Yaş problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 14
+},
+{
+"ozet": "Yaş incir ve kayısı kurutma problemi",
+"ders": "matematik",
+"ders_id": "mat5",
+"konu": "Yüzde ve orantı",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "Ali ve Can'ın hedefi vurma olasılığı",
+"ders": "matematik",
+"ders_id": "mat8",
+"konu": "Olasılık",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "Hücrelere rakam yerleştirme kuralı toplamı",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "1 numaralı hücreye yazılabilecek rakamlar",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "Dairesel grafikten 2016 toplam öğrenci sayısını bulma",
+"ders": "matematik",
+"ders_id": "mat6",
+"konu": "Dairesel grafik",
+"tip": "grafik",
+"kok": "olumlu",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "Sınıf öğrenci sayıları farkından 3. sınıf sayısını bulma",
+"ders": "matematik",
+"ders_id": "mat6",
+"konu": "Dairesel grafik",
+"tip": "grafik",
+"kok": "olumlu",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "Üçgende açı değerini bulma",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Üçgende açı",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "Verilen şekilde x uzunluğunu bulma",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Geometri uzunluk",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "Boyalı EBCF dörtgeninin alanından ABCD paralelkenarının alanını bulma",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Geometri, alan",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "Silindir içindeki kürelere teğet koninin hacmini bulma",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Katı cisimler, hacim",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "İslamiyet öncesi Türk devletlerinde toplumu oluşturan unsurlardan olmayanı belirleme",
+"ders": "tarih",
+"ders_id": "tar6",
+"konu": "İlk Türk devletleri, toplum yapısı",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "Malazgirt Savaşı sonrası Alparslan ve Romanos Diogenes görüşmesinden çıkarım yapma",
+"ders": "tarih",
+"ders_id": "tar6",
+"konu": "Selçuklu-Bizans ilişkileri",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "Türkiye Selçuklu Devleti'nin ticareti geliştirmek için yaptığı çalışmalardan olmayanı bulma",
+"ders": "tarih",
+"ders_id": "tar6",
+"konu": "Türkiye Selçuklu, ticaret",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "Osmanlı Devleti'nin Anadolu'da hakimiyet sağlamaya yönelik faaliyetlerinden olmayanı belirleme",
+"ders": "tarih",
+"ders_id": "tar7",
+"konu": "Osmanlı'nın Anadolu'da hakimiyeti",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 17
+},
+{
+"ozet": "Osmanlı Beyliği'nin XIV. yüzyılda güç kazanmasında etkili olmayan",
+"ders": "tarih",
+"ders_id": "tar7",
+"konu": "Osmanlı'nın büyüme çağı",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Enderun eğitimi sonrası seyfiye içinde en yüksek mevki",
+"ders": "tarih",
+"ders_id": "tar8",
+"konu": "Osmanlı devlet düzeni",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Fetret Devri'ni sona erdiren padişah",
+"ders": "tarih",
+"ders_id": "tar7",
+"konu": "Osmanlı'nın büyüme çağı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Klasik Dönem Osmanlı yargı sistemi ile ilgili yanlış",
+"ders": "tarih",
+"ders_id": "tar8",
+"konu": "Osmanlı devlet düzeni",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "XVII. yüzyıl ıslahatlarının özelliklerinden olmayan",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlı'nın son 300 yılı",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Osmanlı denge politikası uygulanmayan durum",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlı dış politikası",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Yasama yetkisini belirten siyasal belge",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlı anayasal gelişmeler",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Tanzimat ve Meşrutiyet dönemi yargıları",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlıcılık düşüncesi",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": true,
+"page": 19
+},
+{
+"ozet": "Kut'ul Amare zaferi hangi cephede",
+"ders": "tarih",
+"ders_id": "tar2",
+"konu": "Birinci Dünya Savaşı cepheleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Kuvayımillîye etkili olmadığı durum",
+"ders": "tarih",
+"ders_id": "tar1",
+"konu": "Kuvayımillîye hareketi",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Saltanatın kaldırılmasının sonucu olmayan durum",
+"ders": "tarih",
+"ders_id": "tar3",
+"konu": "Saltanatın kaldırılması",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "Hükümet bunalımını sonlandıran gelişme",
+"ders": "tarih",
+"ders_id": "tar3",
+"konu": "Cumhuriyet'in ilanı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "Atatürk Dönemi inkılapları hakkında yanlış bilgi",
+"ders": "tarih",
+"ders_id": "tar4",
+"konu": "Atatürk inkılapları",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "1929 Buhranı sonrası öne çıkan ekonomi politikası",
+"ders": "tarih",
+"ders_id": "tar5",
+"konu": "Ekonomik buhran",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "Bozkurt-Lotus Davası'nın ilişkili olduğu konu",
+"ders": "tarih",
+"ders_id": "tar5",
+"konu": "Dış politika",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "Montrö değişikliği talep eden devlet",
+"ders": "tarih",
+"ders_id": "tar5",
+"konu": "Montrö Boğazlar Sözleşmesi",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "İtalya'nın yayılmacı politikasının hedefi olmayan ülke",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "İkinci Dünya Savaşı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "ABD'nin Türkiye'ye yardımının dayandığı plan",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "İkinci Dünya Savaşı sonrası",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "EOKA'nın Enosis politikasının hedefi",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Kıbrıs Sorunu",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "Buzul şekillerinin yaygın olduğu alanlar",
+"ders": "cografya",
+"ders_id": "cog3",
+"konu": "Buzul şekilleri",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": true,
+"page": 22
+},
+{
+"ozet": "Sıcaklık değişiminde etkili faktör",
+"ders": "cografya",
+"ders_id": "cog2",
+"konu": "İklim elemanları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "Termal kaynak zenginliğine dayanak olan öncüller",
+"ders": "cografya",
+"ders_id": "cog4",
+"konu": "Termal kaynaklar",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": true,
+"page": 23
+},
+{
+"ozet": "Tuz ve kireç birikimi görülen yöre",
+"ders": "cografya",
+"ders_id": "cog2",
+"konu": "Toprak oluşumu",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Türkiye-Yunanistan kara sınırını oluşturan akarsu",
+"ders": "cografya",
+"ders_id": "cog4",
+"konu": "Akarsular",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Kuzey Anadolu Fayı'ndan etkilenecek il",
+"ders": "cografya",
+"ders_id": "cog3",
+"konu": "Deprem ve fay hatları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Mutlak konumun etkisiyle oluşan özellik",
+"ders": "cografya",
+"ders_id": "cog1",
+"konu": "Mutlak konum",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Dağınık dokulu köy yerleşmesi olan il",
+"ders": "cografya",
+"ders_id": "cog5",
+"konu": "Kırsal yerleşme",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Göç alan yerlerde erkek nüfus oranının fazla olması hangi faktörlerle ilişkilidir?",
+"ders": "cografya",
+"ders_id": "cog5",
+"konu": "Nüfus ve Göç",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": true,
+"page": 24
+},
+{
+"ozet": "Nüfusun az olduğu alanlarda yükseltinin etkisi hangilerinde fazladır?",
+"ders": "cografya",
+"ders_id": "cog1",
+"konu": "Nüfus ve Yükselti",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": true,
+"page": 24
+},
+{
+"ozet": "Türkiye'de yatakları en yaygın enerji kaynağı hangisidir?",
+"ders": "cografya",
+"ders_id": "cog7",
+"konu": "Enerji Kaynakları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 24
+},
+{
+"ozet": "Sarp arazilerde tarım kısıtlı olan il hangisidir?",
+"ders": "cografya",
+"ders_id": "cog6",
+"konu": "Tarım ve Arazi",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 24
+},
+{
+"ozet": "Haritada K, L, M yerlerinde yetiştirilen tarım ürünleri hangileridir?",
+"ders": "cografya",
+"ders_id": "cog6",
+"konu": "Tarım Ürünleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 24
+},
+{
+"ozet": "Ham madde temini kolaylığına göre gelişme potansiyeli yüksek sanayi kolu",
+"ders": "cografya",
+"ders_id": "cog6",
+"konu": "Sanayi ve ham madde",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "İç ticaretin gelişmesinde etkili faktörler",
+"ders": "cografya",
+"ders_id": "cog8",
+"konu": "İç ticaret ve ulaşım",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": true,
+"page": 25
+},
+{
+"ozet": "Buğday yetişmesi güç olan il",
+"ders": "cografya",
+"ders_id": "cog6",
+"konu": "Tarım ürünleri ve iklim",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Kayak turizminin gelişmesi beklenmeyen il",
+"ders": "cografya",
+"ders_id": "cog8",
+"konu": "Turizm ve yeryüzü şekilleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Kalkınma farkını azaltmak için yapılmayan uygulama",
+"ders": "cografya",
+"ders_id": "cog8",
+"konu": "Bölgesel kalkınma politikaları",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Özel hukuk tüzel kişisi olmayan kurum",
+"ders": "vatandaslik",
+"ders_id": "vat2",
+"konu": "Hukuk dalları ve tüzel kişiler",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Olağanüstü durumlarda evlenme yaşı sınırı",
+"ders": "vatandaslik",
+"ders_id": "vat2",
+"konu": "Kişiler hukuku",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Taşınmaz üzerindeki hakların tapuya yazılması",
+"ders": "vatandaslik",
+"ders_id": "vat2",
+"konu": "Kişiler hukuku",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Yasama dokunulmazlığının kaldırılmasına karar veren",
+"ders": "vatandaslik",
+"ders_id": "vat4",
+"konu": "Yasama",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Cumhurbaşkanı tarafından atanmayan görevli",
+"ders": "vatandaslik",
+"ders_id": "vat5",
+"konu": "Yürütme",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Cumhurbaşkanlığı kararnamelerinin yürürlük zamanı",
+"ders": "vatandaslik",
+"ders_id": "vat5",
+"konu": "Yürütme",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Amire ve maiyete fiili tecavüzün disiplin cezası",
+"ders": "vatandaslik",
+"ders_id": "vat7",
+"konu": "Disiplin cezaları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "Memurların haftalık çalışma süresi",
+"ders": "vatandaslik",
+"ders_id": "vat7",
+"konu": "Çalışma süreleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "İdarenin kanuna dayanması ilkesi",
+"ders": "vatandaslik",
+"ders_id": "vat8",
+"konu": "İdare ilkeleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "UNESCO listesine alınan Ani Arkeolojik Alanı",
+"ders": "guncel",
+"ders_id": "gun1",
+"konu": "UNESCO Dünya Mirası",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "2017 Nobel Edebiyat ödüllü yazar",
+"ders": "guncel",
+"ders_id": "gun5",
+"konu": "Nobel ödülleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "Telefonun mucidi bilim insanı",
+"ders": "guncel",
+"ders_id": "gun7",
+"konu": "Bilim insanları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "Türk Marşı'nı besteleyen Avusturyalı müzisyen",
+"ders": "guncel",
+"ders_id": "gun6",
+"konu": "Kültür büyüklerimiz",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 28
+},
+{
+"ozet": "Sanat Güneşi olarak anılan Türk Sanat Müziği sanatçısı",
+"ders": "guncel",
+"ders_id": "gun6",
+"konu": "Kültür büyüklerimiz",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 28
+},
+{
+"ozet": "Yasemin Ecem Anagöz ve Mete Gazoz'un altın madalya kazandığı spor dalı",
+"ders": "guncel",
+"ders_id": "gun4",
+"konu": "Spor başarıları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 28
+}
+],
+"2020": [
+{
+"ozet": "Altı çizili sözle anlatılmak istenen",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük ve söz anlamı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "Öznel anlatım olan cümle",
+"ders": "turkce",
+"ders_id": "tr8",
+"konu": "Öznel-nesnel anlatım",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "Ses olaylarından hangisi yoktur",
+"ders": "turkce",
+"ders_id": "tr7",
+"konu": "Ses olayları",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "Cümlenin ögelerinin dizilişi",
+"ders": "turkce",
+"ders_id": "tr5",
+"konu": "Cümlenin ögeleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 1
+},
+{
+"ozet": "Juno uzay aracı parçasında altı çizili sözcüklerin ekleri",
+"ders": "turkce",
+"ders_id": "tr7",
+"konu": "Ses olayları ve ekler",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 2
+},
+{
+"ozet": "Saramago parçasında noktalama işareti kuralları",
+"ders": "turkce",
+"ders_id": "tr6",
+"konu": "Yazım ve noktalama",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 2
+},
+{
+"ozet": "Yazımı yanlış sözün belirlenmesi",
+"ders": "turkce",
+"ders_id": "tr6",
+"konu": "Yazım kuralları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "Anlamlı cümle oluşturmada dördüncü söz",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Cümle sıralama",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "Paragraf ikiye ayrılacak başlangıç cümlesi",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragraf bölme",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "Düşüncenin akışını bozan cümle",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Akışı bozan cümle",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 3
+},
+{
+"ozet": "İyi şiir ölçütlerinin müziğe uyarlanamayacağı",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 4
+},
+{
+"ozet": "Yazarın sözcüklere sanatsal kimlik kazandırması",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 4
+},
+{
+"ozet": "Boşluğa getirilecek cümle: yaşam tecrübeleri",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragraf tamamlama",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 4
+},
+{
+"ozet": "Yazarın Türkiye kitabı ve motivasyonu hakkında çıkarım",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 5
+},
+{
+"ozet": "Deniztavşanları hakkında değinilmeyen özellik",
+"ders": "turkce",
+"ders_id": "tr1",
+"konu": "Paragrafta ana düşünce",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 5
+},
+{
+"ozet": "Rönesans akademileri ve seçkinci yapıları",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Paragrafta anlam",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 6
+},
+{
+"ozet": "Altı çizili ifade ile ustaların anlatılmak isteneni",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük ve söz anlamı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 6
+},
+{
+"ozet": "Eyfel Kulesi'ne yöneltilen eleştirilerin nedeni olmayan seçenek",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Paragrafta anlam",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 7
+},
+{
+"ozet": "Fransız sanatçılarla ilgili söylenemeyecek yargı",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Paragrafta anlam",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 7
+},
+{
+"ozet": "Altı çizili sözün anlamdaşı hangisidir?",
+"ders": "turkce",
+"ders_id": "tr2",
+"konu": "Sözcük ve söz anlamı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 8
+},
+{
+"ozet": "Parçada değinilmeyen bilgi hangisidir?",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragrafın yapısı",
+"tip": "yorum",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 8
+},
+{
+"ozet": "Parçadan hangi yargılara ulaşılabilir?",
+"ders": "turkce",
+"ders_id": "tr3",
+"konu": "Paragrafın yapısı",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": true,
+"page": 8
+},
+{
+"ozet": "Sıradaki kişilerden hangileri L filmine bilet almış olabilir?",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": true,
+"page": 9
+},
+{
+"ozet": "Bilet alan kişilerden hangilerinin filmi kesin bilinmektedir?",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": true,
+"page": 9
+},
+{
+"ozet": "Sıralama ve film bilgilerine göre hangisi doğrudur?",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 9
+},
+{
+"ozet": "Cengiz ve Derya aynı filmdeyse hangisi doğrudur?",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 9
+},
+{
+"ozet": "x,y,z gerçel sayılarının işaretleri hangisidir?",
+"ders": "matematik",
+"ders_id": "mat1",
+"konu": "İşaret belirleme",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 13
+},
+{
+"ozet": "AAB sayısı BAA'dan 594 fazla, toplamın en büyük değeri",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 13
+},
+{
+"ozet": "İki günlük fidan dikme etkinliğinde öğrenci sayısı",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 13
+},
+{
+"ozet": "Çamaşır makinesi ve klima tüketiminin toplam tüketime oranı",
+"ders": "matematik",
+"ders_id": "mat5",
+"konu": "Yüzde problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 13
+},
+{
+"ozet": "Müzik süresi kesirli program toplam yayın süresi sorusu",
+"ders": "matematik",
+"ders_id": "mat5",
+"konu": "Kesir problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 14
+},
+{
+"ozet": "Tren rayları doğrusal ve çembersel parçalarla tur süresi sorusu",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 14
+},
+{
+"ozet": "Aile bireylerinin yaş ortalaması ve gelecek yaş ilişkisi sorusu",
+"ders": "matematik",
+"ders_id": "mat4",
+"konu": "Yaş problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 14
+},
+{
+"ozet": "Dört basamaklı uyumlu sayı sayısı",
+"ders": "matematik",
+"ders_id": "mat3",
+"konu": "Sayı problemleri",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "Beyaz arabaların yan yana park olasılığı",
+"ders": "matematik",
+"ders_id": "mat8",
+"konu": "Olasılık",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "İkinci ayda üretilen C ürünü sayısı",
+"ders": "matematik",
+"ders_id": "mat6",
+"konu": "Grafik okuma",
+"tip": "grafik",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "İkinci ayda üretilen A ürünü sayısı",
+"ders": "matematik",
+"ders_id": "mat6",
+"konu": "Grafik okuma",
+"tip": "grafik",
+"kok": "olumlu",
+"oncullu": false,
+"page": 15
+},
+{
+"ozet": "Artıl/eksil sayı tanımı ve örnek güç sıralaması",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "Rakamları farklı en büyük eksil sayının rakam toplamı",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "Artıl gücü 16 olan dört basamaklı sayı sayısı",
+"ders": "matematik",
+"ders_id": "mat7",
+"konu": "Sayısal mantık",
+"tip": "islem",
+"kok": "olumlu",
+"oncullu": false,
+"page": 16
+},
+{
+"ozet": "Osmanlı ekonomik sorunlarına çözüm olmayan uygulama",
+"ders": "tarih",
+"ders_id": "tar8",
+"konu": "Osmanlı ekonomisi",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Klasik Dönem Osmanlı'da yönetilenlerin faaliyet alanı olmayan",
+"ders": "tarih",
+"ders_id": "tar8",
+"konu": "Osmanlı toplum düzeni",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Yeniçerilerin silah yapım ve tamir ocağı",
+"ders": "tarih",
+"ders_id": "tar8",
+"konu": "Osmanlı ordu düzeni",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Napolyon'un işgaliyle Osmanlı-Fransa ilişkileri bozulan yer",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "III. Selim dönemi dış politika",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Düyun-u Umumiye'nin kurulmasına yol açan gelişme",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlı maliyesi",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 18
+},
+{
+"ozet": "Yeni Osmanlılar'ın Kanunuesasi ile amaçladığı yönetim biçimi",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlı son dönem",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Osmanlı'dan ayrılan son Balkan devleti",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Osmanlı son dönem",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Birinci Dünya Savaşı'nda Osmanlı taarruz cephesi",
+"ders": "tarih",
+"ders_id": "tar2",
+"konu": "Birinci Dünya Savaşı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Milli Mücadele'ye karşı Rum devleti kuran cemiyet",
+"ders": "tarih",
+"ders_id": "tar1",
+"konu": "Milli Mücadele",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Mustafa Kemal'e Erzurum'da destek veren komutan",
+"ders": "tarih",
+"ders_id": "tar1",
+"konu": "Milli Mücadele",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 19
+},
+{
+"ozet": "Osmanlı Hükümetinin teslimiyetçi politikasına Anadolu hareketinin tepkileri",
+"ders": "tarih",
+"ders_id": "tar1",
+"konu": "Milli Mücadele hazırlık dönemi",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 20
+},
+{
+"ozet": "Misakımilli'de esas alınan sınırlar hangi belgeye ait",
+"ders": "tarih",
+"ders_id": "tar1",
+"konu": "Misakımilli",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 20
+},
+{
+"ozet": "Mudanya Mütarekesi görüşmelerinde Yunanistan'ın ikna edildiği konu",
+"ders": "tarih",
+"ders_id": "tar2",
+"konu": "Mudanya Mütarekesi",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 20
+},
+{
+"ozet": "Türkiye'nin doğu sınırlarıyla ilgili hüküm bulunmayan antlaşma",
+"ders": "tarih",
+"ders_id": "tar2",
+"konu": "Antlaşmalar",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 20
+},
+{
+"ozet": "İstanbul Hükümetinin Lozan'a katılma girişimini engelleyen gelişme",
+"ders": "tarih",
+"ders_id": "tar3",
+"konu": "Saltanatın kaldırılması",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 20
+},
+{
+"ozet": "Seçim kanunu değişiklikleriyle seçmen sayısı artırma amacı",
+"ders": "tarih",
+"ders_id": "tar3",
+"konu": "Seçim kanunu değişiklikleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": true,
+"page": 21
+},
+{
+"ozet": "Azınlık ve yabancı okulların Millî Eğitim Bakanlığına bağlanması",
+"ders": "tarih",
+"ders_id": "tar4",
+"konu": "Tevhid-i Tedrisat Kanunu",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "Lakap ve unvanların kaldırılmasının amacı",
+"ders": "tarih",
+"ders_id": "tar4",
+"konu": "Toplumsal inkılaplar",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "Kronolojik olarak en önce gerçekleşen dış politika gelişmesi",
+"ders": "tarih",
+"ders_id": "tar5",
+"konu": "Atatürk dönemi dış politika",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "Asya'da sömürge rekabeti ve Mançurya'yı işgal eden devlet",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "İkinci Dünya Savaşı öncesi",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 21
+},
+{
+"ozet": "Truman Doktrini hangi tehdide karşı üretilmiştir?",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "İkinci Dünya Savaşı Sonrası",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "Pakistan ve Hindistan arasında sorun olan bölge",
+"ders": "guncel",
+"ders_id": "gun3",
+"konu": "Güncel Gündem",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "Hangi göller tektonik hareketlerle oluşmuştur?",
+"ders": "cografya",
+"ders_id": "cog4",
+"konu": "Göller",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": true,
+"page": 22
+},
+{
+"ozet": "Karstik yerşekilleri haritada hangi alanda yaygındır?",
+"ders": "cografya",
+"ders_id": "cog3",
+"konu": "Yerşekilleri",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 22
+},
+{
+"ozet": "Hangi yerşekillerinin oluşumunda akarsular etkilidir?",
+"ders": "cografya",
+"ders_id": "cog4",
+"konu": "Akarsular",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": true,
+"page": 22
+},
+{
+"ozet": "Haritadaki akarsuların doğru eşleştirmesi",
+"ders": "cografya",
+"ders_id": "cog4",
+"konu": "Akarsular",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Türkiye'de görülmeyen kıyı tipi",
+"ders": "cografya",
+"ders_id": "cog4",
+"konu": "Kıyı tipleri",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Podzolik toprakların yaygın olduğu il",
+"ders": "cografya",
+"ders_id": "cog2",
+"konu": "Toprak tipleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Oluşumunda farklı faktör etkili ova",
+"ders": "cografya",
+"ders_id": "cog3",
+"konu": "Ovalar",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 23
+},
+{
+"ozet": "Türkiye nüfusunun geleceğiyle ilgili yargılar",
+"ders": "cografya",
+"ders_id": "cog5",
+"konu": "Nüfus projeksiyonları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": true,
+"page": 23
+},
+{
+"ozet": "İç göçlerin doğudan batıya olmasının nedenleri",
+"ders": "cografya",
+"ders_id": "cog5",
+"konu": "Nüfus ve göç",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": true,
+"page": 24
+},
+{
+"ozet": "Dam ve kom kırsal yerleşmelerinde ekonomik faaliyet",
+"ders": "cografya",
+"ders_id": "cog5",
+"konu": "Kırsal yerleşme",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 24
+},
+{
+"ozet": "Haritada turizm varlığı bilgisi verilmeyen merkez",
+"ders": "cografya",
+"ders_id": "cog8",
+"konu": "Turizm merkezleri",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": false,
+"page": 24
+},
+{
+"ozet": "Rezerv bakımından önemli maden yatakları",
+"ders": "cografya",
+"ders_id": "cog7",
+"konu": "Madenler",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 24
+},
+{
+"ozet": "Jeotermal kaynaklardan elektrik üretim potansiyeli en fazla olan il",
+"ders": "cografya",
+"ders_id": "cog7",
+"konu": "Madenler ve enerji kaynakları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Yüksek hızlı tren istasyonu bulunmayan il",
+"ders": "cografya",
+"ders_id": "cog8",
+"konu": "Ulaşım",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Doğu Karadeniz Bölgesel Gelişme Projesi kapsamında olmayan il",
+"ders": "cografya",
+"ders_id": "cog8",
+"konu": "Kalkınma projeleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Topoğrafik yapıya bağlı tarımda makine kullanımının zor olduğu alanlar",
+"ders": "cografya",
+"ders_id": "cog6",
+"konu": "Tarım ve hayvancılık",
+"tip": "yorum",
+"kok": "olumlu",
+"oncullu": true,
+"page": 25
+},
+{
+"ozet": "Kuzeydoğu Anadolu'da büyükbaş hayvancılığın gelişmesinin temel nedeni",
+"ders": "cografya",
+"ders_id": "cog6",
+"konu": "Tarım ve hayvancılık",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 25
+},
+{
+"ozet": "Türkiye'nin göreceli konumuyla ilgili özellik",
+"ders": "cografya",
+"ders_id": "cog1",
+"konu": "Türkiye'nin konumu",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "4721 sayılı Türk Medeni Kanunu'nu oluşturan kitaplar",
+"ders": "vatandaslik",
+"ders_id": "vat2",
+"konu": "Medeni Kanun kitapları",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Adli yargı ilk derece mahkemeleri",
+"ders": "vatandaslik",
+"ders_id": "vat6",
+"konu": "Yargı mahkemeleri",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Adli yargıda yer alan kanun yolları",
+"ders": "vatandaslik",
+"ders_id": "vat6",
+"konu": "Kanun yolları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Silahlı kuvvet kullanılmasına karar veren merci",
+"ders": "vatandaslik",
+"ders_id": "vat5",
+"konu": "Cumhurbaşkanı yetkileri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Başkanını kendi üyeleri arasından seçen merci",
+"ders": "vatandaslik",
+"ders_id": "vat6",
+"konu": "Yargı kurulları",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 26
+},
+{
+"ozet": "Milletvekili seçilme yeterliliği koşulları",
+"ders": "vatandaslik",
+"ders_id": "vat4",
+"konu": "Milletvekili seçilme yeterliliği",
+"tip": "bilgi",
+"kok": "olumsuz",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "İl özel idaresinin karar organı",
+"ders": "vatandaslik",
+"ders_id": "vat8",
+"konu": "İl özel idaresi",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "Memurun yıllık izin süresi",
+"ders": "vatandaslik",
+"ders_id": "vat7",
+"konu": "Yıllık izin",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "Aday memurluk süresi",
+"ders": "vatandaslik",
+"ders_id": "vat7",
+"konu": "Aday memurluk",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "Artemis Tapınağı ve Celsus Kütüphanesi antik kenti",
+"ders": "tarih",
+"ders_id": "tar6",
+"konu": "Antik kentler",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "Demokrat Parti Dönemi Dışişleri Bakanı",
+"ders": "tarih",
+"ders_id": "tar9",
+"konu": "Demokrat Parti Dönemi",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 27
+},
+{
+"ozet": "Dünya Belleği Kütüğü'nde listelenen Türkiye'nin belgesel mirası",
+"ders": "guncel",
+"ders_id": "gun2",
+"konu": "Dünya Belleği Programı",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 28
+},
+{
+"ozet": "Bayrak Şairi olarak bilinen şair",
+"ders": "guncel",
+"ders_id": "gun6",
+"konu": "Kültür büyükleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 28
+},
+{
+"ozet": "92. Oscar'da En İyi Erkek Oyuncu ödülü",
+"ders": "guncel",
+"ders_id": "gun5",
+"konu": "Oscar ödülleri",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 28
+},
+{
+"ozet": "Yargıtay Birinci Başkanlığına seçilen kişi",
+"ders": "guncel",
+"ders_id": "gun3",
+"konu": "Güncel gelişmeler",
+"tip": "bilgi",
+"kok": "olumlu",
+"oncullu": false,
+"page": 28
+}
+]
+}

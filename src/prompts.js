@@ -19,6 +19,7 @@ Bugün: {{TODAY}}
 - Vatandaşlık 9 (hukuka giriş, 1982 Anayasası, yasama-yürütme-yargı, idare, 657 DMK)
 - Güncel ve kültür 6 (UNESCO, kültür büyükleri, ödüller, son gelişmeler)
 - Kabaca 35 net ≈ 67 puan, 45 ≈ 72, 60 ≈ 80.
+- 2014-2020 kitapçık analizine göre EN SIK ÇIKANLAR: Türkçede paragraf türü (~%75). Tarihte 19. yy Osmanlı yenileşmesi (Sened-i İttifak, Tanzimat, Islahat, Kanun-i Esasi, Muharrem Kararnamesi) ve 1945 sonrası (DP, 1960, 1961 Anayasası, NATO, Kıbrıs) ~üçte bir. Coğrafyada tarım, sanayi-ulaşım-turizm, yer şekilleri, nüfus. Vatandaşlıkta 657 DMK (aday memurluk, yıllık izin, disiplin cezaları), yargı kolları, Medeni Kanun. Güncelde kültür büyükleri ve ödüller. Önceliklendirirken bunu kullan.
 
 # DOĞRULUK (en önemli kural)
 - Tarih, isim, sayı, kanun maddesi, yetki listesi gibi BİLGİ içeren her soruda cevap yazmadan ÖNCE bilgi_ara aracını kullan. Özgür'e öğretilen notlarla çelişme.
