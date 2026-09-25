@@ -41,15 +41,15 @@ const delay = (i, step = 90) => `animation-delay:${i * step}ms`;
 
 // Cümle ögeleri renkleri
 const ROLE = {
-  'yüklem': ['#FFE3E3', '#E03131'],
-  'özne': ['#E7F5FF', '#1C7ED6'],
-  'belirtili nesne': ['#EBFBEE', '#2F9E44'],
-  'belirtisiz nesne': ['#F4FCE3', '#5C940D'],
-  'nesne': ['#EBFBEE', '#2F9E44'],
-  'yer tamlayıcısı': ['#FFF4E6', '#E8590C'],
-  'zarf tümleci': ['#F3F0FF', '#7048E8'],
-  'edat tümleci': ['#E6FCF5', '#0C8599'],
-  'cümle dışı': ['#F1F3F5', '#868E96'],
+  'yüklem': 'var(--tar)',
+  'özne': 'var(--tr)',
+  'belirtili nesne': 'var(--cog)',
+  'belirtisiz nesne': 'var(--cog)',
+  'nesne': 'var(--cog)',
+  'yer tamlayıcısı': 'var(--mat)',
+  'zarf tümleci': 'var(--vat)',
+  'edat tümleci': 'var(--gun)',
+  'cümle dışı': 'var(--muted)',
 };
 
 export function renderViz(v) {
@@ -79,8 +79,8 @@ const R = {
 
   sentence(v) {
     return `<div class="sent">${v.parts.map(([w, role], i) => {
-      const [bg, fg] = ROLE[(role || '').toLowerCase()] || ['var(--ink-soft)', 'var(--ink)'];
-      return `<div class="w" style="--c:${bg};--cc:${fg};${delay(i, 140)}"><span>${esc(w)}</span><span>${esc(role || '')}</span></div>`;
+      const fg = ROLE[(role || '').toLocaleLowerCase('tr')] || 'var(--ink)';
+      return `<div class="w" style="--cc:${fg};${delay(i, 140)}"><span>${esc(w)}</span><span>${esc(role || '')}</span></div>`;
     }).join('')}</div>`;
   },
 
@@ -216,8 +216,8 @@ const R = {
       <line x1="40" y1="70" x2="280" y2="70" style="stroke:var(--graphite);stroke-width:5;stroke-linecap:round"/>
       <line x1="70" y1="70" x2="50" y2="112" style="stroke:var(--muted);stroke-width:2"/><line x1="70" y1="70" x2="90" y2="112" style="stroke:var(--muted);stroke-width:2"/>
       <line x1="250" y1="70" x2="230" y2="112" style="stroke:var(--muted);stroke-width:2"/><line x1="250" y1="70" x2="270" y2="112" style="stroke:var(--muted);stroke-width:2"/>
-      <path d="M20,112 Q70,140 120,112 Z" style="fill:var(--tr-soft);stroke:var(--tr);stroke-width:2"/>
-      <path d="M200,112 Q250,140 300,112 Z" style="fill:var(--mat-soft);stroke:var(--mat);stroke-width:2"/>
+      <path d="M20,112 Q70,140 120,112 Z" style="fill:color-mix(in srgb, var(--tr) 15%, var(--surface));stroke:var(--tr);stroke-width:2"/>
+      <path d="M200,112 Q250,140 300,112 Z" style="fill:color-mix(in srgb, var(--mat) 15%, var(--surface));stroke:var(--mat);stroke-width:2"/>
       <text x="70" y="104" text-anchor="middle" style="fill:var(--graphite);font:800 22px var(--display)">${esc(v.left)}</text>
       <text x="250" y="104" text-anchor="middle" style="fill:var(--graphite);font:800 22px var(--display)">${esc(v.right)}</text>
       <text x="160" y="40" text-anchor="middle" style="fill:var(--ink);font:700 14px var(--body)">${esc(v.note || 'İki taraf hep dengede kalır')}</text>

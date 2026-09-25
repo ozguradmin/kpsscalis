@@ -19,3 +19,7 @@ CREATE TABLE IF NOT EXISTS ai_log (
   question TEXT,
   answer TEXT
 );
+
+-- Doğrulanmış yapay zekâ soruları (üret → ikinci model körlemesine çözer → eşleşirse kaydedilir)
+CREATE TABLE IF NOT EXISTS qbank (id TEXT PRIMARY KEY, lesson TEXT NOT NULL, level TEXT, data TEXT NOT NULL, model TEXT, created INTEGER, served INTEGER DEFAULT 0);
+CREATE INDEX IF NOT EXISTS qbank_lesson ON qbank(lesson);

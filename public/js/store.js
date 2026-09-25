@@ -9,6 +9,7 @@ const blank = () => ({
   days: {},        // "YYYY-MM-DD" → saniye
   extra: {},       // ekstra soru/ders kayıtları
   aiQs: {},        // dersId → üretilen sorular
+  log: [],         // her cevap: { k, l, s, ok (1/0/-1 boş), src, at, sec, g (tahmin) }
   settings: { theme: 'auto', tts: true },
   updatedAt: 0,
 });
@@ -67,6 +68,9 @@ function mergeInto(a, b) {
     out.wrong[id] = m ? { ...m, ...w, fixed: !!(m.fixed && w.fixed) } : w;
   }
   for (const [d, s] of Object.entries(b.days || {})) out.days[d] = Math.max(out.days[d] || 0, s);
+  const seen = new Set();
+  out.log = [...(a.log || []), ...(b.log || [])].filter((x) => { const id = `${x.k}|${x.at}`; if (seen.has(id)) return false; seen.add(id); return true; })
+    .sort((x, y) => x.at - y.at).slice(-LOG_MAX);
   out.extra = { ...(b.extra || {}), ...(a.extra || {}) };
   out.aiQs = { ...(b.aiQs || {}), ...(a.aiQs || {}) };
   out.settings = { ...(b.settings || {}), ...(a.settings || {}) };
@@ -104,6 +108,16 @@ async function push() {
 
 export const isOnline = () => online;
 
+// ---------- cevap günlüğü ----------
+// Özgür'ün çözdüğü her soru: hoca, net tahmini ve akıllı deneme buradan beslenir.
+const LOG_MAX = 1500;
+export function logAnswer(e) {
+  store.update((s) => {
+    (s.log ||= []).push({ at: Date.now(), ...e });
+    if (s.log.length > LOG_MAX) s.log = s.log.slice(-LOG_MAX);
+  });
+}
+
 // ---------- zaman takibi ----------
 // Ders ekranında aktif geçen süreyi sayar; sekme gizlenince veya 2 dk hareketsiz kalınca durur.
 export function startTimer(lessonId) {
@@ -114,6 +128,7 @@ export function startTimer(lessonId) {
   const tick = () => {
     const now = Date.now();
     if (document.visibilityState === 'visible' && now - lastInput < 120000) acc += (now - last) / 1000;
+    if (acc < 0) acc = 0;
     last = now;
     if (acc >= 15) flush();
   };
@@ -121,6 +136,7 @@ export function startTimer(lessonId) {
     const secs = Math.round(acc);
     if (!secs) return;
     acc -= secs;
+    session += secs;
     store.update((s) => {
       const l = (s.lessons[lessonId] ||= {});
       l.time = (l.time || 0) + secs;
@@ -129,13 +145,22 @@ export function startTimer(lessonId) {
       s.days[d] = (s.days[d] || 0) + secs;
     });
   };
+  let session = 0;
+  const flushed = flush;
   const iv = setInterval(tick, 1000);
-  ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach((e) => window.addEventListener(e, onInput, { passive: true }));
-  return () => {
-    tick(); flush();
+  ['pointerdown', 'keydown', 'touchstart'].forEach((e) => window.addEventListener(e, onInput, { passive: true }));
+  window.addEventListener('scroll', onInput, { passive: true, capture: true });
+  const stop = () => {
+    tick(); flushed();
     clearInterval(iv);
-    ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach((e) => window.removeEventListener(e, onInput));
+    ['pointerdown', 'keydown', 'touchstart'].forEach((e) => window.removeEventListener(e, onInput));
+    window.removeEventListener('scroll', onInput, { capture: true });
   };
+  stop.flush = () => { tick(); flushed(); };
+  // bu oturumda geçen aktif süre (sn)
+  stop.elapsed = () => session + acc;
+  stop.resetSession = () => { session = 0; acc = 0; };
+  return stop;
 }
 
 export function todayKey(d = new Date()) {

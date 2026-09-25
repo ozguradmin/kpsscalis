@@ -1,147 +1,260 @@
-// Yapay zekâ hoca: alttan açılan sohbet paneli. Cevaplar akış hâlinde gelir.
-import { esc, inline } from './viz.js';
-import { SUBJECT, SUBJECTS, LESSONS, STUDY_DAYS } from './plan.js';
-import { store, todayKey } from './store.js';
+// Yapay zekâ hoca: tam ekran sohbet. Cevaplar akış hâlinde gelir; hoca araç kullanır
+// (ders notları, Vikipedi, test, görsel, kart) ve sohbet içine etkileşimli bloklar koyar.
+import { marked } from '../vendor/marked.esm.js';
+import DOMPurify from '../vendor/purify.es.mjs';
+import { esc, inline, renderViz } from './viz.js';
+import { SUBJECT, LESSONS } from './plan.js';
+import { store, logAnswer } from './store.js';
+import { icon } from './icons.js';
+import { questionHTML, bindStrike, prepQ, LETTERS, toast, speak, stopSpeaking, plain } from './ui.js';
+import { buildProfile } from './profile.js';
 
-const history = []; // bu oturumdaki konuşma
+marked.setOptions({ gfm: true, breaks: true });
+const HKEY = 'kpss-ozgur-chat';
+const MAX_KEEP = 40;
 let mode = 'fast';
 let busy = false;
+let hist = loadHistory(); // [{ role, parts:[{t:'text',v}|{t:'block',b}], ctx?, hidden? }]
 
-const strip = (s) => String(s || '').replace(/\*\*|==/g, '');
-
-function progressSummary() {
-  // Hoca'nın Özgür'ün durumunu bilmesi için kısa bir özet
-  const st = store.get();
-  const k = todayKey();
-  const idx = STUDY_DAYS.indexOf(k);
-  const lines = [];
-  lines.push(`Bugün: ${k}${idx >= 0 ? ` (${idx + 1}. çalışma günü, 9 günden)` : ''}.`);
-  const minutes = Math.round(Object.values(st.days || {}).reduce((a, b) => a + b, 0) / 60);
-  lines.push(`Toplam çalışma: ${minutes} dk.`);
-  for (const sub of SUBJECTS) {
-    const ls = Object.values(LESSONS).filter((l) => l.s === sub.id && l.day);
-    const done = ls.filter((l) => st.lessons[l.id]?.done);
-    const right = done.reduce((a, l) => a + (st.lessons[l.id].score || 0), 0);
-    const tot = done.reduce((a, l) => a + (st.lessons[l.id].total || 0), 0);
-    const next = ls.sort((a, b) => a.day - b.day).find((l) => !st.lessons[l.id]?.done);
-    lines.push(`${sub.name}: ${done.length}/${ls.length} ders bitti${tot ? `, doğru oranı %${Math.round((right / tot) * 100)}` : ''}${next ? `; sıradaki: ${next.day}. gün “${next.title}”` : ''}.`);
-  }
-  const wrong = Object.values(st.wrong || {}).filter((w) => !w.fixed).length;
-  lines.push(`Hata defterinde ${wrong} çözülmemiş soru var.`);
-  return lines.join('\n');
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HKEY) || '[]'); } catch (e) { return []; }
+}
+function saveHistory() {
+  try { localStorage.setItem(HKEY, JSON.stringify(hist.slice(-MAX_KEEP))); } catch (e) { /* dolu olabilir */ }
 }
 
-export function lessonSummary(lesson) {
-  if (!lesson) return '';
-  const out = [];
-  for (const c of lesson.cards || []) {
-    if (c.h) out.push(`# ${strip(c.h)}`);
-    if (c.b) out.push(strip(c.b));
-    if (c.mn) out.push(`Kodlama: ${c.mn.code} — ${strip(c.mn.t)}`);
-    if (c.note) out.push(`Not: ${strip(c.note.t)}`);
-    if (c.steps) out.push(c.steps.map((s) => strip([s.t, s.m].filter(Boolean).join(' '))).join('\n'));
-    const vizs = c.vizs || (c.viz ? [c.viz] : []);
-    for (const v of vizs) {
-      if (v.type === 'timeline') out.push(v.items.map((i) => `${i.y}: ${strip(i.t)}${i.d ? ' (' + strip(i.d) + ')' : ''}`).join('\n'));
-      if (v.type === 'table') out.push([v.head, ...v.rows].filter(Boolean).map((r) => r.map(strip).join(' | ')).join('\n'));
-      if (v.type === 'mnemonic') out.push(v.lines.map(([l, t]) => `${l}: ${strip(t)}`).join('\n'));
-      if (v.type === 'compare') out.push(v.cols.map((c2) => `${strip(c2.h)}: ${c2.items.map(strip).join('; ')}`).join('\n'));
-      if (v.type === 'flow') out.push(v.items.map(strip).join(' → '));
-      if (v.type === 'cards') out.push(v.items.map(([h, t]) => `${strip(h)}: ${strip(t)}`).join('\n'));
-      if (v.type === 'map' && v.groups) out.push(v.groups.map((g) => `${strip(g.label || '')}: ${g.iller.join(', ')}`).join('\n'));
+export function renderMarkdown(text) {
+  const clean = String(text || '').replace(/<think>[\s\S]*?(<\/think>|$)/g, '');
+  const html = DOMPurify.sanitize(marked.parse(clean), { USE_PROFILES: { html: true }, FORBID_TAGS: ['style', 'img', 'iframe', 'form', 'input'], FORBID_ATTR: ['style'] });
+  // Tabloları kaydırılabilir yap, linkleri yeni sekmede aç
+  return html.replace(/<a /g, '<a target="_blank" rel="noopener" ');
+}
+
+// Sunucuya giden metin: bloklar kısa bir açıklamayla temsil edilir
+function toServerText(m) {
+  return m.parts.map((p) => {
+    if (p.t === 'text') return p.v;
+    const b = p.b;
+    if (b.type === 'quiz') return `[Ekranda "${b.title}" başlıklı ${b.questions.length} soruluk test gösterildi${b.state && b.state.done ? '; Özgür çözdü' : ''}]`;
+    if (b.type === 'viz') return `[Görsel gösterildi: ${b.title || b.viz.type}]`;
+    if (b.type === 'card') return `[Tekrar destesine kart eklendi: ${b.f}]`;
+    if (b.type === 'result') return b.text;
+    return '';
+  }).join('\n').trim();
+}
+
+// ---------- bağlam ----------
+function ctxLabel(ctx) {
+  if (!ctx) return '';
+  const l = ctx.lessonId && LESSONS[ctx.lessonId];
+  return [l ? `${SUBJECT[l.s]?.name || 'Ekstra'} · ${plain(l.title)}` : '', ctx.step || ''].filter(Boolean).join(' · ');
+}
+
+// ---------- blok çizimi ----------
+function blockHTML(b, mi, pi) {
+  if (b.type === 'viz') return `<div class="block"><div class="bh"><span class="eyebrow">${esc(b.title || 'Görsel')}</span></div><div class="bb">${renderViz(b.viz)}</div></div>`;
+  if (b.type === 'card') return `<div class="block"><div class="bh"><span class="eyebrow">Tekrar destene eklendi</span>${icon.cards}</div><div class="bb"><b>${inline(b.f)}</b><div class="small muted" style="margin-top:4px">${inline(b.b)}</div></div></div>`;
+  if (b.type === 'result') return `<div class="block"><div class="bh"><span class="eyebrow">Test sonucun</span></div><div class="bb"><div class="row" style="gap:18px"><div><div style="font:800 34px var(--display)" class="num">${esc(b.net)}</div><div class="small muted">net</div></div><div class="small">${esc(b.line)}</div></div></div></div>`;
+  if (b.type === 'quiz') return quizBlockHTML(b, mi, pi);
+  return '';
+}
+
+function quizBlockHTML(b, mi, pi) {
+  const st = (b.state ||= { i: 0, answers: {}, guess: {}, done: false });
+  const n = b.questions.length;
+  const dots = `<div class="qnav">${b.questions.map((q, j) => `<i class="${j === st.i && !st.done ? 'cur' : st.answers[j] == null ? '' : st.answers[j] === q.a ? 'ok' : 'no'}"></i>`).join('')}</div>`;
+  if (st.done) {
+    const d = b.questions.filter((q, j) => st.answers[j] === q.a).length;
+    const y = b.questions.filter((q, j) => st.answers[j] != null && st.answers[j] !== -1 && st.answers[j] !== q.a).length;
+    return `<div class="block" data-block="${mi}:${pi}"><div class="bh"><span class="eyebrow">${esc(b.title)}</span>${dots}</div>
+      <div class="bb"><div class="row" style="gap:16px"><div><div style="font:800 34px var(--display)" class="num">${d}/${n}</div><div class="small muted">doğru</div></div>
+      <div class="small">${y} yanlış · ${n - d - y} boş · net <b>${(d - y / 4).toFixed(2).replace('.', ',')}</b></div></div></div>
+      <div class="bf"><button class="btn ghost sm" data-review>Soruları gözden geçir</button></div></div>`;
+  }
+  const q = b.questions[st.i];
+  const pick = st.answers[st.i];
+  return `<div class="block" data-block="${mi}:${pi}"><div class="bh"><span class="eyebrow">${esc(b.title)} · ${st.i + 1}/${n}</span>${dots}</div>
+    <div class="bb">${questionHTML(q, pick, { guess: pick == null ? !!st.guess[st.i] : st.guess[st.i], struck: st.struck || [] })}</div>
+    <div class="bf"><button class="btn ghost sm" data-qprev ${st.i ? '' : 'disabled'}>${icon.back}Önceki</button>
+    ${pick == null ? `<button class="btn ghost sm" data-qblank>Boş bırak</button>` : st.i < n - 1 ? `<button class="btn sm" data-qnext>Sonraki${icon.fwd}</button>` : `<button class="btn ink sm" data-qfinish>Bitir ve analiz et</button>`}</div></div>`;
+}
+
+// ---------- ana bileşen ----------
+// container: içine tam ekran sohbet görünümü çizilir. opts.onClose varsa kapatma düğmesi gösterilir.
+export function mountChat(container, ctx = {}, opts = {}) {
+  let context = ctx.lessonId || ctx.question || ctx.screen ? ctx : null;
+  container.innerHTML = `<div class="view ${opts.withTabs ? 'with-tabs chatview' : ''}">
+    <header class="topbar line">
+      ${opts.onClose ? `<button class="iconbtn" data-close aria-label="Kapat">${icon.close}</button>` : `<span class="ico ink">${icon.ai}</span>`}
+      <div class="ttl"><span class="eyebrow">Yapay zekâ hoca</span><b>Hoca</b></div>
+      <div class="seg" id="mode" role="tablist" aria-label="Cevap modu"><button data-m="fast" class="${mode === 'fast' ? 'on' : ''}">Hızlı</button><button data-m="deep" class="${mode === 'deep' ? 'on' : ''}">Derin</button></div>
+      <button class="iconbtn" data-new aria-label="Yeni sohbet">${icon.refresh}</button>
+    </header>
+    <div class="scroll" id="log-sc"><div class="chatlog" id="log"></div></div>
+    <div class="composer">
+      <div id="ctxbar"></div>
+      <div class="chips scroll-x" id="sugg"></div>
+      <form id="cf"><textarea id="ci" rows="1" placeholder="Hocaya yaz…" aria-label="Mesajın" enterkeyhint="send"></textarea><button class="send" aria-label="Gönder">${icon.send}</button></form>
+    </div></div>`;
+  const log = container.querySelector('#log');
+  const sc = container.querySelector('#log-sc');
+  const input = container.querySelector('#ci');
+  const sendBtn = container.querySelector('.send');
+  const atBottom = () => sc.scrollHeight - sc.scrollTop - sc.clientHeight < 80;
+  const toBottom = (force) => { if (force || atBottom()) sc.scrollTop = sc.scrollHeight; };
+
+  if (opts.onClose) container.querySelector('[data-close]').onclick = () => { stopSpeaking(); opts.onClose(); };
+  container.querySelectorAll('#mode button').forEach((b) => b.onclick = () => { mode = b.dataset.m; container.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('on', x === b)); toast(mode === 'deep' ? 'Derin mod: daha dikkatli ama daha yavaş (20-40 sn)' : 'Hızlı mod'); });
+  container.querySelector('[data-new]').onclick = () => { if (busy) return; hist = []; saveHistory(); draw(); drawSugg(); toast('Yeni sohbet'); };
+
+  function drawCtx() {
+    const bar = container.querySelector('#ctxbar');
+    bar.innerHTML = context ? `<div class="ctxbar">${icon.eye}<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Görüyorum: <b>${esc(ctxLabel(context))}</b></span><button class="iconbtn" style="width:30px;height:30px;border-radius:9px;box-shadow:none" data-unctx aria-label="Bağlamı kaldır">${icon.close}</button></div>` : '';
+    const u = bar.querySelector('[data-unctx]');
+    if (u) u.onclick = () => { context = null; drawCtx(); drawSugg(); };
+  }
+
+  function drawSugg() {
+    const list = context && context.question
+      ? ['Bu soruyu adım adım çöz', 'Yanlış şıklar neden yanlış?', 'Buna benzer 3 soruluk test yap', 'Bunu nasıl akılda tutarım?']
+      : context
+        ? ['Bunu daha basit anlat', 'Günlük hayattan örnek ver', 'Bir kodlama öner', 'Bu konudan 5 soruluk test yap']
+        : hist.length
+          ? ['Devam et', 'Bunu tabloyla göster', 'Bana test yap']
+          : ['Bugün neye çalışmalıyım?', 'Çalıştığım konulardan 5 soruluk test yap', 'Yanlışlarımı analiz et', 'Cumhurbaşkanının yetkilerini sınava göre özetle', 'Kurtuluş Savaşı cephelerini zaman çizgisiyle anlat', 'Paragraf sorularında hız taktiği'];
+    const box = container.querySelector('#sugg');
+    box.innerHTML = list.map((s) => `<button class="chip" type="button">${esc(s)}</button>`).join('');
+    box.querySelectorAll('.chip').forEach((b) => b.onclick = () => send(b.textContent));
+  }
+
+  function msgHTML(m, mi) {
+    if (m.hidden) return '';
+    if (m.role === 'user') {
+      const res = m.parts.find((p) => p.t === 'block' && p.b.type === 'result');
+      if (res) return `<div class="msg bot">${blockHTML(res.b)}</div>`;
+      return `<div class="msg me">${esc(m.parts.map((p) => p.v || '').join('')).replace(/\n/g, '<br>')}</div>`;
     }
+    const body = m.parts.map((p, pi) => p.t === 'text' ? `<div class="md">${renderMarkdown(p.v)}</div>` : blockHTML(p.b, mi, pi)).join('');
+    const srcs = m.sources && m.sources.length ? `<div class="sources">${m.sources.slice(0, 6).map((s) => s.u ? `<a href="${esc(s.u)}" target="_blank" rel="noopener">${esc(s.t)}</a>` : `<span>${esc(s.t)}</span>`).join('')}</div>` : '';
+    const tools = m.parts.some((p) => p.t === 'text' && p.v.trim()) ? `<div class="row" style="gap:6px;margin-top:6px"><button class="iconbtn" style="width:34px;height:34px;border-radius:10px;box-shadow:none" data-speak="${mi}" aria-label="Sesli oku">${icon.speak}</button></div>` : '';
+    return `<div class="msg bot"><div class="bubble-ai"><span class="avatar">${icon.ai}</span><div class="content">${body}${m.status ? `<div class="status"><span class="spin"></span>${esc(m.status)}</div>` : ''}${m.error ? `<div class="feedback no" style="margin-top:8px"><b>Olmadı:</b> ${esc(m.error)}<div style="margin-top:8px"><button class="btn ghost sm" data-retry>${icon.refresh}Tekrar dene</button></div></div>` : ''}${srcs}${!m.streaming ? tools : ''}</div></div></div>`;
   }
-  return out.join('\n').slice(0, 7000);
-}
 
-function mdLite(text) {
-  // Model çıktısı için güvenli, basit markdown
-  const lines = esc(text).split('\n');
-  let html = '', list = null;
-  const close = () => { if (list) { html += `</${list}>`; list = null; } };
-  for (let ln of lines) {
-    const ul = ln.match(/^\s*[-*•]\s+(.*)/);
-    const ol = ln.match(/^\s*\d+[.)]\s+(.*)/);
-    const hd = ln.match(/^\s*#{1,4}\s+(.*)/);
-    if (ul) { if (list !== 'ul') { close(); html += '<ul>'; list = 'ul'; } html += `<li>${fmt(ul[1])}</li>`; continue; }
-    if (ol) { if (list !== 'ol') { close(); html += '<ol>'; list = 'ol'; } html += `<li>${fmt(ol[1])}</li>`; continue; }
-    close();
-    if (hd) { html += `<h4>${fmt(hd[1])}</h4>`; continue; }
-    if (ln.trim()) html += `<p>${fmt(ln)}</p>`;
+  function draw() {
+    const welcome = `<div class="msg bot"><div class="bubble-ai"><span class="avatar">${icon.ai}</span><div class="content md"><p>Merhaba Özgür! ${context ? `Şu an <b>${esc(ctxLabel(context))}</b> ekranına bakıyorsun; onu görüyorum, direkt sorabilirsin.` : 'Konu anlatırım, soru çözerim, istersen burada <b>test</b> yaparım ve sonucunu analiz ederim. Çalıştığın dersleri ve yanlışlarını biliyorum.'}</p></div></div></div>`;
+    const vis = hist.filter((m) => !m.hidden);
+    log.innerHTML = vis.length ? hist.map(msgHTML).join('') : welcome;
+    bindBlocks();
+    toBottom(true);
   }
-  close();
-  return html;
-}
-const fmt = (s) => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/(^|\s)\*(\S.*?\S|\S)\*(?=\s|$|[.,;:!?])/g, '$1<i>$2</i>');
 
-export function openChat(ctx = {}) {
-  const root = document.getElementById('sheet-root');
-  const lesson = ctx.lesson || null;
-  const subject = lesson ? (SUBJECT[lesson.s]?.name || '') : '';
-  root.innerHTML = `<div class="sheet-backdrop" data-close></div>
-    <section class="bsheet" role="dialog" aria-modal="true" aria-label="Hoca ile sohbet">
-      <div class="grab"></div>
-      <header class="row between">
-        <div><div class="eyebrow">Yapay zekâ hoca</div><b style="font-size:15px">${lesson ? esc(subject + ' · ' + lesson.title) : 'Genel soru'}</b></div>
-        <div class="row" style="gap:8px"><div class="seg" id="mode"><button data-m="fast" class="${mode === 'fast' ? 'on' : ''}">Hızlı</button><button data-m="deep" class="${mode === 'deep' ? 'on' : ''}">Derin</button></div>
-        <button class="iconbtn" data-close aria-label="Kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-      </header>
-      <div class="chatlog" id="log"></div>
-      <div class="composer">
-        <div class="chips scroll" id="sugg" style="margin-bottom:8px"></div>
-        <form id="cf"><textarea id="ci" rows="1" placeholder="Sorunu yaz…" aria-label="Sorun"></textarea><button class="btn" style="min-height:46px;padding:0 16px" aria-label="Gönder">Sor</button></form>
-      </div>
-    </section>`;
-  const log = root.querySelector('#log');
-  const input = root.querySelector('#ci');
-  const close = () => { root.innerHTML = ''; document.removeEventListener('keydown', onKey); };
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
-  document.addEventListener('keydown', onKey);
-  root.querySelectorAll('[data-close]').forEach((b) => b.onclick = close);
-  root.querySelectorAll('#mode button').forEach((b) => b.onclick = () => { mode = b.dataset.m; root.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('on', x === b)); });
+  function redrawMsg(mi) {
+    const nodes = [...log.children];
+    const idx = hist.slice(0, mi).filter((m) => !m.hidden).length;
+    const node = nodes[idx];
+    const html = msgHTML(hist[mi], mi);
+    if (node) { const t = document.createElement('div'); t.innerHTML = html; node.replaceWith(t.firstElementChild || t); }
+    else log.insertAdjacentHTML('beforeend', html);
+    bindBlocks();
+  }
 
-  const suggestions = ctx.question
-    ? ['Bu soruyu adım adım çöz', 'Yanlış şıklar neden yanlış?', 'Buna benzer bir soru sor', 'Bunu nasıl ezberlerim?']
-    : lesson
-      ? ['Bunu daha basit anlat', 'Günlük hayattan örnek ver', 'Bir kodlama öner', 'Bana 3 soru sor']
-      : ['Bugün neye çalışmalıyım?', 'Paragraf sorularında hız taktiği', 'Matematikte hangi soruları çözmeliyim?'];
-  root.querySelector('#sugg').innerHTML = suggestions.map((s) => `<button class="chip" type="button">${esc(s)}</button>`).join('');
-  root.querySelectorAll('#sugg .chip').forEach((b) => b.onclick = () => send(b.textContent));
+  function bindBlocks() {
+    log.querySelectorAll('[data-speak]').forEach((b) => b.onclick = () => {
+      const m = hist[Number(b.dataset.speak)];
+      speak(m.parts.filter((p) => p.t === 'text').map((p) => p.v).join('\n'), b);
+    });
+    log.querySelectorAll('[data-retry]').forEach((b) => b.onclick = () => {
+      const lastUser = [...hist].reverse().find((m) => m.role === 'user');
+      if (!lastUser) return;
+      while (hist.length && hist[hist.length - 1] !== lastUser) hist.pop();
+      hist.pop();
+      send(lastUser.parts.map((p) => p.v || '').join(''), { hidden: lastUser.hidden, ctx: lastUser.ctx });
+    });
+    log.querySelectorAll('[data-block]').forEach((el) => {
+      const [mi, pi] = el.dataset.block.split(':').map(Number);
+      const b = hist[mi].parts[pi].b;
+      const st = b.state;
+      const q = b.questions[st.i];
+      const redraw = () => { saveHistory(); const y = sc.scrollTop; redrawMsg(mi); sc.scrollTop = y; };
+      el.querySelectorAll('[data-opt]').forEach((o) => o.onclick = () => {
+        if (st.answers[st.i] != null) return;
+        const pick = Number(o.dataset.opt);
+        st.answers[st.i] = pick;
+        st.struck = [];
+        record(b, st.i, pick);
+        redraw();
+        el.ownerDocument.querySelector(`[data-block="${mi}:${pi}"] .feedback`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
+      if (!st.done && st.answers[st.i] == null) bindStrike(el, (st.struck ||= []), redraw);
+      const g = el.querySelector('[data-guess]');
+      if (g) g.onclick = () => { st.guess[st.i] = !st.guess[st.i]; redraw(); };
+      const on = (sel, fn) => { const x = el.querySelector(sel); if (x) x.onclick = fn; };
+      on('[data-qprev]', () => { st.i = Math.max(0, st.i - 1); st.struck = []; redraw(); });
+      on('[data-qnext]', () => { st.i = Math.min(b.questions.length - 1, st.i + 1); st.struck = []; redraw(); });
+      on('[data-qblank]', () => { st.answers[st.i] = -1; record(b, st.i, -1); redraw(); });
+      on('[data-qfinish]', () => finishQuiz(b, mi));
+      on('[data-review]', () => { st.done = false; st.i = 0; redraw(); });
+      void q;
+    });
+  }
 
-  const drawHistory = () => {
-    log.innerHTML = history.length ? history.map((m) => `<div class="msg ${m.role === 'user' ? 'me' : 'bot'}">${m.role === 'user' ? esc(m.content).replace(/\n/g, '<br>') : mdLite(m.content)}</div>`).join('')
-      : `<div class="msg bot"><p>Merhaba Özgür! ${lesson ? `Şu an <b>${esc(lesson.title)}</b> dersindesin.` : ''} ${ctx.question ? 'Baktığın soruyu gördüm. Ne sormak istersin?' : 'Takıldığın yeri yaz; en basit hâliyle anlatayım.'}</p></div>`;
-    log.scrollTop = log.scrollHeight;
-  };
-  drawHistory();
+  function record(b, i, pick) {
+    const q = b.questions[i];
+    const ok = pick === -1 ? -1 : pick === q.a ? 1 : 0;
+    const key = q.key || null;
+    const orig = pick >= 0 && q._map ? q._map[pick] : pick;
+    logAnswer({ k: key, l: q.l || null, s: LESSONS[q.l]?.s || null, ok, p: orig, src: 'hoca', g: b.state.guess[i] ? 1 : 0 });
+    if (key) store.update((s) => {
+      if (ok !== 1) {
+        s.wrong[key] = { at: Date.now(), fixed: false };
+        if (key.startsWith('ai:')) { (s.qbank ||= {})[key] = { q: q.q, o: q._orig || q.o, a: q._origA ?? q.a, ex: q.ex, tip: q.tip, l: q.l }; }
+      } else if (s.wrong[key]) s.wrong[key].fixed = true;
+    });
+  }
 
-  const context = lesson || ctx.question || ctx.card ? {
-    subject, title: lesson ? lesson.title : '',
-    summary: ctx.summary || '',
-    question: ctx.question || ctx.card || '',
-  } : null;
+  function finishQuiz(b, mi) {
+    const st = b.state;
+    b.questions.forEach((q, j) => { if (st.answers[j] == null) { st.answers[j] = -1; record(b, j, -1); } });
+    st.done = true;
+    saveHistory();
+    redrawMsg(mi);
+    const d = b.questions.filter((q, j) => st.answers[j] === q.a).length;
+    const y = b.questions.filter((q, j) => st.answers[j] !== -1 && st.answers[j] !== q.a).length;
+    const n = b.questions.length;
+    const detail = b.questions.map((q, j) => {
+      const a = st.answers[j];
+      const l = LESSONS[q.l];
+      return `Soru ${j + 1}${l ? ` (${q.l} · ${plain(l.title)})` : ''}: ${a === -1 ? 'BOŞ' : a === q.a ? 'DOĞRU' : 'YANLIŞ'}${st.guess[j] ? ' [tahmin]' : ''}\n${plain(q.q).slice(0, 400)}\nŞıklar: ${q.o.map((o, k) => `${LETTERS[k]}) ${plain(o)}`).join(' | ')}\nÖzgür: ${a === -1 ? '-' : LETTERS[a]} · Doğru: ${LETTERS[q.a]}`;
+    }).join('\n\n');
+    const text = `[TEST SONUCU] "${b.title}": ${d} doğru, ${y} yanlış, ${n - d - y} boş (net ${(d - y / 4).toFixed(2)}).\n\n${detail}\n\nSonucumu analiz et.`;
+    send(text, { resultBlock: { type: 'result', net: (d - y / 4).toFixed(2).replace('.', ','), line: `${d} doğru · ${y} yanlış · ${n - d - y} boş — analiz ediyorum…`, text } });
+  }
 
-  async function send(text) {
+  async function send(text, o = {}) {
     text = (text || '').trim();
     if (!text || busy) return;
     busy = true;
-    input.value = '';
-    history.push({ role: 'user', content: text });
-    drawHistory();
-    const bubble = document.createElement('div');
-    bubble.className = 'msg bot';
-    bubble.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
-    log.appendChild(bubble);
-    log.scrollTop = log.scrollHeight;
-    let answer = '';
+    sendBtn.disabled = true;
+    input.value = ''; input.style.height = '';
+    const userMsg = { role: 'user', parts: o.resultBlock ? [{ t: 'block', b: o.resultBlock }] : [{ t: 'text', v: text }], ctx: o.ctx || context || undefined, hidden: o.hidden };
+    hist.push(userMsg);
+    const bot = { role: 'assistant', parts: [], status: 'Düşünüyorum…', streaming: true, sources: [] };
+    hist.push(bot);
+    const mi = hist.length - 1;
+    draw();
+    container.querySelector('#sugg').innerHTML = '';
+    let raf = 0;
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; redrawMsg(mi); toBottom(); }); };
+    const curText = () => { let p = bot.parts[bot.parts.length - 1]; if (!p || p.t !== 'text') { p = { t: 'text', v: '' }; bot.parts.push(p); } return p; };
     try {
+      const msgs = hist.slice(0, -1).slice(-16).map((m) => ({ role: m.role, content: m.role === 'user' && m.parts[0]?.b?.type === 'result' ? m.parts[0].b.text : toServerText(m) })).filter((m) => m.content);
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ messages: history, lesson: context, mode, progress: progressSummary() }),
+        body: JSON.stringify({ messages: msgs, context: userMsg.ctx || null, mode, profile: buildProfile() }),
       });
       if (!res.ok || !res.body) {
         let msg = 'Hoca şu an cevap veremiyor.';
-        try { msg = (await res.json()).error || msg; } catch (e) {}
+        try { msg = (await res.json()).error || msg; } catch (e) { /* yoksay */ }
         throw new Error(msg);
       }
       const reader = res.body.getReader();
@@ -157,26 +270,76 @@ export function openChat(ctx = {}) {
           buf = buf.slice(idx + 2);
           if (!chunk.startsWith('data:')) continue;
           let ev; try { ev = JSON.parse(chunk.slice(5)); } catch (e) { continue; }
-          if (ev.thinking && !answer) bubble.innerHTML = '<span class="small muted">Düşünüyor…</span> <span class="typing"><i></i><i></i><i></i></span>';
-          if (ev.t) { answer += ev.t; bubble.innerHTML = mdLite(answer); log.scrollTop = log.scrollHeight; }
+          if (ev.status) { bot.status = ev.status; schedule(); }
+          if (ev.sources) { bot.sources.push(...ev.sources.filter((s) => !bot.sources.some((x) => x.t === s.t))); }
+          if (ev.block) {
+            const b = ev.block;
+            if (b.type === 'quiz') b.questions = b.questions.map((q) => { const p = prepQ(q); p._orig = q.o; p._origA = q.a; return p; });
+            if (b.type === 'card') addCustomCard(b.f, b.b);
+            bot.parts.push({ t: 'block', b });
+            bot.status = 'Yazıyorum…';
+            schedule();
+          }
+          if (ev.t) { curText().v += ev.t; bot.status = ''; schedule(); }
           if (ev.error) throw new Error(ev.error);
         }
       }
-      if (!answer) throw new Error('Boş cevap geldi, tekrar dene.');
-      history.push({ role: 'assistant', content: answer });
+      bot.status = '';
+      bot.streaming = false;
+      if (!bot.parts.length) throw new Error('Boş cevap geldi.');
     } catch (e) {
-      bubble.innerHTML = `<p><b>Bağlantı sorunu:</b> ${esc(e.message)}</p><p class="small muted">İnternet bağlantını kontrol et. Uygulamanın geri kalanı internetsiz de çalışır.</p>`;
-      history.pop();
+      bot.status = '';
+      bot.streaming = false;
+      bot.error = /Failed to fetch|NetworkError|Load failed/i.test(e.message) ? 'İnternet bağlantısı yok gibi. Bağlanınca tekrar dene; uygulamanın geri kalanı internetsiz çalışır.' : e.message;
     } finally {
+      cancelAnimationFrame(raf);
       busy = false;
+      sendBtn.disabled = false;
+      saveHistory();
+      redrawMsg(mi);
+      toBottom();
+      drawSugg();
     }
   }
 
-  root.querySelector('#cf').onsubmit = (e) => { e.preventDefault(); send(input.value); };
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input.value); } });
+  container.querySelector('#cf').onsubmit = (e) => { e.preventDefault(); send(input.value); };
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); send(input.value); } });
   input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(140, input.scrollHeight) + 'px'; });
+
+  drawCtx();
+  draw();
+  drawSugg();
   if (ctx.prompt) send(ctx.prompt);
-  else setTimeout(() => input.focus(), 250);
+  return { send };
 }
 
-export { inline };
+function addCustomCard(f, b) {
+  let h = 0; for (const c of f) h = (h * 31 + c.charCodeAt(0)) | 0;
+  const id = `c:${(h >>> 0).toString(36)}`;
+  store.update((s) => {
+    (s.custom ||= {})[id] = { f, b, at: Date.now() };
+    if (!s.cards[id]) s.cards[id] = { box: 0, due: Date.now(), seen: 0 };
+  });
+}
+
+// Ders ekranındaki köşe düğmesinden açılan tam ekran hoca
+export function openChat(ctx = {}) {
+  const root = document.getElementById('sheet-root');
+  root.innerHTML = '<div class="overlay" role="dialog" aria-modal="true" aria-label="Hoca ile sohbet"></div>';
+  const ov = root.firstElementChild;
+  let pushed = false;
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const doClose = () => {
+    document.removeEventListener('keydown', onKey);
+    window.removeEventListener('popstate', onPop);
+    stopSpeaking();
+    ov.classList.add('closing');
+    setTimeout(() => { if (root.firstElementChild === ov) root.innerHTML = ''; }, 190);
+  };
+  // Telefonun geri hareketi sohbeti kapatsın (dersten çıkarmasın)
+  const onPop = () => { pushed = false; doClose(); };
+  const close = () => { if (pushed) window.history.back(); else doClose(); };
+  document.addEventListener('keydown', onKey);
+  mountChat(ov, ctx, { onClose: close });
+  try { window.history.pushState({ chat: 1 }, ''); pushed = true; window.addEventListener('popstate', onPop); } catch (e) { pushed = false; }
+}
