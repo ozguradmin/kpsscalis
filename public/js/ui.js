@@ -103,6 +103,19 @@ export function speak(text, btn) {
   }, 1600);
 }
 
+// ---------- hatalı soru bildirimi (yapay zekâ soruları) ----------
+const reported = new Set();
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-report]');
+  if (!b) return;
+  const key = b.dataset.report;
+  if (!confirm('Bu soruda hata olduğunu mu düşünüyorsun? (İki doğru şık, yanlış bilgi, anlaşılmaz kök…) Soru bankadan çıkarılır.')) return;
+  reported.add(key);
+  b.outerHTML = '<div class="small muted" style="margin-top:8px">Bildirildi, bankadan çıkarıldı. Teşekkürler!</div>';
+  store.update((s) => { if (s.wrong[key]) s.wrong[key].fixed = true; });
+  try { await fetch('/api/bank/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: key }) }); } catch (err) { /* çevrimdışı */ }
+});
+
 // ---------- sorular ----------
 // Şıkları karıştır: doğru cevap hep aynı harfte toplanmasın. Sayısal sıralı ve öncüllü (I, II…) şıklara dokunma.
 export function prepQ(q) {
@@ -143,7 +156,8 @@ export function questionHTML(q, pick, { head = '', guess = null, struck = [] } =
   }
   if (pick != null) {
     const ok = pick === q.a;
-    h += `<div class="feedback ${ok ? 'ok' : 'no'}"><h3>${ok ? (guess ? 'Doğru, ama tahmindi' : 'Doğru!') : pick === -1 ? `Boş bıraktın · doğrusu ${LETTERS[q.a]}` : `Yanlış · doğrusu ${LETTERS[q.a]}`}</h3>${md(q.ex || '')}${q.tip ? `<div class="tip"><b>İpucu:</b> ${inline(q.tip)}</div>` : ''}</div>`;
+    const rep = q.key && String(q.key).startsWith('ai:') ? (reported.has(q.key) ? '<div class="small muted" style="margin-top:8px">Bildirildi, bankadan çıkarıldı.</div>' : `<button class="chip" data-report="${esc(q.key)}" type="button" style="margin-top:10px;box-shadow:none">${icon.flag}<span>Soru hatalı mı? Bildir</span></button>`) : '';
+    h += `<div class="feedback ${ok ? 'ok' : 'no'}"><h3>${ok ? (guess ? 'Doğru, ama tahmindi' : 'Doğru!') : pick === -1 ? `Boş bıraktın · doğrusu ${LETTERS[q.a]}` : `Yanlış · doğrusu ${LETTERS[q.a]}`}</h3>${md(q.ex || '')}${q.tip ? `<div class="tip"><b>İpucu:</b> ${inline(q.tip)}</div>` : ''}${q.ai ? '<div class="small muted" style="margin-top:8px">Yapay zekâ yazdı, iki kez denetlendi.</div>' : ''}${rep}</div>`;
   }
   return h;
 }

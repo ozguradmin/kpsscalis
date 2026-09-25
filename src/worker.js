@@ -51,6 +51,16 @@ export default {
           const ls = (url.searchParams.get('l') || '').split(',').filter((id) => LESSONS[id]).slice(0, 60);
           return json({ questions: await bankQuestions(env, ls, Math.min(60, Number(url.searchParams.get('n')) || 20)) });
         }
+        case '/api/bank/report':
+          if (request.method === 'POST' && env.DB) {
+            const b = await request.json();
+            if (typeof b.id === 'string' && b.id.startsWith('ai:')) {
+              await env.DB.prepare('DELETE FROM qbank WHERE id = ?').bind(b.id.slice(0, 40)).run();
+              await env.DB.prepare('INSERT INTO ai_log (ts, kind, lesson, question, answer) VALUES (?, ?, ?, ?, ?)').bind(Date.now(), 'rapor', null, b.id.slice(0, 40), '').run().catch(() => {});
+            }
+            return json({ ok: true });
+          }
+          break;
         case '/api/bank/fill':
           if (request.method === 'POST') return bankFill(request, env);
           break;
