@@ -544,15 +544,25 @@ async function generateRaw(env, { subject, topic, summary, count, level }) {
 }
 
 // İkinci bir çağrı soruyu cevap anahtarını görmeden şık şık çözer. Tek doğru şık, anahtarla aynı olmalı.
-async function verifyQuestion(env, q) {
-  const user = `${q.q}\n${q.o.map((o, j) => `${'ABCDE'[j]}) ${o}`).join('\n')}`;
+async function verifyOnce(env, q, order) {
+  // order: şıkların gösterim sırası (karıştırılmış olabilir); cevap orijinal indekse çevrilir
+  const user = `${q.q}\n${order.map((j, k) => `${'ABCDE'[k]}) ${q.o[j]}`).join('\n')}`;
   try {
     const r = await runAI(env, MODELS.fast, { messages: [{ role: 'system', content: VERIFY_SYSTEM }, { role: 'user', content: user }], max_completion_tokens: 1800, temperature: 0.1, ...NO_THINK });
     const t = textOf(r);
     const j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
     const fits = (j.siklar || []).filter((x) => x.uyar).map((x) => x.h);
-    return { ok: j.cevap === 'ABCDE'[q.a] && fits.length === 1, got: j.cevap, note: j.kusur };
+    const k = 'ABCDE'.indexOf(j.cevap);
+    return { ok: k >= 0 && order[k] === q.a && fits.length === 1, note: j.kusur };
   } catch (e) { return { ok: false, err: true, note: 'denetlenemedi: ' + String(e.message).slice(0, 80) }; }
+}
+
+// İki bağımsız denetim (ikincisinde şıklar karışık): ikisi de anahtarla aynı tek şıkkı bulmalı.
+async function verifyQuestion(env, q) {
+  const order2 = [0, 1, 2, 3, 4].sort(() => Math.random() - 0.5);
+  const once = async (o) => { const c = await verifyOnce(env, q, o); return c.err ? verifyOnce(env, q, o) : c; };
+  const [a, b] = await Promise.all([once([0, 1, 2, 3, 4]), once(order2)]);
+  return { ok: a.ok && b.ok, note: !a.ok ? a.note : b.note };
 }
 
 async function mapLimit(items, n, fn) {
@@ -566,10 +576,7 @@ async function mapLimit(items, n, fn) {
 
 async function generateQuestions(env, { subject, topic, summary, count, level, lessonId }) {
   const { qs, model } = await generateRaw(env, { subject, topic, summary, count: Math.min(10, count + 2), level });
-  const checks = await mapLimit(qs, 3, async (q) => {
-    const c = await verifyQuestion(env, q);
-    return c.err ? verifyQuestion(env, q) : c;
-  });
+  const checks = await mapLimit(qs, 2, (q) => verifyQuestion(env, q));
   const good = qs.filter((q, i) => checks[i].ok).map((q) => ({ ...q, verified: true }));
   if (env.DB && lessonId && good.length) {
     const now = Date.now();

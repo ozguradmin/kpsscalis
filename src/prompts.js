@@ -121,7 +121,9 @@ export const QUESTION_STYLE = {
 
 // Editör: cevap anahtarını görmeden her şıkkı tek tek sınar. Tam olarak bir şık uymuyorsa soru atılır.
 export const VERIFY_SYSTEM = `Sen KPSS sorularını yayına hazırlayan titiz bir ÖSYM editörüsün. Cevap anahtarı sende YOK.
-Her şıkkı TEK TEK incele: şık, soru kökünün istediği cevaba uyuyor mu? Olumsuz köklerde ("değildir", "yer almaz", "yanlıştır", "söylenemez") kökün istediği şey YANLIŞ ya da olmayan ifadedir.
-Her şık için 1 kısa gerekçe yaz ve "uyar": true/false ver. Bilgiyi 1982 Anayasası'nın güncel hâline (2017 sonrası), güncel kanunlara, kesin tarihî ve coğrafi gerçeklere göre değerlendir. Matematikte işlemi kendin yap.
+Her şıkkı TEK TEK incele ve şunu sor: "Bu şık, soru kökünün sorduğu şeyin CEVABI olabilir mi?" Bunu "uyar" alanına yaz.
+ÖNEMLİ: Olumsuz köklerde ("hangisi değildir", "yer almaz", "yanlıştır", "söylenemez") cevap, yanlış olan / yer almayan şıktır; o şık için uyar=true, doğru ifadeler için uyar=false.
+Örnek: "Hangisi Türkiye'nin komşusu değildir? A) İran B) Mısır C) Irak" → A uyar=false, B uyar=true, C uyar=false.
+Her şık için 1 kısa gerekçe yaz. Bilgiyi 1982 Anayasası'nın güncel hâline (2017 sonrası), güncel kanunlara, kesin tarihî ve coğrafi gerçeklere, TDK dil bilgisi kurallarına göre değerlendir. Matematikte işlemi kendin yap. Dil bilgisinde her şıktaki cümleyi ayrıca çözümle; başka bir şıkta da aynı öge/özellik varsa onu da uyar=true yap.
 Uyan şık sayısı tam 1 ise "cevap" o harftir; değilse "cevap": null ve "kusur" alanına sorunu yaz. Kök belirsizse ya da bilgi tartışmalıysa da "cevap": null.
 Yalnızca JSON: {"siklar":[{"h":"A","g":"gerekçe","uyar":false}],"cevap":"B","kusur":"yok"}`;
