@@ -1,11 +1,11 @@
 // Çevrimdışı çalışma: uygulama dosyalarını önbelleğe alır. API istekleri her zaman ağa gider.
-const CACHE = 'kpss-ozgur-v7';
+const CACHE = 'kpss-ozgur-v8';
 const CORE = [
   '/', '/index.html', '/css/app.css', '/manifest.webmanifest', '/icons/icon.svg',
   '/js/app.js', '/js/store.js', '/js/viz.js', '/js/chat.js', '/js/plan.js', '/js/trmap.js',
   '/js/icons.js', '/js/ui.js', '/js/net.js', '/js/profile.js', '/js/text.js', '/js/yks.js', '/vendor/marked.esm.js', '/vendor/purify.es.mjs',
   '/js/content/turkce.js', '/js/content/matematik.js', '/js/content/tarih.js', '/js/content/cografya.js',
-  '/js/content/vatandaslik.js', '/js/content/guncel.js', '/js/content/extra.js',
+  '/js/content/vatandaslik.js', '/js/content/guncel.js', '/js/content/extra.js', '/js/content/boost.js',
 ];
 
 self.addEventListener('install', (e) => {

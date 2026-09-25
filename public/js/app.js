@@ -379,7 +379,7 @@ function viewLesson(id) {
     } else if (step.k === 'quiz') {
       const pick = st.answers[step.i];
       html = questionHTML(step.q, pick, {
-        head: `<div class="eyebrow">Soru ${step.i + 1} / ${qCount} · ${step.q.real ? `çıkmış soru${step.q.year ? ` (${step.q.year})` : ''}` : 'hızlı kontrol'}</div>`,
+        head: `<div class="eyebrow">Soru ${step.i + 1} / ${qCount} · ${step.q.real ? `çıkmış soru${step.q.year ? ` (${step.q.year})` : ''}` : step.q.gen ? 'sınav ayarında yeni soru' : 'hızlı kontrol'}</div>`,
         guess: pick == null ? !!st.guess[step.i] : st.guess[step.i], struck: st.struck,
       });
       bar = quizBar(step);
@@ -468,13 +468,14 @@ function viewLesson(id) {
   function answer(step, pick) {
     st.answers[step.i] = pick;
     const q = step.q;
-    const wid = q.real ? q.key : `${id}#${step.i}`;
+    const wid = q.real || q.gen ? q.key : `${id}#${step.i}`;
     const ok = pick === -1 ? -1 : pick === q.a ? 1 : 0;
-    logAnswer({ k: wid, l: id, s: lesson.s, ok, p: pick >= 0 && q._map ? q._map[pick] : pick, src: q.real ? 'cikmis' : 'ders', g: st.guess[step.i] ? 1 : 0, sec: activeSince(st.shown[st.i]), len: qLen(q) });
+    logAnswer({ k: wid, l: id, s: lesson.s, ok, p: pick >= 0 && q._map ? q._map[pick] : pick, src: q.real ? 'cikmis' : q.gen ? 'hoca' : 'ders', g: st.guess[step.i] ? 1 : 0, sec: activeSince(st.shown[st.i]), len: qLen(q) });
     store.update((s) => {
       if (ok !== 1) {
         s.wrong[wid] = { at: Date.now(), fixed: false };
         if (q.real) (s.qbank ||= {})[wid] = { q: q.q, o: q.o, a: q.a, ex: q.ex, tip: q.tip, l: id, img: q.img, real: true, needimg: q.needimg, src: q.src, s: lesson.s };
+        else if (q.gen) (s.qbank ||= {})[wid] = { q: q.q, o: q.o, a: q.a, ex: q.ex, tip: q.tip, l: id, s: lesson.s };
       } else if (s.wrong[wid]) s.wrong[wid].fixed = true;
     });
   }
@@ -487,6 +488,14 @@ function viewLesson(id) {
     try {
       const r = await fetch(`/api/real?l=${id}&n=${n}&x=${done.join(',')}`);
       const qs = ((await r.json()).questions || []);
+      // Az sorulan konularda çıkmış soru yetmezse: aynı dersin çıkmışlarını ölçü alarak üretilmiş ve iki kez denetlenmiş sorularla tamamla
+      if (qs.length < n) {
+        try {
+          const b = await (await fetch(`/api/bank?l=${id}&n=${n - qs.length}&hard=1`)).json();
+          const seenK = new Set((store.get().log || []).filter((x) => x.ok === 1).map((x) => x.k));
+          qs.push(...(b.questions || []).filter((q) => !seenK.has(q.key)).map((q) => ({ ...q, gen: true })));
+        } catch (e) { /* yoksa olanla devam */ }
+      }
       if (!qs.length || st.completed) return;
       const first = steps.findIndex((x) => x.k === 'quiz');
       if (!Object.keys(st.answers).length && first >= 0 && st.i < first && quiz.length > 2) {
@@ -495,7 +504,7 @@ function viewLesson(id) {
       }
       const at = steps.findIndex((x) => x.k === 'result');
       const add = qs.map((q) => {
-        quiz.push({ ...q, ex: q.bilgi ? `**Sınanan bilgi:** ${q.bilgi}` : '', tip: `Bu soru ${q.src} sınavında soruldu.` });
+        quiz.push(q.gen ? prepQ(q) : { ...q, ex: q.bilgi ? `**Sınanan bilgi:** ${q.bilgi}` : '', tip: `Bu soru ${q.src} sınavında soruldu.` });
         return { k: 'quiz', q: quiz[quiz.length - 1], i: quiz.length - 1 };
       });
       steps.splice(at, 0, ...add);

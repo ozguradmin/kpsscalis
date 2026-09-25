@@ -49,7 +49,7 @@ export default {
           break;
         case '/api/bank': {
           const ls = (url.searchParams.get('l') || '').split(',').filter((id) => LESSONS[id]).slice(0, 60);
-          return json({ questions: await bankQuestions(env, ls, Math.min(60, Number(url.searchParams.get('n')) || 20)) });
+          return json({ questions: await bankQuestions(env, ls, Math.min(60, Number(url.searchParams.get('n')) || 20), url.searchParams.get('hard') === '1') });
         }
         case '/api/real':
           return realQuestions(url, env);
@@ -618,9 +618,9 @@ async function generateQuestions(env, { subject, topic, summary, count, level, l
   return good.slice(0, count).map((q) => ({ ...q, key: `ai:${hash(q.q)}` }));
 }
 
-async function bankQuestions(env, lessons, n) {
+async function bankQuestions(env, lessons, n, hardOnly = false) {
   if (!env.DB || !lessons.length) return [];
-  const rs = await env.DB.prepare(`SELECT id, lesson, data FROM qbank WHERE lesson IN (${lessons.map(() => '?').join(',')}) ORDER BY (level = 'easy'), RANDOM() LIMIT ?`).bind(...lessons, n).all(); // önce sınav ayarındakiler
+  const rs = await env.DB.prepare(`SELECT id, lesson, data FROM qbank WHERE lesson IN (${lessons.map(() => '?').join(',')})${hardOnly ? " AND level != 'easy'" : ''} ORDER BY (level = 'easy'), RANDOM() LIMIT ?`).bind(...lessons, n).all(); // önce sınav ayarındakiler
   return (rs.results || []).map((r) => ({ ...JSON.parse(r.data), key: r.id, l: r.lesson }));
 }
 
