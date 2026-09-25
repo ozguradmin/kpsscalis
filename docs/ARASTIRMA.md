@@ -67,6 +67,21 @@ Genel gözlemler:
 - Bilgi sorularında çeldiriciler hep **aynı kategoriden** (beş cemiyet, beş antlaşma, beş il). Soru üretici bu kurala göre eğitildi.
 - Net tahmin motorundaki ders ağırlıkları (`public/js/net.js`, `YIELD`) bu tablodan hesaplandı.
 
+### 2010-2026: 1.860 gerçek sorunun analizi (15 tam + 8 kısmi ÖSYM kitapçığı)
+
+Kaynak: ön lisans 2010, 2012, 2014, 2016, 2018, 2020 (tam); ortaöğretim 2010, 2012, 2016, 2018, 2020 (tam); lisans 2016, 2019, 2020, 2021 (tam); 2022-2026 ön lisans, ortaöğretim ve lisans %10 yayımları. Sorular konuma göre ayrıldı (sayfadaki numara ve sütun), cevap anahtarıyla eşlendi, yapay zekâyla derslere sınıflandırıldı. Ağırlık: ön lisans 1, ortaöğretim 0,7, lisans 0,6; yeni yıllar daha ağır.
+
+| Ders | 120 soruluk sınavda en çok soru getiren dersler (tahmini soru sayısı) |
+|---|---|
+| Türkçe | Paragrafta ana düşünce **~11**, paragraf yapısı ~4,7, sözcük-söz anlamı ~4,5, ses olayları-ekler ~2,6 |
+| Matematik | Sayı problemleri ~8 (bir kısmı geometri), **temel işlemler ~7,5**, sayısal mantık ~5,2, kümeler-olasılık ~2 |
+| Tarih | **19. yy Osmanlı + çağdaş Türkiye ~7,6**, Millî Mücadele hazırlık ~3,2, inkılaplar ~3,2, ilk Türk-İslam ~3 |
+| Coğrafya | Sanayi-ulaşım-turizm ~3,6, tarım ~2,7, yer şekilleri ~2,7, nüfus ~2,4 |
+| Vatandaşlık | **İdare (merkezî ve yerel yönetim) ~1,8**, Cumhurbaşkanı ~1,3, Medeni Kanun ~1,2, yargı ~1,1 |
+| Güncel | Kültür büyükleri ~2,2, gündem ~1,4 |
+
+Bu soruların hepsi uygulamada "Çıkmış sorular" bölümünde orijinal görüntüleriyle çözülebilir (metinler depoda değil, sadece veritabanında).
+
 ### Özgür'ün YKS geçmişi (2021-2024, hiç çalışmadan)
 
 Tahmin motorunun başlangıç noktası (`public/js/yks.js`). Net = doğru − yanlış/4.
