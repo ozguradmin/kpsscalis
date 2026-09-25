@@ -13,15 +13,15 @@ import { PRIOR, PRIOR_SEC } from './yks.js';
 // Dersin ÖSYM sınavında kapsadığı ortalama soru sayısı
 export const YIELD = {
   // 2010-2026 arası 15 tam + 8 kısmi ÖSYM kitapçığındaki 1.860 sorudan (ön lisans ağırlıklı, yeni yıllar daha ağır)
-  // Türkçe: paragrafta ana düşünce tek başına ~11 soru
-  tr1: 10.5, tr2: 4.5, tr3: 4.7, tr4: 1.8, tr5: 1.5, tr6: 2, tr7: 2.6, tr8: 1.8, tr9: 0.5,
-  // Matematik: temel işlemler ve sayı problemleri başı çekiyor; ~3 soru geometri planda yok
-  mat1: 7.5, mat2: 0.6, mat3: 5.5, mat4: 0.6, mat5: 1.7, mat6: 1.7, mat7: 5.2, mat8: 2.1, mat9: 2, 'ex-mat1': 0.6,
+  // Türkçe: paragrafta ana düşünce ~10 soru; 2022-2025'te paragraf yapısı (akış, boşluk) yükselişte
+  tr1: 9.7, tr2: 4.1, tr3: 6.4, tr4: 1.8, tr5: 1.5, tr6: 2, tr7: 2.9, tr8: 1.8, tr9: 0.5,
+  // Matematik: sayı problemleri, temel işlemler ve (son yıllarda artan) sayısal mantık; ~3 soru geometri planda yok
+  mat1: 6.4, mat2: 1, mat3: 5.5, mat4: 0.6, mat5: 1.7, mat6: 1.7, mat7: 6.3, mat8: 2.1, mat9: 2, 'ex-mat1': 0.6,
   // Tarih: 19. yy Osmanlı + çağdaş Türkiye en büyük blok
-  tar1: 3.2, tar2: 2, tar3: 2.2, tar4: 3.2, tar5: 2.3, tar6: 3, tar7: 1.5, tar8: 1.9, tar9: 5, 'ex-tar2': 2.6, 'ex-tar1': 0.1,
-  cog1: 1.3, cog2: 1.8, cog3: 2.7, cog4: 1.6, cog5: 2.4, cog6: 2.7, cog7: 1.9, cog8: 3.6, cog9: 0.1, 'ex-cog1': 0,
+  tar1: 3.2, tar2: 2, tar3: 2.2, tar4: 3.2, tar5: 2.7, tar6: 3, tar7: 1.5, tar8: 1.9, tar9: 5, 'ex-tar2': 2.6, 'ex-tar1': 0.1,
+  cog1: 1.3, cog2: 1.8, cog3: 2.7, cog4: 1.6, cog5: 2.8, cog6: 2.7, cog7: 1.9, cog8: 3.6, cog9: 0.1, 'ex-cog1': 0,
   // Vatandaşlık: idare (merkezî + yerel) ilk sırada
-  vat1: 0.8, vat2: 1.2, vat3: 0.4, vat4: 0.8, vat5: 1.3, vat6: 1.1, vat7: 0.9, vat8: 1.8, vat9: 0.6, 'ex-vat1': 0.1,
+  vat1: 1.2, vat2: 1.2, vat3: 0.4, vat4: 0.8, vat5: 1.3, vat6: 1.1, vat7: 0.9, vat8: 1.8, vat9: 0.6, 'ex-vat1': 0.1,
   // Güncel: kültür büyükleri ve gündem
   gun1: 0.6, gun2: 0.1, gun3: 1.4, gun4: 0.5, gun5: 0.4, gun6: 2.2, gun7: 0.5, gun8: 0.2, gun9: 0,
   'ex-tr1': 0,

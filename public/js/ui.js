@@ -221,14 +221,14 @@ export function questionText(q, pick) {
 // Tek soru: kök + şıklar + (cevaplandıysa) geri bildirim
 export function questionHTML(q, pick, { head = '', guess = null, struck = [] } = {}) {
   // Gerçek ÖSYM sorusu: kitapçıktaki orijinal görüntü (altı çizili yerler, harita, grafik aynen)
-  let h = head + (q.real && q.img
-    ? `<div class="realtag">${icon.flag}<span>Gerçek ÖSYM sorusu · ${esc(q.src || '')}</span></div><img class="qimg" src="${esc(q.img)}" alt="${esc(String(q.q || '').slice(0, 200))}" loading="lazy">`
+  let h = head + (q.real ? `<div class="realtag">${icon.flag}<span>Gerçek ÖSYM sorusu · ${esc(q.src || '')}</span></div>` : '') + (q.real && q.img
+    ? `<img class="qimg" src="${esc(q.img)}" alt="${esc(String(q.q || '').slice(0, 200))}" loading="lazy">`
     : `<div class="qstem">${qtext(q.q)}</div>`);
   if (q.viz) h += renderViz(q.viz);
   h += `<div class="opts" role="radiogroup">${q.o.map((o, j) => {
     const cls = pick == null ? (struck.includes(j) ? 'struck' : '') : j === q.a ? 'right' : j === pick ? 'wrong' : 'dim';
     const fill = pick != null && (j === q.a || j === pick) ? `filled ${j === q.a ? 'right' : 'wrong'}` : '';
-    const label = q.real && (q.needimg || !o) ? `<span class="muted small">${o ? inline(o) : 'Görseldeki ' + LETTERS[j] + ' şıkkı'}</span>` : `<span>${inline(o)}</span>`;
+    const label = q.real && q.img && (q.needimg || !o) ? `<span class="muted small">${o ? inline(o) : 'Görseldeki ' + LETTERS[j] + ' şıkkı'}</span>` : `<span>${inline(o)}</span>`;
     return `<button class="opt ${cls}" data-opt="${j}" ${pick != null ? 'disabled' : ''} role="radio" aria-checked="${pick === j}"><span class="bubble ${fill}">${LETTERS[j]}</span>${label}</button>`;
   }).join('')}</div>`;
   if (pick == null && guess != null) {

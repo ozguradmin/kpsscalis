@@ -703,11 +703,11 @@ async function realImg(id, env) {
   return new Response(bytes, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=604800' } });
 }
 
-const LEVEL_NAME = { onl: 'Ön Lisans', ort: 'Ortaöğretim', lis: 'Lisans' };
+const LEVEL_NAME = { onl: 'Ön Lisans', ort: 'Ortaöğretim', lis: 'Lisans', kit: '' };
 function realRow(r) {
   return {
     key: `real:${r.id}`, id: r.id, l: r.lesson, s: r.s, q: r.stem, o: JSON.parse(r.o || '[]'), a: r.a, konu: r.konu, bilgi: r.bilgi,
-    img: `/api/realimg/${r.id}`, needimg: !!r.needimg, real: true, src: `${r.year} KPSS ${LEVEL_NAME[r.level] || ''}`,
+    img: r.level === 'kit' ? null : `/api/realimg/${r.id}`, needimg: !!r.needimg, real: true, src: `${r.year} KPSS ${LEVEL_NAME[r.level] || ''}`.trim(),
   };
 }
 export async function realByLessons(env, lessons, n, { subject = null, exclude = [] } = {}) {
@@ -718,7 +718,7 @@ export async function realByLessons(env, lessons, n, { subject = null, exclude =
   if (subject) { where.push('s = ?'); args.push(subject); }
   where.push('a IS NOT NULL');
   // ön lisans ve son yıllar önce gelsin: ağırlıklı rastgele sıralama
-  const rs = await env.DB.prepare(`SELECT * FROM real_q WHERE ${where.join(' AND ')} ORDER BY (CASE level WHEN 'onl' THEN 0 WHEN 'ort' THEN 1 ELSE 2 END) + (2026 - year) / 12.0 + (ABS(RANDOM()) % 1000) / 250.0 LIMIT ?`)
+  const rs = await env.DB.prepare(`SELECT * FROM real_q WHERE ${where.join(' AND ')} ORDER BY (CASE level WHEN 'onl' THEN 0 WHEN 'kit' THEN 0.5 WHEN 'ort' THEN 1 ELSE 2 END) + (2026 - year) / 12.0 + (ABS(RANDOM()) % 1000) / 250.0 LIMIT ?`)
     .bind(...args, n + exclude.length).all();
   const ex = new Set(exclude);
   return (rs.results || []).filter((r) => !ex.has(`real:${r.id}`)).slice(0, n).map(realRow);

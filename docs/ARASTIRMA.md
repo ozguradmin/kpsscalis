@@ -80,6 +80,8 @@ Kaynak: ön lisans 2010, 2012, 2014, 2016, 2018, 2020 (tam); ortaöğretim 2010,
 | Vatandaşlık | **İdare (merkezî ve yerel yönetim) ~1,8**, Cumhurbaşkanı ~1,3, Medeni Kanun ~1,2, yargı ~1,1 |
 | Güncel | Kültür büyükleri ~2,2, gündem ~1,4 |
 
+2022-2025 eğilimi (konu konu çıkmış soru kitaplarından okunan 208 soru): Türkçede paragraf yapısı (akışı bozan cümle, boşluk doldurma) ve matematikte sayısal mantık yükselişte; ağırlıklar buna göre harmanlandı.
+
 Bu soruların hepsi uygulamada "Çıkmış sorular" bölümünde orijinal görüntüleriyle çözülebilir (metinler depoda değil, sadece veritabanında).
 
 ### Özgür'ün YKS geçmişi (2021-2024, hiç çalışmadan)
