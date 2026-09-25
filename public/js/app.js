@@ -1,10 +1,10 @@
-import { store, pull, startTimer, todayKey, addCards, gradeCard, dueCards, isOnline, logAnswer } from './store.js';
+import { store, pull, startTimer, todayKey, addCards, gradeCard, dueCards, isOnline, logAnswer, qLen } from './store.js';
 import { SUBJECTS, SUBJECT, LESSONS, EXTRA, STUDY_DAYS, EXAM, DOOR_CLOSE, lessonsOfDay, prettyDate, DAY_THEMES } from './plan.js';
 import { renderViz, md, inline, esc } from './viz.js';
 import { openChat, mountChat } from './chat.js';
 import { STRATEGY } from './content/extra.js';
 import { icon } from './icons.js';
-import { toast, fmtMin, fmtDur, applyTheme, speak, stopSpeaking, prepQ, questionHTML, questionText, bindStrike, plain, LETTERS } from './ui.js';
+import { toast, fmtMin, fmtDur, applyTheme, speak, markAnswered, bindGuess, activeNow, activeSince, stopSpeaking, prepQ, questionHTML, questionText, bindStrike, plain, LETTERS } from './ui.js';
 import { cardText, strip } from './text.js';
 import { estimate, lessonNet, fmtNet, YIELD, mastery } from './net.js';
 import { yksRows } from './yks.js';
@@ -355,7 +355,7 @@ function viewLesson(id) {
   function render() {
     const step = steps[st.i];
     if (step.k === 'result' && !st.completed) complete();
-    if (st.shown[st.i] == null) st.shown[st.i] = Date.now();
+    if (st.shown[st.i] == null) st.shown[st.i] = activeNow();
     const moved = st.last !== st.i;
     const back = st.i < st.last;
     st.last = st.i;
@@ -379,12 +379,10 @@ function viewLesson(id) {
     } else if (step.k === 'quiz') {
       const pick = st.answers[step.i];
       html = questionHTML(step.q, pick, {
-        head: `<div class="eyebrow">Soru ${step.i + 1} / ${qCount}${step.q.real ? ' · sınav ayarı' : ''}</div>`,
+        head: `<div class="eyebrow">Soru ${step.i + 1} / ${qCount} · ${step.q.real ? `çıkmış soru${step.q.year ? ` (${step.q.year})` : ''}` : 'hızlı kontrol'}</div>`,
         guess: pick == null ? !!st.guess[step.i] : st.guess[step.i], struck: st.struck,
       });
-      bar = prevBtn + (pick == null
-        ? `<button class="btn ghost" data-skip>Boş bırak</button>`
-        : `<button class="btn" data-next>${step.i === qCount - 1 ? 'Sonucu gör' : 'Sonraki soru'}${icon.fwd}</button>`);
+      bar = quizBar(step);
     } else if (step.k === 'result') {
       html = resultHTML();
       bar = `<a class="btn ghost square" href="${lesson.day ? '#/' : '#/ekstra'}" aria-label="Ana sayfa">${icon.home}</a>${nextLessonBtn()}`;
@@ -404,6 +402,25 @@ function viewLesson(id) {
     $bar.innerHTML = bar;
     if (moved) sc().scrollTop = 0;
     bind(step);
+  }
+
+  function quizBar(step) {
+    const pick = st.answers[step.i];
+    return `<button class="btn ghost square" data-prev ${st.i ? '' : 'disabled'} aria-label="Geri">${icon.back}</button>` + (pick == null
+      ? `<button class="btn ghost" data-skip>Boş bırak</button>`
+      : `<button class="btn" data-next>${step.i === qCount - 1 ? 'Sonucu gör' : 'Sonraki soru'}${icon.fwd}</button>`);
+  }
+  // Cevap sonrası: soruyu yeniden çizme, sadece şıkları, geri bildirimi ve alt çubuğu güncelle
+  function afterAnswer(step, pick) {
+    markAnswered($stage, step.q, pick, st.guess[step.i]);
+    $ticks.innerHTML = tickHTML();
+    $bar.innerHTML = quizBar(step);
+    bindBar();
+    requestAnimationFrame(() => $stage.querySelector('.feedback')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+  }
+  function bindBar() {
+    $bar.querySelectorAll('[data-next]').forEach((b) => b.onclick = () => go(st.i + 1));
+    $bar.querySelectorAll('[data-prev]').forEach((b) => b.onclick = () => go(st.i - 1));
   }
 
   function bind(step) {
@@ -426,24 +443,24 @@ function viewLesson(id) {
         if (st.checks[st.i] != null) return;
         const pick = Number(b.dataset.opt);
         st.checks[st.i] = pick;
-        logAnswer({ k: `${id}#c${step._ci}`, l: id, s: lesson.s, ok: pick === step.a ? 1 : 0, p: step._map ? step._map[pick] : pick, src: 'kontrol', sec: secSince(st.shown[st.i]) });
-        render();
-        $stage.querySelector('.feedback')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        logAnswer({ k: `${id}#c${step._ci}`, l: id, s: lesson.s, ok: pick === step.a ? 1 : 0, p: step._map ? step._map[pick] : pick, src: 'kontrol', sec: activeSince(st.shown[st.i]) });
+        markAnswered($stage, { q: step.q, o: step.o, a: step.a, ex: step.ex }, pick, false);
+        $bar.innerHTML = `<button class="btn ghost square" data-prev aria-label="Geri">${icon.back}</button><button class="btn" data-next>Devam${icon.fwd}</button>`;
+        bindBar();
+        requestAnimationFrame(() => $stage.querySelector('.feedback')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
       });
     }
     if (step.k === 'quiz') {
-      const redraw = () => render();
       $stage.querySelectorAll('[data-opt]').forEach((b) => b.onclick = () => {
         if (st.answers[step.i] != null) return;
-        answer(step, Number(b.dataset.opt));
-        render();
-        $stage.querySelector('.feedback')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        const pick = Number(b.dataset.opt);
+        answer(step, pick);
+        afterAnswer(step, pick);
       });
-      if (st.answers[step.i] == null) bindStrike($stage, st.struck, redraw);
-      const g = $stage.querySelector('[data-guess]');
-      if (g) g.onclick = () => { st.guess[step.i] = !st.guess[step.i]; render(); };
+      if (st.answers[step.i] == null) bindStrike($stage, st.struck);
+      bindGuess($stage, () => !!st.guess[step.i], (v) => { st.guess[step.i] = v; });
       const skip = $bar.querySelector('[data-skip]');
-      if (skip) skip.onclick = () => { answer(step, -1); render(); };
+      if (skip) skip.onclick = () => { answer(step, -1); afterAnswer(step, -1); };
     }
     if (step.k === 'result') bindResult();
   }
@@ -453,7 +470,7 @@ function viewLesson(id) {
     const q = step.q;
     const wid = q.real ? q.key : `${id}#${step.i}`;
     const ok = pick === -1 ? -1 : pick === q.a ? 1 : 0;
-    logAnswer({ k: wid, l: id, s: lesson.s, ok, p: pick >= 0 && q._map ? q._map[pick] : pick, src: q.real ? 'cikmis' : 'ders', g: st.guess[step.i] ? 1 : 0, sec: secSince(st.shown[st.i]) });
+    logAnswer({ k: wid, l: id, s: lesson.s, ok, p: pick >= 0 && q._map ? q._map[pick] : pick, src: q.real ? 'cikmis' : 'ders', g: st.guess[step.i] ? 1 : 0, sec: activeSince(st.shown[st.i]), len: qLen(q) });
     store.update((s) => {
       if (ok !== 1) {
         s.wrong[wid] = { at: Date.now(), fixed: false };
@@ -464,12 +481,18 @@ function viewLesson(id) {
 
   // Dersin sonuna o konunun gerçek ÖSYM soruları (sayısı konunun sınavdaki ağırlığına göre)
   async function addRealQuestions() {
-    const n = Math.max(2, Math.min(6, Math.round((YIELD[id] || 1) / 1.6)));
+    // Ders sonu testi = gerçek ÖSYM soruları (asıl ölçü). Kendi sorularımızdan 2 tanesi "hızlı kontrol" olarak kalır.
+    const n = Math.max(3, Math.min(8, Math.round((YIELD[id] || 1) / 1.2)));
     const done = (store.get().log || []).filter((x) => x.ok === 1 && x.k && x.k.startsWith('real:')).map((x) => x.k).slice(-250);
     try {
       const r = await fetch(`/api/real?l=${id}&n=${n}&x=${done.join(',')}`);
       const qs = ((await r.json()).questions || []);
       if (!qs.length || st.completed) return;
+      const first = steps.findIndex((x) => x.k === 'quiz');
+      if (!Object.keys(st.answers).length && first >= 0 && st.i < first && quiz.length > 2) {
+        quiz.splice(2);
+        for (let j = steps.length - 1; j >= 0; j--) if (steps[j].k === 'quiz' && steps[j].i >= 2) steps.splice(j, 1);
+      }
       const at = steps.findIndex((x) => x.k === 'result');
       const add = qs.map((q) => {
         quiz.push({ ...q, ex: q.bilgi ? `**Sınanan bilgi:** ${q.bilgi}` : '', tip: `Bu soru ${q.src} sınavında soruldu.` });
@@ -595,8 +618,9 @@ function cardById(cid) {
 // ---------- Soru oynatıcı (hata defteri, mini deneme) ----------
 // qs: [{ q, o, a, ex, tip, key, l, s }]; reveal: 'instant' (hemen geri bildirim) | 'end'
 function questionRunner({ title, eyebrow, qs, reveal = 'instant', minutes = null, exit = '#/daha', src, onFinish }) {
-  const st = { i: 0, answers: {}, guess: {}, struck: [], last: -1, started: Date.now(), finished: false, spent: {}, cur: 0, enter: Date.now() };
-  const tick = () => { const n = Date.now(); st.spent[st.cur] = (st.spent[st.cur] || 0) + (n - st.enter) / 1000; st.enter = n; st.cur = st.i; };
+  // Soru başına AKTİF süre (uygulama açık ve kullanılıyorken); denemede geri dönülen sorunun süresi eklenir
+  const st = { i: 0, answers: {}, guess: {}, struck: [], last: -1, started: Date.now(), finished: false, spent: {}, cur: 0, enter: activeNow() };
+  const tick = () => { const n = activeNow(); st.spent[st.cur] = (st.spent[st.cur] || 0) + (n - st.enter); st.enter = n; st.cur = st.i; };
   setTab(null);
   $app.innerHTML = `<div class="view player">
     <header class="topbar">
@@ -646,9 +670,37 @@ function questionRunner({ title, eyebrow, qs, reveal = 'instant', minutes = null
       // deneme: işaretle, değiştirebil, sonuç sonda
       $stage.innerHTML = head + questionHTML(q, null, {}).split('<div class="opts"')[0] +
         `<div class="opts">${q.o.map((o, j) => `<button class="opt ${pick === j ? 'sel' : ''} ${st.struck.includes(j) ? 'struck' : ''}" data-opt="${j}"><span class="bubble ${pick === j ? 'filled' : ''}">${LETTERS[j]}</span><span>${inline(o)}</span></button>`).join('')}</div>
-        <div class="row between"><span class="elim-hint">Basılı tutarak şık ele</span><button class="chip ${st.guess[st.i] ? 'on' : ''}" data-guess>${icon.sparkQ}<span>Tahmin</span></button></div>`;
+        <div class="guessrow"><span class="elim-hint">Şıkkı elemek için basılı tut</span><button class="chip ${st.guess[st.i] ? 'on' : ''}" data-guess type="button">${st.guess[st.i] ? icon.check + '<span>Tahmin olarak işaretli</span>' : icon.sparkQ + '<span>Emin değilim (tahmin)</span>'}</button></div>`;
     }
     $stage.className = `stage${moved ? ' enter' : ''}${back ? ' back' : ''}`;
+    if (moved) sc().scrollTop = 0;
+    $stage.querySelectorAll('[data-opt]').forEach((b) => b.onclick = () => {
+      const j = Number(b.dataset.opt);
+      if (reveal === 'instant') {
+        if (st.answers[st.i] != null) return;
+        st.answers[st.i] = j; st.struck = [];
+        record(st.i, j);
+        markAnswered($stage, q, j, st.guess[st.i]);
+        drawBar();
+        requestAnimationFrame(() => $stage.querySelector('.feedback')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+      } else {
+        // deneme: işaretle/değiştir, yeniden çizmeden
+        st.answers[st.i] = st.answers[st.i] === j ? undefined : j;
+        $stage.querySelectorAll('.opt[data-opt]').forEach((o) => {
+          const on = Number(o.dataset.opt) === st.answers[st.i];
+          o.classList.toggle('sel', on);
+          o.querySelector('.bubble').classList.toggle('filled', on);
+        });
+        drawBar();
+      }
+    });
+    if (pick == null || reveal !== 'instant') bindStrike($stage, st.struck);
+    bindGuess($stage, () => !!st.guess[st.i], (v) => { st.guess[st.i] = v; });
+    drawBar();
+  }
+
+  function drawBar() {
+    const pick = st.answers[st.i];
     const prev = `<button class="btn ghost square" data-prev ${st.i ? '' : 'disabled'} aria-label="Önceki">${icon.back}</button>`;
     const last = st.i === qs.length - 1;
     if (reveal === 'instant') {
@@ -656,23 +708,11 @@ function questionRunner({ title, eyebrow, qs, reveal = 'instant', minutes = null
     } else {
       $bar.innerHTML = prev + (last ? `<button class="btn ink" data-finish>Denemeyi bitir</button>` : `<button class="btn" data-next>${pick != null ? 'Sonraki' : 'Boş geç'}${icon.fwd}</button>`);
     }
-    if (moved) sc().scrollTop = 0;
-    $stage.querySelectorAll('[data-opt]').forEach((b) => b.onclick = () => {
-      const j = Number(b.dataset.opt);
-      if (reveal === 'instant') {
-        if (pick != null) return;
-        st.answers[st.i] = j; st.struck = [];
-        record(st.i, j);
-        draw();
-        $stage.querySelector('.feedback')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      } else { st.answers[st.i] = st.answers[st.i] === j ? undefined : j; draw(); }
-    });
-    if (pick == null || reveal !== 'instant') bindStrike($stage, st.struck, draw);
-    const g = $stage.querySelector('[data-guess]'); if (g) g.onclick = () => { st.guess[st.i] = !st.guess[st.i]; draw(); };
+    document.getElementById('ticks').innerHTML = qs.map((x, j) => `<i class="${st.answers[j] != null ? 'done' : ''} ${j === st.i ? 'cur' : ''}"></i>`).join('');
     const on = (sel, fn) => { const x = $bar.querySelector(sel); if (x) x.onclick = fn; };
     on('[data-prev]', () => { st.i--; st.struck = []; draw(); });
     on('[data-next]', () => { st.i++; st.struck = []; draw(); });
-    on('[data-blank]', () => { st.answers[st.i] = -1; record(st.i, -1); draw(); });
+    on('[data-blank]', () => { st.answers[st.i] = -1; record(st.i, -1); markAnswered($stage, qs[st.i], -1, false); drawBar(); });
     on('[data-finish]', () => {
       const empty = qs.filter((_, j) => st.answers[j] == null).length;
       if (reveal !== 'instant' && empty && !confirm(`${empty} soru boş. Denemeyi bitirmek istiyor musun?`)) return;
@@ -684,7 +724,7 @@ function questionRunner({ title, eyebrow, qs, reveal = 'instant', minutes = null
     tick();
     const q = qs[i];
     const ok = pick === -1 || pick == null ? -1 : pick === q.a ? 1 : 0;
-    logAnswer({ k: q.key || null, l: q.l || null, s: q.s || null, ok, p: pick >= 0 && q._map ? q._map[pick] : pick, src, g: st.guess[i] ? 1 : 0, sec: Math.min(900, Math.round(st.spent[i] || 0)) || undefined });
+    logAnswer({ k: q.key || null, l: q.l || null, s: q.s || null, ok, p: pick >= 0 && q._map ? q._map[pick] : pick, src, g: st.guess[i] ? 1 : 0, sec: Math.min(600, Math.round(st.spent[i] || 0)) || undefined, len: qLen(q) });
     if (q.key) store.update((s) => {
       if (ok === 1) { if (s.wrong[q.key]) s.wrong[q.key].fixed = true; }
       else {
@@ -1093,11 +1133,29 @@ function insights(s, est) {
     out.push(`<b>Tahminlerin:</b> "tahmin" işaretlediğin ${g.length} sorudan ${g.filter((x) => x.ok === 1).length} tanesi tuttu (%${Math.round(r * 100)}). ${r > 0.3 ? 'Bu oran %20\'nin üstünde: en az bir şıkkı eleyebildiğinde işaretlemen kârlı.' : r >= 0.2 ? 'Bu oran başa baş: sadece en az 2 şık eleyebildiğinde işaretle.' : 'Bu oran %20\'nin altında: tahminler sana net kaybettiriyor, emin değilsen boş bırak.'}`);
   } else out.push('<b>Tahminlerin:</b> Soru çözerken emin olmadığında "Tahmin" düğmesine bas; 5 tahminden sonra işaretlemenin sana kazandırıp kazandırmadığını burada göreceksin.');
   const t = est.time;
-  const slow = SUBJECTS.filter((x) => t.per[x.id].n >= 5 && t.per[x.id].sec > (x.id === 'matematik' ? 150 : x.id === 'turkce' ? 95 : 55));
-  out.push(`<b>Süre:</b> ${t.per.turkce.n + t.per.tarih.n + t.per.cografya.n >= 10 ? 'Uygulamadaki hızınla' : 'Ortalama bir adayın hızıyla (henüz yeterli verin yok)'} tüm sınava bakmak ~${Math.round(t.needMin)} dk sürer; süre 130 dk. ${t.needMin > 125 ? '<b>Süre yetmeyebilir</b>: Genel Kültür\'de bilmediğin soruda 30 saniyeden fazla durma.' : 'Süre yetiyor; kalan zamanı Türkçe paragrafları dikkatli okumaya ver.'}${slow.length ? ` Yavaş olduğun dersler: ${slow.map((x) => x.name).join(', ')}.` : ''}`);
+  out.push(`<b>Süre:</b> ${t.samples >= 10 ? 'Kendi hızınla' : 'Ortalama aday hızıyla (henüz yeterli verin yok)'} işaretleyeceğin soruları çözüp diğerlerini okuyup geçmen ~${Math.round(t.needMin)} dk sürer; sınav 130 dk. ${t.needMin > 130 ? '<b>Süre yetmiyor</b>: tahmin, yetişemeyeceğin soruları boş sayıyor. Genel Kültür\'de bilmediğin soruda 30 sn\'den fazla durma.' : t.needMin > 115 ? 'Süre sınırda: takıldığın soruyu işaretleyip geç, sona dön.' : 'Süre yetiyor; artan zamanı Türkçe paragrafları dikkatli okumaya ver.'}`);
   const ev = Object.values(est.per).reduce((a, p) => a + p.evidence, 0);
   out.push(ev < 30 ? '<b>Güven:</b> Henüz az soru çözdün; tahmin büyük ölçüde YKS geçmişine dayanıyor. Mini deneme ve hocanın karışık testleri tahmini en hızlı netleştiren şey.' : `<b>Güven:</b> Tahmin ${Math.round(ev)} soruluk ağırlıklı kanıta dayanıyor. Deneme sonuçları ders içi sorulardan daha çok sayılır.`);
   return out;
+}
+
+// Hız: ders ders soru başı süre, sınav temposuna göre; okuma hızı; ders süreleri; 130 dakikaya yetişme
+function speedHTML(s, est) {
+  const t = est.time;
+  const fmtS = (x) => (x == null ? '–' : x >= 90 ? `${Math.floor(x / 60)} dk ${Math.round(x % 60)} sn` : `${Math.round(x)} sn`);
+  const col = { 'yavaş': 'var(--wrong)', 'hızlı': 'var(--right)', 'tempoda': 'var(--ink)', 'veri az': 'var(--faint)' };
+  const ls = Object.entries(s.lessons || {}).filter(([id, l]) => LESSONS[id] && l.done && l.time > 60);
+  const avgL = ls.length ? ls.reduce((a, [, l]) => a + l.time, 0) / ls.length : null;
+  const bySub = SUBJECTS.map((x) => { const a = ls.filter(([id]) => LESSONS[id].s === x.id); return a.length ? `${x.name} ${Math.round(a.reduce((p, [, l]) => p + l.time, 0) / a.length / 60)} dk` : null; }).filter(Boolean);
+  return `<section class="card flat"><h3>Hızın</h3>
+    <p class="small muted" style="margin:4px 0 8px">Soru başına harcadığın <b>aktif</b> süre (medyan). Uygulamadan çıkınca, ekran kapanınca veya 2 dk dokunmayınca sayaç durur. Hata defteri ve daha önce gördüğün sorular hıza <b>sayılmaz</b>: cevabı hatırladığın için yanıltır.</p>
+    <div class="tablewrap"><table class="vtable"><thead><tr><th>Ders</th><th>Sen</th><th>Sınav temposu</th><th>Durum</th></tr></thead><tbody>
+    ${SUBJECTS.map((x) => { const p = t.per[x.id]; return `<tr><td style="color:var(--s)" data-s="${x.id}">${x.name}<div class="small muted" style="font-weight:400">${p.n} soru ölçüldü${p.okSec != null && p.badSec != null && p.n >= 6 ? ` · doğrular ${fmtS(p.okSec)}, yanlışlar ${fmtS(p.badSec)}` : ''}</div></td><td class="num"><b>${p.med == null ? '–' : fmtS(p.med)}</b></td><td class="num">${fmtS(p.budget)}</td><td style="color:${col[p.label]};font-weight:700">${p.label}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    <p class="small" style="margin:10px 0 0"><b>130 dakikada:</b> sırayla Türkçe → Genel Kültür → Matematik. Bu hızla ${Math.round(est.D + est.Y)} soru işaretler, ${Math.round(est.B)} boş bırakırsın; gereken süre ~<b>${Math.round(t.needMin)} dk</b> ${t.needMin > 130 ? `→ <b style="color:var(--wrong)">${Math.round(t.needMin - 130)} dk eksik</b>, yetişemeyeceğin sorular boş sayıldı (süre olmasa ${fmtNet(est.free)} net olurdu).` : `→ <b>${Math.round(130 - t.needMin)} dk artıyor</b>.`}</p>
+    ${t.reading ? `<p class="small" style="margin:8px 0 0"><b>Okuma + çözme hızı:</b> metinli sorularda dakikada ~${t.reading.wpm} kelime (${t.reading.n} soru). ${t.reading.wpm < 120 ? 'Paragraf sorularında önce soru kökünü oku, sonra metni: ne aradığını bilerek okumak hızlandırır.' : 'İyi bir hız; paragrafta acele edip şıkları karıştırmamaya odaklan.'}</p>` : ''}
+    ${avgL ? `<p class="small" style="margin:8px 0 0"><b>Ders süresi:</b> bir dersi ortalama ${Math.round(avgL / 60)} dk'da bitiriyorsun${bySub.length > 1 ? ` (${bySub.join(', ')})` : ''}. Hocayla sohbet süresi de bugünkü çalışma süresine eklenir.</p>` : ''}
+  </section>`;
 }
 
 function viewStats() {
@@ -1123,6 +1181,8 @@ function viewStats() {
       </tbody></table></div>
     </section>
 
+${speedHTML(s, est)}
+
     <section class="card flat"><h3>Gün gün tahmin</h3>
       <p class="small muted" style="margin:4px 0 8px">Her çözdüğün soruyla anında güncellenir; burada her günün son hâli kalır.</p>
       ${trend.length ? `<div class="tablewrap"><table class="vtable"><thead><tr><th>Gün</th><th>Net</th><th>Aralık</th><th>Puan</th></tr></thead><tbody>${trend.map(([d, v], i) => { const prev = i ? trend[i - 1][1].net : null; const diff = prev == null ? '' : ` <span class="small" style="color:${v.net >= prev ? 'var(--right)' : 'var(--wrong)'}">${v.net >= prev ? '+' : ''}${fmtNet(v.net - prev)}</span>`; return `<tr><td>${prettyDate(d, false)}</td><td class="num"><b>${fmtNet(v.net)}</b>${diff}</td><td class="num">${v.low}–${v.high}</td><td class="num">≈${v.puan}</td></tr>`; }).join('')}</tbody></table></div>` : ''}
@@ -1131,7 +1191,8 @@ function viewStats() {
     <section class="card flat"><h3>Ne görüyorum?</h3><ul class="small" style="padding-left:1.1em;margin:8px 0 0">${insights(s, est).map((x) => `<li style="margin:.5em 0">${x}</li>`).join('')}</ul></section>
 
     <section class="card flat"><h3>Nasıl hesaplanıyor?</h3>
-      <p class="small">Seni mutlu etmek için değil, doğruyu göstermek için: başlangıç noktası, hiç çalışmadan girdiğin <b>4 YKS'deki</b> davranışın (her derste soruların ne kadarını işaretlediğin ve ne kadarını tutturduğun). Sonra her çözdüğün soru tahmini günceller: <b>deneme ve hocanın testleri</b> tam sayılır; ders içi sorular kolay olduğu için <b>yarım</b> sayılır ve doğruları iskontolanır; eski cevapların ağırlığı günler geçtikçe azalır (unutma). <b>Ders bitirmek tek başına net getirmez</b>, sadece soru performansı getirir. Konuların sınavdaki ağırlığı 2014-2020 kitapçıklarındaki 294 sorudan hesaplandı.</p></section>
+      <p class="small">Seni mutlu etmek için değil, doğruyu göstermek için: başlangıç noktası, hiç çalışmadan girdiğin <b>4 YKS'deki</b> davranışın (her derste soruların ne kadarını işaretlediğin ve ne kadarını tutturduğun). Sonra her çözdüğün soru tahmini günceller: <b>deneme ve hocanın testleri</b> tam sayılır; ders içi sorular kolay olduğu için <b>yarım</b> sayılır ve doğruları iskontolanır; eski cevapların ağırlığı günler geçtikçe azalır (unutma). <b>Ders bitirmek tek başına net getirmez</b>, sadece soru performansı getirir. Çıkmış ÖSYM soruları tam sayılır. Konuların sınavdaki ağırlığı 2010-2026 arası ÖSYM kitapçıklarındaki ~1.900 sorudan hesaplandı. Son olarak <b>süre</b> hesaba katılır: kendi hızınla 130 dakikaya yetişemeyeceğin sorular boş sayılır.</p>
+      <p class="small"><b>Neden 10 çıkmış soruda 3 doğru −2 net, bir ders +0,1?</b> Başlangıç tahmini, Türkçe'de işaretlediklerinin ~%71'ini doğru yaptığın varsayımına dayanıyor. Gerçek ÖSYM sorusunda 10'da 3 bu varsayımın çok altında olduğu için tahmin aşağı iner. Aynı hesap tersine de çalışır: 10'da 7 ≈ +1, 10'da 10 ≈ +3 net. Ders içi kolay sorular sınav hakkında az şey söylediği için az oynatır. Tek bir 10 soruluk seri şans da içerir; bu yüzden eski cevaplar silinmez, yeni çözdüklerinle birlikte tartılır ve aralık (üstteki alt–üst sınır) ne kadar emin olduğumu gösterir.</p></section></section>
 
     <h3 style="margin:22px 0 6px">YKS geçmişin (net = D − Y/4)</h3>
     <div class="tablewrap"><table class="vtable"><thead><tr><th>Test</th>${rows[0].years.map((y) => `<th>${y.y}</th>`).join('')}</tr></thead><tbody>

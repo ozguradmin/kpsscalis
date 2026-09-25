@@ -104,23 +104,82 @@ export function estimate(st = store.get()) {
     total += now_; start += base; variance += sum('var') + modelSd * modelSd;
     D += per[s.id].D; Y += per[s.id].Y; B += per[s.id].B;
   }
+  // süre kısıtı: 130 dakikaya yetişemeyeceği sorular boş kalır
+  const tm = timeModel(st), fit = timeFit(per, tm);
+  const free = total;
+  D = Y = B = total = 0;
+  for (const s of SUBJECTS) {
+    const p = per[s.id], f = fit.per[s.id].f;
+    if (f < 1) { const lost = (p.D + p.Y) * (1 - f); p.now *= f; p.B += lost; p.D *= f; p.Y *= f; }
+    p.min = fit.per[s.id].min;
+    total += p.now; D += p.D; Y += p.Y; B += p.B;
+  }
   const sd = Math.sqrt(variance);
   const low = Math.max(0, total - 1.28 * sd), high = total + 1.28 * sd;
-  return { total, start, gain: total - start, per, D, Y, B, low, high, puan: puan(total), puanLow: puan(low), puanHigh: puan(high), time: timeModel(st) };
+  return { total, start, gain: total - start, per, D, Y, B, low, high, puan: puan(total), puanLow: puan(low), puanHigh: puan(high), time: { ...tm, ...fit }, free };
 }
 
-// Süre: uygulamada soru başına harcadığı süreden, 130 dakikaya yetişir mi?
+// ---------- Süre ----------
+// Sınavda 120 soru / 130 dk. Hedef tempo (soru başı sn): Türkçe ~40 dk, Genel Kültür ~40 dk, Matematik ~50 dk.
+export const BUDGET = { turkce: 80, matematik: 100, tarih: 40, cografya: 40, vatandaslik: 40, guncel: 40 };
+export const EXAM_MIN = 130;
+// Sınavdaki sıra: önce Türkçe, sonra Genel Kültür, en son Matematik (süre biterse en sondakiler boş kalır)
+const ORDER = ['turkce', 'tarih', 'cografya', 'vatandaslik', 'guncel', 'matematik'];
+// Hız ölçümüne girenler: ilk kez görülen sorular. Hata defteri ve tekrar edilen sorular sayılmaz (cevabı akılda kalır).
+const TIMED = new Set(['deneme', 'cikmis', 'hoca', 'ders', 'kontrol']);
+
+function timedSamples(st) {
+  const seen = new Set(), out = [];
+  for (const x of st.log || []) {
+    const again = x.k && seen.has(x.k);
+    if (x.k) seen.add(x.k);
+    if (again || !TIMED.has(x.src) || !(x.sec > 3 && x.sec <= 600)) continue;
+    out.push(x);
+  }
+  return out;
+}
+const median = (xs) => { const a = [...xs].sort((p, q) => p - q); return a.length ? (a.length % 2 ? a[a.length >> 1] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2) : null; };
+
+// Ders ders tempo: medyan sn (az veri varsa tipik süreye doğru çekilir), hız etiketi, okuma hızı
 export function timeModel(st = store.get()) {
+  const xs = timedSamples(st);
+  const per = {};
+  for (const s of SUBJECTS) {
+    const mine = xs.filter((x) => x.s === s.id);
+    const secs = mine.map((x) => x.sec);
+    const med = median(secs);
+    const sec = med != null ? (med * secs.length + PRIOR_SEC[s.id] * 3) / (secs.length + 3) : PRIOR_SEC[s.id];
+    const ok = mine.filter((x) => x.ok === 1).map((x) => x.sec), bad = mine.filter((x) => x.ok === 0).map((x) => x.sec);
+    const ratio = sec / BUDGET[s.id];
+    per[s.id] = {
+      sec, n: secs.length, med, budget: BUDGET[s.id], ratio,
+      label: secs.length < 3 ? 'veri az' : ratio > 1.25 ? 'yavaş' : ratio < 0.7 ? 'hızlı' : 'tempoda',
+      okSec: median(ok), badSec: median(bad),
+    };
+  }
+  // Okuma hızı: metinli sorularda karakter/sn (Türkçe paragraf en iyi ölçü); ~6 karakter = 1 kelime
+  const rd = xs.filter((x) => x.len > 150 && x.sec > 8).map((x) => x.len / x.sec);
+  const cps = median(rd);
+  const reading = cps ? { wpm: Math.round(cps / 6 * 60), n: rd.length } : null;
+  return { per, reading, samples: xs.length, limitMin: EXAM_MIN };
+}
+
+// 130 dakikaya sığdırma: her derste işaretleyeceği sorular kendi temposunda, boş bırakacakları için okuma+geçme (~%35 süre).
+// Süre biterse sıradaki derslerin işaretlenecek soruları boşa döner.
+export function timeFit(per, tm) {
+  let left = EXAM_MIN * 60;
   const out = {};
   let need = 0;
-  for (const s of SUBJECTS) {
-    const xs = (st.log || []).filter((x) => x.s === s.id && x.sec > 3 && x.sec < 900 && (x.src === 'deneme' || x.src === 'hoca' || x.src === 'ders' || x.src === 'hata')).map((x) => x.sec).sort((a, b) => a - b);
-    const med = xs.length >= 3 ? xs[Math.floor(xs.length / 2)] : null;
-    const sec = med != null ? (med * xs.length + PRIOR_SEC[s.id] * 3) / (xs.length + 3) : PRIOR_SEC[s.id];
-    out[s.id] = { sec, n: xs.length };
-    need += sec * s.q * (s.id === 'matematik' ? 0.5 : 1); // matematikte sadece yapabileceğine bakacak
+  for (const id of ORDER) {
+    const p = per[id], t = tm.per[id];
+    const attempt = p.D + p.Y, skip = p.B;
+    const cost = attempt * t.sec + skip * t.sec * 0.35;
+    need += cost;
+    const f = cost <= 0 ? 1 : Math.max(0, Math.min(1, left / cost));
+    left = Math.max(0, left - cost);
+    out[id] = { f, min: cost / 60 };
   }
-  return { per: out, needMin: need / 60, limitMin: 130 };
+  return { per: out, needMin: need / 60, limitMin: EXAM_MIN, spareMin: EXAM_MIN - need / 60 };
 }
 
 // 2024 ön lisans P93 dağılımına göre yaklaşık çevirme (35 net≈67, 45≈72, 60≈80)

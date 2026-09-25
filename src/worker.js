@@ -545,13 +545,15 @@ async function chat(request, env, ctx) {
 
 // ---------- Soru üretme ----------
 
-async function generateRaw(env, { subject, topic, summary, count, level }) {
+async function generateRaw(env, { subject, topic, summary, count, level, examples = [] }) {
   const messages = [
     { role: 'system', content: QUESTION_SYSTEM },
     {
       role: 'user',
       content: `Ders: ${String(subject || '').slice(0, 40)}\nKonu: ${String(topic || '').slice(0, 200)}\n` +
-        `Zorluk: ${level === 'hard' ? 'gerçek sınav ayarı' : 'kolay-orta, konuyu pekiştiren ama yine ÖSYM üslubunda'}\n\n` +
+        `Zorluk: GERÇEK SINAV AYARI. Aşağıdaki çıkmış sorular kadar zor olsun: ne daha kolay ne daha zor. Doğru cevap kendini ele vermesin; çeldiriciler ` +
+        `konuyu yarım bilenin seçeceği güçlü şıklar olsun (aynı dönemden/aynı kavram ailesinden), şık uzunlukları benzer olsun.\n\n` +
+        (examples.length ? `AYNI KONUDAN GERÇEK ÖSYM SORULARI (zorluk ve üslup ölçüsü; bunları KOPYALAMA, aynı ayarda yeni sorular yaz):\n${examples.map((q, i) => `${i + 1}) [${q.src}] ${String(q.q).slice(0, 900)}\n${q.o.map((o, k) => `${'ABCDE'[k]}) ${o}`).join('\n')}\nCevap: ${'ABCDE'[q.a]}`).join('\n\n')}\n\n` : '') +
         `${QUESTION_STYLE[subject] || ''}\n\nDers notları (bilgiyi SADECE buradan ve kesin bildiğin gerçeklerden al):\n${String(summary || '').slice(0, 9000)}\n\n${count} soru yaz.`,
     },
   ];
@@ -601,7 +603,9 @@ async function mapLimit(items, n, fn) {
 
 async function generateQuestions(env, { subject, topic, summary, count, level, lessonId }) {
   if (lessonId && NO_AI_QUESTIONS.has(lessonId)) throw new Error('Bu konuda yapay zekâ sorusu üretilmiyor; sözel mantıkta sadece kontrol edilmiş sorular kullanılıyor');
-  const { qs, model } = await generateRaw(env, { subject, topic, summary, count: Math.min(10, count + 2), level });
+  // Zorluk ölçüsü: aynı dersten metni olan 3 gerçek soru (görselsiz)
+  const examples = lessonId ? (await realByLessons(env, [lessonId], 8).catch(() => [])).filter((q) => q.q && q.q.length > 40 && q.o.length === 5 && !q.needimg && q.a != null).slice(0, 3) : [];
+  const { qs, model } = await generateRaw(env, { subject, topic, summary, count: Math.min(10, count + 2), level, examples });
   const checks = await mapLimit(qs, 2, (q) => verifyQuestion(env, q));
   const good = qs.filter((q, i) => checks[i].ok).map((q) => ({ ...q, verified: true }));
   if (env.DB && lessonId && good.length) {
@@ -616,7 +620,7 @@ async function generateQuestions(env, { subject, topic, summary, count, level, l
 
 async function bankQuestions(env, lessons, n) {
   if (!env.DB || !lessons.length) return [];
-  const rs = await env.DB.prepare(`SELECT id, lesson, data FROM qbank WHERE lesson IN (${lessons.map(() => '?').join(',')}) ORDER BY RANDOM() LIMIT ?`).bind(...lessons, n).all();
+  const rs = await env.DB.prepare(`SELECT id, lesson, data FROM qbank WHERE lesson IN (${lessons.map(() => '?').join(',')}) ORDER BY (level = 'easy'), RANDOM() LIMIT ?`).bind(...lessons, n).all(); // önce sınav ayarındakiler
   return (rs.results || []).map((r) => ({ ...JSON.parse(r.data), key: r.id, l: r.lesson }));
 }
 
@@ -707,7 +711,7 @@ const LEVEL_NAME = { onl: 'Ön Lisans', ort: 'Ortaöğretim', lis: 'Lisans', kit
 function realRow(r) {
   return {
     key: `real:${r.id}`, id: r.id, l: r.lesson, s: r.s, q: r.stem, o: JSON.parse(r.o || '[]'), a: r.a, konu: r.konu, bilgi: r.bilgi,
-    img: r.level === 'kit' ? null : `/api/realimg/${r.id}`, needimg: !!r.needimg, real: true, src: `${r.year} KPSS ${LEVEL_NAME[r.level] || ''}`.trim(),
+    img: r.level === 'kit' ? null : `/api/realimg/${r.id}`, needimg: !!r.needimg, real: true, year: r.year, src: `${r.year} KPSS ${LEVEL_NAME[r.level] || ''}`.trim(),
   };
 }
 export async function realByLessons(env, lessons, n, { subject = null, exclude = [] } = {}) {
@@ -717,8 +721,9 @@ export async function realByLessons(env, lessons, n, { subject = null, exclude =
   if (lessons && lessons.length) { where.push(`lesson IN (${lessons.map(() => '?').join(',')})`); args.push(...lessons); }
   if (subject) { where.push('s = ?'); args.push(subject); }
   where.push('a IS NOT NULL');
-  // ön lisans ve son yıllar önce gelsin: ağırlıklı rastgele sıralama
-  const rs = await env.DB.prepare(`SELECT * FROM real_q WHERE ${where.join(' AND ')} ORDER BY (CASE level WHEN 'onl' THEN 0 WHEN 'kit' THEN 0.5 WHEN 'ort' THEN 1 ELSE 2 END) + (2026 - year) / 12.0 + (ABS(RANDOM()) % 1000) / 250.0 LIMIT ?`)
+  // Son yıllar açık ara önce: yıl başına 0,25 puan geri düşer (2025 ≈ 0,25, 2015 ≈ 2,75); ön lisans önce, sonra ortaöğretim, lisans.
+  // Rastgelelik yalnızca ±1 aralığında: aynı yıllar arasında karışır ama eski yıllar yenilerin önüne pek geçmez.
+  const rs = await env.DB.prepare(`SELECT * FROM real_q WHERE ${where.join(' AND ')} ORDER BY (CASE level WHEN 'onl' THEN 0 WHEN 'kit' THEN 0 WHEN 'ort' THEN 0.6 ELSE 1 END) + (2026 - year) / 4.0 + (ABS(RANDOM()) % 1000) / 1000.0 LIMIT ?`)
     .bind(...args, n + exclude.length).all();
   const ex = new Set(exclude);
   return (rs.results || []).filter((r) => !ex.has(`real:${r.id}`)).slice(0, n).map(realRow);

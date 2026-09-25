@@ -141,6 +141,9 @@ export const isOnline = () => online;
 // ---------- cevap günlüğü ----------
 // Özgür'ün çözdüğü her soru: hoca, net tahmini ve akıllı deneme buradan beslenir.
 const LOG_MAX = 1500;
+// Okuma hızı için soru uzunluğu (karakter). Görsel sorularda metin yok: sayılmaz.
+export const qLen = (q) => (q && !q.img && q.q ? q.q.length + (q.o || []).join('').length : undefined);
+
 export function logAnswer(e) {
   store.update((s) => {
     (s.log ||= []).push({ at: Date.now(), ...e });
@@ -150,14 +153,20 @@ export function logAnswer(e) {
 
 // ---------- zaman takibi ----------
 // Ders ekranında aktif geçen süreyi sayar; sekme gizlenince veya 2 dk hareketsiz kalınca durur.
+// Aynı anda birden fazla sayaç açık olabilir (ders içinde hoca açılınca): yalnızca en son açılan sayar, süre iki kez yazılmaz.
+const timers = [];
+let lastGlobalInput = 0;
+if (typeof window !== 'undefined') ['pointerdown', 'keydown', 'touchstart'].forEach((e) => window.addEventListener(e, () => { lastGlobalInput = Date.now(); }, { passive: true }));
 export function startTimer(lessonId) {
+  const me = {};
+  timers.push(me);
   let last = Date.now();
   let lastInput = Date.now();
   let acc = 0;
   const onInput = () => { lastInput = Date.now(); };
   const tick = () => {
     const now = Date.now();
-    if (document.visibilityState === 'visible' && now - lastInput < 120000) acc += (now - last) / 1000;
+    if (timers[timers.length - 1] === me && document.visibilityState === 'visible' && now - Math.max(lastInput, lastGlobalInput) < 120000) acc += (now - last) / 1000;
     if (acc < 0) acc = 0;
     last = now;
     if (acc >= 15) flush();
@@ -183,6 +192,7 @@ export function startTimer(lessonId) {
   const stop = () => {
     tick(); flushed();
     clearInterval(iv);
+    const k = timers.indexOf(me); if (k >= 0) timers.splice(k, 1);
     ['pointerdown', 'keydown', 'touchstart'].forEach((e) => window.removeEventListener(e, onInput));
     window.removeEventListener('scroll', onInput, { capture: true });
   };

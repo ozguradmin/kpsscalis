@@ -4,23 +4,32 @@ import { marked } from '../vendor/marked.esm.js';
 import DOMPurify from '../vendor/purify.es.mjs';
 import { esc, inline, renderViz } from './viz.js';
 import { SUBJECT, LESSONS } from './plan.js';
-import { store, logAnswer } from './store.js';
+import { store, logAnswer, startTimer, qLen } from './store.js';
 import { icon } from './icons.js';
-import { questionHTML, bindStrike, prepQ, LETTERS, toast, speak, stopSpeaking, plain } from './ui.js';
+import { questionHTML, bindStrike, bindGuess, markAnswered, activeNow, prepQ, LETTERS, toast, speak, stopSpeaking, plain } from './ui.js';
 import { buildProfile } from './profile.js';
 
 marked.setOptions({ gfm: true, breaks: true });
-const HKEY = 'kpss-ozgur-chat';
+const HKEY = 'kpss-ozgur-chat2'; // { konu: mesajlar }: sekmedeki hoca ile her soru/ekrandaki hoca ayrı sohbettir
 const MAX_KEEP = 40;
 let mode = 'fast';
 let busy = false;
+let thread = 'tab';
 let hist = loadHistory(); // [{ role, parts:[{t:'text',v}|{t:'block',b}], ctx?, hidden? }]
 
+function allThreads() { try { return JSON.parse(localStorage.getItem(HKEY) || '{}'); } catch (e) { return {}; } }
 function loadHistory() {
-  try { return JSON.parse(localStorage.getItem(HKEY) || '[]'); } catch (e) { return []; }
+  const t = allThreads()[thread];
+  return Array.isArray(t && t.m) ? t.m : [];
 }
 function saveHistory() {
-  try { localStorage.setItem(HKEY, JSON.stringify(hist.slice(-MAX_KEEP))); } catch (e) { /* dolu olabilir */ }
+  try {
+    const all = allThreads();
+    all[thread] = { at: Date.now(), m: hist.slice(-MAX_KEEP) };
+    const keys = Object.keys(all).filter((k) => k !== 'tab').sort((a, b) => all[b].at - all[a].at);
+    keys.slice(25).forEach((k) => delete all[k]); // en eski soru sohbetlerini at
+    localStorage.setItem(HKEY, JSON.stringify(all));
+  } catch (e) { /* dolu olabilir */ }
 }
 
 export function renderMarkdown(text) {
@@ -62,7 +71,7 @@ function blockHTML(b, mi, pi) {
 function quizBlockHTML(b, mi, pi) {
   const st = (b.state ||= { i: 0, answers: {}, guess: {}, done: false });
   const n = b.questions.length;
-  const dots = `<div class="qnav">${b.questions.map((q, j) => `<i class="${j === st.i && !st.done ? 'cur' : st.answers[j] == null ? '' : st.answers[j] === q.a ? 'ok' : 'no'}"></i>`).join('')}</div>`;
+  const dots = quizDots(b);
   if (st.done) {
     const d = b.questions.filter((q, j) => st.answers[j] === q.a).length;
     const y = b.questions.filter((q, j) => st.answers[j] != null && st.answers[j] !== -1 && st.answers[j] !== q.a).length;
@@ -75,20 +84,33 @@ function quizBlockHTML(b, mi, pi) {
   const pick = st.answers[st.i];
   return `<div class="block" data-block="${mi}:${pi}"><div class="bh"><span class="eyebrow">${esc(b.title)} · ${st.i + 1}/${n}</span>${dots}</div>
     <div class="bb">${questionHTML(q, pick, { guess: pick == null ? !!st.guess[st.i] : st.guess[st.i], struck: st.struck || [] })}</div>
-    <div class="bf"><button class="btn ghost sm" data-qprev ${st.i ? '' : 'disabled'}>${icon.back}Önceki</button>
-    ${pick == null ? `<button class="btn ghost sm" data-qblank>Boş bırak</button>` : st.i < n - 1 ? `<button class="btn sm" data-qnext>Sonraki${icon.fwd}</button>` : `<button class="btn ink sm" data-qfinish>Bitir ve analiz et</button>`}</div></div>`;
+    ${quizFoot(b)}</div>`;
+}
+function quizDots(b) {
+  const st = b.state;
+  return `<div class="qnav">${b.questions.map((q, j) => `<i class="${j === st.i && !st.done ? 'cur' : st.answers[j] == null ? '' : st.answers[j] === q.a ? 'ok' : 'no'}"></i>`).join('')}</div>`;
+}
+function quizFoot(b) {
+  const st = b.state, n = b.questions.length, pick = st.answers[st.i];
+  return `<div class="bf"><button class="btn ghost sm" data-qprev ${st.i ? '' : 'disabled'}>${icon.back}Önceki</button>
+    ${pick == null ? `<button class="btn ghost sm" data-qblank>Boş bırak</button>` : st.i < n - 1 ? `<button class="btn sm" data-qnext>Sonraki${icon.fwd}</button>` : `<button class="btn ink sm" data-qfinish>Bitir ve analiz et</button>`}</div>`;
 }
 
 // ---------- ana bileşen ----------
 // container: içine tam ekran sohbet görünümü çizilir. opts.onClose varsa kapatma düğmesi gösterilir.
 export function mountChat(container, ctx = {}, opts = {}) {
   let context = ctx.lessonId || ctx.question || ctx.screen ? ctx : null;
+  thread = opts.thread || 'tab';
+  hist = loadHistory();
+  const stopTimer = startTimer('hoca'); // hocayla geçen süre de çalışma süresidir
+  const obs = new MutationObserver(() => { if (!container.isConnected || !container.querySelector('#log')) { stopTimer(); obs.disconnect(); } });
+  obs.observe(document.body, { childList: true, subtree: true });
   container.innerHTML = `<div class="view ${opts.withTabs ? 'with-tabs chatview' : ''}">
     <header class="topbar line">
       ${opts.onClose ? `<button class="iconbtn" data-close aria-label="Kapat">${icon.close}</button>` : `<span class="ico ink">${icon.ai}</span>`}
       <div class="ttl"><span class="eyebrow">Yapay zekâ hoca</span><b>Hoca</b></div>
       <div class="seg" id="mode" role="tablist" aria-label="Cevap modu"><button data-m="fast" class="${mode === 'fast' ? 'on' : ''}">Hızlı</button><button data-m="deep" class="${mode === 'deep' ? 'on' : ''}">Derin</button></div>
-      <button class="iconbtn" data-new aria-label="Yeni sohbet">${icon.refresh}</button>
+      <button class="chip" data-new aria-label="Sohbeti sıfırla" style="box-shadow:none">${icon.refresh}<span>Sıfırla</span></button>
     </header>
     <div class="scroll" id="log-sc"><div class="chatlog" id="log"></div></div>
     <div class="composer">
@@ -105,13 +127,14 @@ export function mountChat(container, ctx = {}, opts = {}) {
 
   if (opts.onClose) container.querySelector('[data-close]').onclick = () => { stopSpeaking(); opts.onClose(); };
   container.querySelectorAll('#mode button').forEach((b) => b.onclick = () => { mode = b.dataset.m; container.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('on', x === b)); toast(mode === 'deep' ? 'Derin mod: daha dikkatli ama daha yavaş (20-40 sn)' : 'Hızlı mod'); });
-  container.querySelector('[data-new]').onclick = () => { if (busy) return; hist = []; saveHistory(); draw(); drawSugg(); toast('Yeni sohbet'); };
+  container.querySelector('[data-new]').onclick = () => { if (busy) return; if (hist.length && !confirm('Bu sohbet silinsin mi? (Diğer sohbetler etkilenmez.)')) return; hist = []; saveHistory(); draw(); drawSugg(); toast('Sohbet sıfırlandı'); };
 
   function drawCtx() {
     const bar = container.querySelector('#ctxbar');
-    bar.innerHTML = context ? `<div class="ctxbar">${icon.eye}<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Görüyorum: <b>${esc(ctxLabel(context))}</b></span><button class="iconbtn" style="width:30px;height:30px;border-radius:9px;box-shadow:none" data-unctx aria-label="Bağlamı kaldır">${icon.close}</button></div>` : '';
+    // Hoca bu ekranı/soruyu görüyor. Çarpı: ekranı unutsun, genel konuş (yanlışlıkla kapatılırsa sohbet açıkken geri gelmez)
+    bar.innerHTML = context ? `<div class="ctxbar">${icon.eye}<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Görüyorum: ${esc(ctxLabel(context))}</span><button class="ctxx" data-unctx aria-label="Hoca bu ekranı dikkate almasın">${icon.close}</button></div>` : '';
     const u = bar.querySelector('[data-unctx]');
-    if (u) u.onclick = () => { context = null; drawCtx(); drawSugg(); };
+    if (u) u.onclick = () => { context = null; drawCtx(); drawSugg(); toast('Hoca artık bu ekranı dikkate almıyor; genel soru sorabilirsin.'); };
   }
 
   function drawSugg() {
@@ -175,26 +198,36 @@ export function mountChat(container, ctx = {}, opts = {}) {
       const b = hist[mi].parts[pi].b;
       const st = b.state;
       const q = b.questions[st.i];
-      if (!st.done) { st.seen ||= {}; if (st.seen[st.i] == null) st.seen[st.i] = Date.now(); }
+      if (!st.done) { st.seen ||= {}; if (st.seen[st.i] == null) st.seen[st.i] = activeNow(); }
       const redraw = () => { saveHistory(); const y = sc.scrollTop; redrawMsg(mi); sc.scrollTop = y; };
+      // cevap: soruyu yeniden çizme; şıklar, geri bildirim, noktalar ve alt düğmeler yerinde güncellenir
+      const answered = (pick) => {
+        markAnswered(el.querySelector('.bb'), b.questions[st.i], pick, st.guess[st.i]);
+        el.querySelector('.qnav').outerHTML = quizDots(b);
+        el.querySelector('.bf').outerHTML = quizFoot(b);
+        bindFoot();
+        saveHistory();
+        requestAnimationFrame(() => el.querySelector('.feedback')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+      };
       el.querySelectorAll('[data-opt]').forEach((o) => o.onclick = () => {
         if (st.answers[st.i] != null) return;
         const pick = Number(o.dataset.opt);
         st.answers[st.i] = pick;
         st.struck = [];
         record(b, st.i, pick);
-        redraw();
-        el.ownerDocument.querySelector(`[data-block="${mi}:${pi}"] .feedback`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        answered(pick);
       });
-      if (!st.done && st.answers[st.i] == null) bindStrike(el, (st.struck ||= []), redraw);
-      const g = el.querySelector('[data-guess]');
-      if (g) g.onclick = () => { st.guess[st.i] = !st.guess[st.i]; redraw(); };
-      const on = (sel, fn) => { const x = el.querySelector(sel); if (x) x.onclick = fn; };
-      on('[data-qprev]', () => { st.i = Math.max(0, st.i - 1); st.struck = []; redraw(); });
-      on('[data-qnext]', () => { st.i = Math.min(b.questions.length - 1, st.i + 1); st.struck = []; redraw(); });
-      on('[data-qblank]', () => { st.answers[st.i] = -1; record(b, st.i, -1); redraw(); });
-      on('[data-qfinish]', () => finishQuiz(b, mi));
-      on('[data-review]', () => { st.done = false; st.i = 0; redraw(); });
+      if (!st.done && st.answers[st.i] == null) bindStrike(el, (st.struck ||= []));
+      bindGuess(el, () => !!st.guess[st.i], (v) => { st.guess[st.i] = v; saveHistory(); });
+      const bindFoot = () => {
+        const on = (sel, fn) => { const x = el.querySelector(sel); if (x) x.onclick = fn; };
+        on('[data-qprev]', () => { st.i = Math.max(0, st.i - 1); st.struck = []; redraw(); });
+        on('[data-qnext]', () => { st.i = Math.min(b.questions.length - 1, st.i + 1); st.struck = []; redraw(); });
+        on('[data-qblank]', () => { st.answers[st.i] = -1; record(b, st.i, -1); answered(-1); });
+        on('[data-qfinish]', () => finishQuiz(b, mi));
+        on('[data-review]', () => { st.done = false; st.i = 0; redraw(); });
+      };
+      bindFoot();
       void q;
     });
   }
@@ -205,7 +238,8 @@ export function mountChat(container, ctx = {}, opts = {}) {
     const key = q.key || null;
     const orig = pick >= 0 && q._map ? q._map[pick] : pick;
     const t0 = b.state.seen && b.state.seen[i];
-    logAnswer({ k: key, l: q.l || null, s: LESSONS[q.l]?.s || null, ok, p: orig, src: 'hoca', g: b.state.guess[i] ? 1 : 0, sec: t0 ? Math.min(900, Math.round((Date.now() - t0) / 1000)) : undefined });
+    const secs = t0 != null ? Math.min(600, activeNow() - t0) : undefined;
+    logAnswer({ k: key, l: q.l || null, s: LESSONS[q.l]?.s || null, ok, p: orig, src: 'hoca', g: b.state.guess[i] ? 1 : 0, sec: secs, len: qLen(q) });
     if (key) store.update((s) => {
       if (ok !== 1) {
         s.wrong[key] = { at: Date.now(), fixed: false };
@@ -342,6 +376,9 @@ export function openChat(ctx = {}) {
   const onPop = () => { pushed = false; doClose(); };
   const close = () => { if (pushed) window.history.back(); else doClose(); };
   document.addEventListener('keydown', onKey);
-  mountChat(ov, ctx, { onClose: close });
+  // Her soru/ekran kendi sohbetini açar; aynı soruya dönünce o sohbet kaldığı yerden sürer
+  const seed = ctx.prompt ? `p${Date.now()}` : `${ctx.lessonId || ''}|${ctx.step || ''}|${String(ctx.question || ctx.screen || '').slice(0, 120)}`;
+  let h = 0; for (const c of seed) h = (h * 31 + c.charCodeAt(0)) | 0;
+  mountChat(ov, ctx, { onClose: close, thread: 'q' + (h >>> 0).toString(36) });
   try { window.history.pushState({ chat: 1 }, ''); pushed = true; window.addEventListener('popstate', onPop); } catch (e) { pushed = false; }
 }

@@ -219,10 +219,18 @@ export function questionText(q, pick) {
 }
 
 // Tek soru: kök + şıklar + (cevaplandıysa) geri bildirim
+function feedbackHTML(q, pick, guess) {
+  const ok = pick === q.a;
+  const rep = q.key && String(q.key).startsWith('ai:') ? (reported.has(q.key) ? '<div class="small muted" style="margin-top:8px">İnceleme istendi.</div>' : `<button class="chip" data-report="${esc(q.key)}" type="button" style="margin-top:10px;box-shadow:none">${icon.flag}<span>Soru hatalı mı? Bildir</span></button>`) : '';
+  return `<div class="feedback ${ok ? 'ok' : 'no'}"><h3>${ok ? (guess ? 'Doğru, ama tahmindi' : 'Doğru!') : pick === -1 ? `Boş bıraktın · doğrusu ${LETTERS[q.a]}` : `Yanlış · doğrusu ${LETTERS[q.a]}`}</h3>${md(q.ex || '')}${q.tip ? `<div class="tip"><b>İpucu:</b> ${inline(q.tip)}</div>` : ''}${q.ai ? '<div class="small muted" style="margin-top:8px">Yapay zekâ yazdı, iki kez denetlendi.</div>' : ''}${rep}</div>`;
+}
+
+const guessLabel = (on) => on ? `${icon.check}<span>Tahmin olarak işaretli</span>` : `${icon.sparkQ}<span>Emin değilim (tahmin)</span>`;
+
 export function questionHTML(q, pick, { head = '', guess = null, struck = [] } = {}) {
   // Gerçek ÖSYM sorusu: kitapçıktaki orijinal görüntü (altı çizili yerler, harita, grafik aynen)
   let h = head + (q.real ? `<div class="realtag">${icon.flag}<span>Gerçek ÖSYM sorusu · ${esc(q.src || '')}</span></div>` : '') + (q.real && q.img
-    ? `<img class="qimg" src="${esc(q.img)}" alt="${esc(String(q.q || '').slice(0, 200))}" loading="lazy">`
+    ? `<img class="qimg" src="${esc(q.img)}" alt="${esc(String(q.q || '').slice(0, 200))}" decoding="async">`
     : `<div class="qstem">${qtext(q.q)}</div>`);
   if (q.viz) h += renderViz(q.viz);
   h += `<div class="opts" role="radiogroup">${q.o.map((o, j) => {
@@ -232,27 +240,73 @@ export function questionHTML(q, pick, { head = '', guess = null, struck = [] } =
     return `<button class="opt ${cls}" data-opt="${j}" ${pick != null ? 'disabled' : ''} role="radio" aria-checked="${pick === j}"><span class="bubble ${fill}">${LETTERS[j]}</span>${label}</button>`;
   }).join('')}</div>`;
   if (pick == null && guess != null) {
-    h += `<div class="row between" style="margin-top:-4px"><span class="elim-hint">Emin olmadığın şıkkı elemek için basılı tut</span><button class="chip ${guess ? 'on' : ''}" data-guess type="button">${icon.sparkQ}<span>Tahmin</span></button></div>`;
+    h += `<div class="guessrow"><span class="elim-hint">Şıkkı elemek için basılı tut</span><button class="chip ${guess ? 'on' : ''}" data-guess type="button">${guessLabel(guess)}</button></div>`;
   }
-  if (pick != null) {
-    const ok = pick === q.a;
-    const rep = q.key && String(q.key).startsWith('ai:') ? (reported.has(q.key) ? '<div class="small muted" style="margin-top:8px">İnceleme istendi.</div>' : `<button class="chip" data-report="${esc(q.key)}" type="button" style="margin-top:10px;box-shadow:none">${icon.flag}<span>Soru hatalı mı? Bildir</span></button>`) : '';
-    h += `<div class="feedback ${ok ? 'ok' : 'no'}"><h3>${ok ? (guess ? 'Doğru, ama tahmindi' : 'Doğru!') : pick === -1 ? `Boş bıraktın · doğrusu ${LETTERS[q.a]}` : `Yanlış · doğrusu ${LETTERS[q.a]}`}</h3>${md(q.ex || '')}${q.tip ? `<div class="tip"><b>İpucu:</b> ${inline(q.tip)}</div>` : ''}${q.ai ? '<div class="small muted" style="margin-top:8px">Yapay zekâ yazdı, iki kez denetlendi.</div>' : ''}${rep}</div>`;
-  }
+  if (pick != null) h += feedbackHTML(q, pick, guess);
   return h;
 }
 
-// Uzun basınca şık eleme (üzerini çiz)
-export function bindStrike(root, struck, redraw) {
+// Cevap verilince soruyu yeniden çizmeden günceller (görsel yeniden yüklenmez, sayfa kaymaz)
+export function markAnswered(root, q, pick, guess) {
+  root.querySelectorAll('.opt[data-opt]').forEach((b) => {
+    const j = Number(b.dataset.opt);
+    b.disabled = true;
+    b.classList.remove('struck', 'sel');
+    b.classList.add(j === q.a ? 'right' : j === pick ? 'wrong' : 'dim');
+    b.setAttribute('aria-checked', String(j === pick));
+    if (j === q.a || j === pick) b.querySelector('.bubble')?.classList.add('filled', j === q.a ? 'right' : 'wrong');
+  });
+  root.querySelector('.guessrow')?.remove();
+  root.querySelector('.feedback')?.remove();
+  root.querySelector('.opts')?.insertAdjacentHTML('afterend', feedbackHTML(q, pick, guess));
+}
+
+// "Emin değilim" işareti: yeniden çizmeden aç/kapat
+let guessHinted = false;
+export function bindGuess(root, get, set) {
+  const b = root.querySelector('[data-guess]');
+  if (!b) return;
+  b.onclick = (e) => {
+    e.preventDefault();
+    const on = !get();
+    set(on);
+    b.classList.toggle('on', on);
+    b.innerHTML = guessLabel(on);
+    if (on && !guessHinted) { guessHinted = true; toast('Bu cevap "tahmin" olarak kaydedilecek. Analiz, tahminlerinin ne kadar tuttuğunu ayrıca hesaplar.', 3600); }
+  };
+}
+
+// Basılı tutunca şıkkın üstünü çiz (yeniden çizmeden)
+export function bindStrike(root, struck) {
   root.querySelectorAll('.opt[data-opt]:not([disabled])').forEach((b) => {
-    let t = null, fired = false;
-    const start = () => { fired = false; t = setTimeout(() => { fired = true; const j = Number(b.dataset.opt); const i = struck.indexOf(j); if (i >= 0) struck.splice(i, 1); else struck.push(j); if (navigator.vibrate) navigator.vibrate(12); redraw(); }, 420); };
+    let t = null, fired = false, sx = 0, sy = 0;
+    const start = (e) => {
+      fired = false; sx = e.clientX; sy = e.clientY;
+      t = setTimeout(() => {
+        fired = true;
+        const j = Number(b.dataset.opt);
+        const i = struck.indexOf(j);
+        if (i >= 0) struck.splice(i, 1); else struck.push(j);
+        b.classList.toggle('struck', i < 0);
+        if (navigator.vibrate) navigator.vibrate(12);
+      }, 450);
+    };
     const end = () => clearTimeout(t);
     b.addEventListener('pointerdown', start);
-    ['pointerup', 'pointerleave', 'pointercancel'].forEach((e) => b.addEventListener(e, end));
+    b.addEventListener('pointermove', (e) => { if (Math.abs(e.clientX - sx) > 8 || Math.abs(e.clientY - sy) > 8) clearTimeout(t); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, end));
     b.addEventListener('contextmenu', (e) => e.preventDefault());
     b.addEventListener('click', (e) => { if (fired) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
   });
 }
+
+// Aktif süre saati: uygulama görünürken ve son 60 sn içinde dokunma/kaydırma varken ilerler.
+// Soru süreleri bununla ölçülür: telefonu bırakıp gidersen süre işlemez.
+let activeSec = 0, lastInput = Date.now();
+['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach((ev) => window.addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true, capture: true }));
+window.addEventListener('scroll', () => { lastInput = Date.now(); }, { passive: true, capture: true });
+setInterval(() => { if (document.visibilityState === 'visible' && Date.now() - lastInput < 60000) activeSec++; }, 1000);
+export const activeNow = () => activeSec;
+export const activeSince = (t) => (t == null ? undefined : Math.min(600, activeSec - t));
 
 export { esc, inline, md, renderViz };

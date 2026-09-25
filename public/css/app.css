@@ -350,7 +350,9 @@ button.bubble:active { transform: scale(.9); }
 .feedback h3 { font-size: 19px; margin-bottom: 4px; }
 .feedback .tip { margin-top: 9px; padding-top: 9px; border-top: 1px dashed var(--line-2); font-size: 15px; }
 @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
-.elim-hint { font-size: 12.5px; color: var(--faint); margin-top: -6px; }
+.elim-hint { font-size: 12.5px; color: var(--faint); }
+.guessrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -2px 0 6px; }
+.guessrow .chip { padding: 7px 11px; font-size: 13px; }
 
 .steps { counter-reset: st; margin: 10px 0; }
 .step { display: grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 11px 0; border-top: 1px dashed var(--line-2); animation: pop 260ms var(--ease-out) both; }
@@ -381,6 +383,10 @@ button.bubble:active { transform: scale(.9); }
 .overlay .view { max-width: 720px; }
 .ctxbar { margin: 0 var(--gutter); padding: 8px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 13.5px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
 .ctxbar b { color: var(--graphite); }
+.ctxbar { padding: 5px 6px 5px 10px; font-size: 12.5px; }
+.ctxbar svg { width: 14px; height: 14px; }
+.ctxx { width: 26px; height: 26px; border: 0; border-radius: 8px; background: transparent; color: var(--faint); display: grid; place-items: center; }
+.ctxx:active { transform: scale(.9); }
 .chatlog { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
 .msg { max-width: 92%; font-size: 16px; line-height: 1.55; overflow-wrap: anywhere; }
 .msg.me { align-self: flex-end; background: var(--graphite); color: var(--paper); padding: 10px 14px; border-radius: 18px 18px 6px 18px; max-width: 85%; }
