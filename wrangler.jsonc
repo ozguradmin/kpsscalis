@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kpss-ozgur",
+  "account_id": "3c39c225b3a27de7822833feb24b65b1",
   "main": "src/worker.js",
   "compatibility_date": "2026-09-01",
   "workers_dev": true,
