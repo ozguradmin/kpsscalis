@@ -32,6 +32,8 @@ const SRC = {
   hata: { w: 0.5, k: 0.85 },    // daha önce görülmüş soru: kolaylaşmış olur
   ders: { w: 0.45, k: 0.85 },   // az önce anlatılan konudan hemen soru
   kontrol: { w: 0.25, k: 0.8 },
+  kart: { w: 0.15, k: 0.7 },     // bilgi kartında "biliyordum" demek: kendi beyanı, az sayılır
+  // 'on-test' (dersten önceki tahmin) bilerek sayılmaz: öğrenmeden önceki durumdur
 };
 const N0_C = 6;   // başlangıç doğruluğuna verilen güven (sanal soru sayısı)
 const N0_A = 10;  // işaretleme davranışına verilen güven
@@ -39,11 +41,15 @@ const DAY = 86400000;
 
 function evidence(entries, now) {
   let wa = 0, att = 0, wc = 0, ok = 0;
+  const seen = new Set();
   for (const x of entries) {
     const s = SRC[x.src];
     if (!s) continue;
     const age = Math.max(0, (now - (x.at || now)) / DAY);
-    const w = s.w * Math.pow(0.88, age); // eski cevaplar unutmayı yansıtsın diye azalır
+    // Aynı soruyu tekrar çözmek cevabı hatırlamaktır, beceri değil: tekrarlar %30 sayılır
+    const again = x.k && seen.has(x.k);
+    if (x.k) seen.add(x.k);
+    const w = s.w * Math.pow(0.88, age) * (again ? 0.3 : 1); // eski cevaplar unutmayı yansıtsın diye azalır
     wa += w; if (x.ok !== -1) att += w;
     if (x.ok !== -1) { wc += w; if (x.ok === 1) ok += w * s.k; else ok += 0; }
   }

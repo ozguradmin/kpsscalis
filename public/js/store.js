@@ -11,6 +11,8 @@ const blank = () => ({
   aiQs: {},        // dersId → üretilen sorular
   log: [],         // her cevap: { k, l, s, ok (1/0/-1 boş), src, at, sec, g (tahmin) }
   settings: { theme: 'light', tts: true },
+  resetAt: 0,      // son sıfırlama zamanı: senkronda bundan eski veri geri gelmez
+  trend: {},       // gün → o günkü gerçekçi tahmin
   updatedAt: 0,
 });
 
@@ -39,12 +41,38 @@ export const store = {
   get: () => state,
   on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
   update(fn) { fn(state); persist(); },
-  reset() { state = blank(); persist(); },
+  reset() {
+    // Her şey silinir (cevaplar, dersler, kartlar, hata defteri, denemeler, tahmin geçmişi); sadece tema kalır.
+    const theme = state.settings && state.settings.theme;
+    state = blank();
+    state.resetAt = Date.now();
+    state.settings.theme = theme === 'dark' ? 'dark' : 'light';
+    try { localStorage.removeItem('kpss-ozgur-chat'); } catch (e) { /* yoksay */ }
+    persist();
+    clearTimeout(syncTimer);
+    push(); // bekletmeden buluta da yaz
+  },
 };
 
 // ---------- sunucu senkronu ----------
 
+// Sıfırlamadan önceki veri, hangi cihazdan gelirse gelsin geri gelmesin
+function sinceReset(x, t) {
+  const out = blank();
+  out.resetAt = t;
+  out.settings = { ...out.settings, ...(x.settings || {}) };
+  out.log = (x.log || []).filter((e) => (e.at || 0) >= t);
+  for (const [k, w] of Object.entries(x.wrong || {})) if ((w.at || 0) >= t) out.wrong[k] = w;
+  for (const [id, l] of Object.entries(x.lessons || {})) if ((l.doneAt || 0) >= t) out.lessons[id] = l;
+  for (const [d, v] of Object.entries(x.trend || {})) if (Date.parse(d + 'T23:59:59+03:00') >= t) out.trend[d] = v;
+  out.extra = { mocks: ((x.extra && x.extra.mocks) || []).filter((m) => (m.at || 0) >= t) };
+  return out;
+}
+
 function mergeInto(a, b) {
+  const ra = a.resetAt || 0, rb = b.resetAt || 0;
+  if (rb > ra) a = sinceReset(a, rb);
+  else if (ra > rb) b = sinceReset(b, ra);
   // İki cihazdaki ilerlemeyi birleştir: tamamlanan ders tamamlanmış kalır, süreler en büyüğü alır.
   const out = { ...blank(), ...a };
   for (const [id, l] of Object.entries(b.lessons || {})) {
@@ -71,6 +99,8 @@ function mergeInto(a, b) {
   const seen = new Set();
   out.log = [...(a.log || []), ...(b.log || [])].filter((x) => { const id = `${x.k}|${x.at}`; if (seen.has(id)) return false; seen.add(id); return true; })
     .sort((x, y) => x.at - y.at).slice(-LOG_MAX);
+  out.resetAt = Math.max(ra, rb);
+  out.trend = { ...(b.trend || {}), ...(a.trend || {}) };
   out.extra = { ...(b.extra || {}), ...(a.extra || {}) };
   out.aiQs = { ...(b.aiQs || {}), ...(a.aiQs || {}) };
   out.settings = { ...(b.settings || {}), ...(a.settings || {}) };

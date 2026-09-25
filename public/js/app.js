@@ -129,6 +129,7 @@ function viewHome() {
   const due = dueCards().length;
   const todaySec = s.days[todayKey()] || 0;
   const est = estimate(s);
+  snapshot(est);
   const mist = openMistakes().length;
 
   const heroNum = info.mode === 'before' ? 9 : info.left;
@@ -181,6 +182,14 @@ function viewHome() {
   const clock = document.getElementById('clock');
   const iv = setInterval(() => { clock.textContent = countdownText(); }, 1000);
   cleanup = () => clearInterval(iv);
+}
+
+// Günlük tahmin geçmişi: her günün son tahmini saklanır (gün gün nasıl değiştiğini görmek için)
+function snapshot(est) {
+  const k = todayKey();
+  const cur = store.get().trend?.[k];
+  const v = { net: Math.round(est.total * 10) / 10, low: Math.round(est.low), high: Math.round(est.high), puan: Math.round(est.puan) };
+  if (!cur || cur.net !== v.net || cur.low !== v.low || cur.high !== v.high) store.update((s) => { (s.trend ||= {})[k] = v; });
 }
 
 function lessonRow(l) {
@@ -739,6 +748,8 @@ function flashSession(ids) {
       const g = Number(b.dataset.g);
       stats[g]++;
       gradeCard(ids[i], g);
+      // "Biliyordum/Bilmiyordum" analize az ağırlıkla girer; "emin değilim" girmez
+      if (c.l && g !== 1) logAnswer({ k: `kart:${ids[i]}`, l: c.l.id, s: c.l.s, ok: g === 2 ? 1 : 0, src: 'kart' });
       i++; flipped = false; stopSpeaking(); draw();
     });
   };
@@ -1007,19 +1018,26 @@ function viewStats() {
   const lessons = Object.values(LESSONS).filter((l) => l.day);
   const done = lessons.filter((l) => s.lessons[l.id]?.done);
   const est = estimate(s);
+  snapshot(est);
   const log = s.log || [];
   const acc = log.filter((x) => x.ok !== -1);
   const rows = yksRows();
+  const trend = Object.entries(store.get().trend || {}).sort(([a], [b]) => (a < b ? -1 : 1));
   $app.innerHTML = page({
     top: topbar({ eyebrow: 'Gerçekçi analiz', title: 'Bugün sınava girsen', back: '#/daha' }),
     body: `
     <section class="card" style="margin-top:14px">
       <div class="eyebrow">Tahmini sonuç · %80 ihtimalle bu aralıkta</div>
       <div class="row" style="align-items:flex-end;gap:14px;margin-top:6px"><div style="font:800 50px/0.9 var(--display)" class="num">${Math.round(est.low)}–${Math.round(est.high)}</div><div class="small muted" style="padding-bottom:4px">net · en olası <b>${fmtNet(est.total)}</b><br>puan ≈ <b>${Math.round(est.puanLow)}–${Math.round(est.puanHigh)}</b></div></div>
-      <p class="small" style="margin:10px 0 2px">Beklenen: <b>${Math.round(est.D)}</b> doğru, <b>${Math.round(est.Y)}</b> yanlış, <b>${Math.round(est.B)}</b> boş. YKS geçmişine göre başlangıç tahmini: ${fmtNet(est.start)} net.</p>
+      <p class="small" style="margin:10px 0 2px">Bu tahmin anlık: her çözdüğün soruda yeniden hesaplanır. Beklenen: <b>${Math.round(est.D)}</b> doğru, <b>${Math.round(est.Y)}</b> yanlış, <b>${Math.round(est.B)}</b> boş. YKS geçmişine göre başlangıç tahmini: ${fmtNet(est.start)} net.</p>
       <div class="tablewrap" style="margin-top:10px"><table class="vtable"><thead><tr><th>Ders</th><th>D</th><th>Y</th><th>B</th><th>Net</th></tr></thead><tbody>
       ${SUBJECTS.map((x) => { const e = est.per[x.id]; return `<tr data-s="${x.id}"><td style="color:var(--s)">${x.name}<div class="small muted" style="font-weight:400">${x.q} soru · senden ${Math.round(e.evidence)} cevap</div></td><td class="num">${fmtNet(e.D)}</td><td class="num">${fmtNet(e.Y)}</td><td class="num">${fmtNet(e.B)}</td><td class="num"><b>${fmtNet(e.now)}</b></td></tr>`; }).join('')}
       </tbody></table></div>
+    </section>
+
+    <section class="card flat"><h3>Gün gün tahmin</h3>
+      <p class="small muted" style="margin:4px 0 8px">Her çözdüğün soruyla anında güncellenir; burada her günün son hâli kalır.</p>
+      ${trend.length ? `<div class="tablewrap"><table class="vtable"><thead><tr><th>Gün</th><th>Net</th><th>Aralık</th><th>Puan</th></tr></thead><tbody>${trend.map(([d, v], i) => { const prev = i ? trend[i - 1][1].net : null; const diff = prev == null ? '' : ` <span class="small" style="color:${v.net >= prev ? 'var(--right)' : 'var(--wrong)'}">${v.net >= prev ? '+' : ''}${fmtNet(v.net - prev)}</span>`; return `<tr><td>${prettyDate(d, false)}</td><td class="num"><b>${fmtNet(v.net)}</b>${diff}</td><td class="num">${v.low}–${v.high}</td><td class="num">≈${v.puan}</td></tr>`; }).join('')}</tbody></table></div>` : ''}
     </section>
 
     <section class="card flat"><h3>Ne görüyorum?</h3><ul class="small" style="padding-left:1.1em;margin:8px 0 0">${insights(s, est).map((x) => `<li style="margin:.5em 0">${x}</li>`).join('')}</ul></section>
@@ -1061,12 +1079,12 @@ function viewSettings() {
       <p class="small">Durum: <b>${isOnline() ? 'Bağlı' : 'Çevrimdışı (bu cihazda saklanıyor)'}</b></p>
       <button class="btn ghost sm" id="syncnow">${icon.sync}Şimdi eşitle</button></section>
     <section class="card flat"><div class="row"><span class="ico">${icon.phone}</span><h3 style="flex:1">Telefona ekle</h3></div><p class="small">Safari'de paylaş düğmesi › <b>Ana Ekrana Ekle</b> dersen uygulama gibi tam ekran açılır ve internetsiz de çalışır (yapay zekâ hariç).</p></section>
-    <section class="card flat"><div class="row"><span class="ico" style="color:var(--wrong)">${icon.trash}</span><h3 style="flex:1">Sıfırla</h3></div><p class="small">Tüm ilerlemeyi siler. Geri alınamaz.</p><button class="btn ghost sm" id="reset" style="color:var(--wrong)">İlerlemeyi sıfırla</button></section>`,
+    <section class="card flat"><div class="row"><span class="ico" style="color:var(--wrong)">${icon.trash}</span><h3 style="flex:1">Sıfırla</h3></div><p class="small">Her şeyi siler: dersler, çözdüğün tüm sorular, yanlışlar, hata defteri, kartlar, denemeler, hoca sohbeti ve tahmin geçmişi. Analiz YKS'ye dayalı başlangıca döner. Bulutta ve diğer cihazlarda da silinir. Sadece tema kalır. Geri alınamaz.</p><button class="btn ghost sm" id="reset" style="color:var(--wrong)">İlerlemeyi sıfırla</button></section>`,
   });
   document.querySelectorAll('#theme button').forEach((b) => b.onclick = () => { store.update((x) => { x.settings.theme = b.dataset.t; }); applyTheme(); viewSettings(); });
   document.getElementById('syncnow').onclick = async () => { const ok = await pull(); toast(ok ? 'Eşitlendi' : 'Sunucuya ulaşılamadı'); viewSettings(); };
   document.getElementById('ttstest').onclick = (e) => speak('Merhaba Özgür. Bugün de birlikte çalışıyoruz. Hadi başlayalım.', e.currentTarget);
-  document.getElementById('reset').onclick = () => { if (confirm('Tüm ilerleme silinsin mi?')) { store.reset(); toast('Sıfırlandı'); location.hash = '#/'; } };
+  document.getElementById('reset').onclick = () => { if (confirm('Her şey silinsin mi? Çözdüğün sorular, yanlışlar ve analiz sıfırlanır. Geri alınamaz.')) { store.reset(); toast('Sıfırlandı: analiz başlangıca döndü'); location.hash = '#/'; } };
 }
 
 // ---------- Sınav günü ----------
