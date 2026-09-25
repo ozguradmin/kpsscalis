@@ -463,7 +463,7 @@ export default [
           ['**Gereksiz sözcük**', 'Yaklaşık **on kadar** kişi geldi.', 'Yaklaşık on kişi geldi.'],
           ['**Anlamca çelişen sözcük**', '**Kesinlikle** gelebilir.', 'Belki gelebilir. / Kesinlikle gelecek.'],
           ['**Özne-yüklem uyumsuzluğu**', 'Ben ve arkadaşım sinemaya **gittiler**.', '…sinemaya **gittik**.'],
-          ['**Ortak ögenin eksikliği**', 'Kitabı **okudum ama beğenmedim**… Ona güveniyor, **seviyor**.', 'Ona güveniyor, **onu** seviyor.'],
+          ['**Ortak ögenin eksikliği**', 'Ona güveniyor, **seviyor**. (güvenmek “-e”, sevmek “-i” ister)', 'Ona güveniyor, **onu** seviyor. (Not: “Kitabı okudum ama beğenmedim.” doğrudur; iki fiil de “kitabı” ister.)'],
         ] },
       },
       {

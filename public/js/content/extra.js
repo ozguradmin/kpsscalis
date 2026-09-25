@@ -238,7 +238,7 @@ export const EXTRA_LESSONS = [
       },
       {
         h: 'Siyasi partiler',
-        b: '- Parti kurmak için **izin gerekmez**.\n- Parti üyesi olmak için **18 yaş** yeterli.\n- Partilerin kapatılması davasını **Yargıtay Cumhuriyet Başsavcısı** açar, **Anayasa Mahkemesi** karar verir (üçte iki çoğunlukla).\n- **Hâkimler, savcılar, yüksek yargı mensupları, TSK mensupları, kamu görevlileri (memurlar) ve yükseköğretim öncesi öğrenciler** partiye üye olamaz.',
+        b: '- Parti kurmak için **izin gerekmez**.\n- Parti üyesi olmak için **18 yaş** yeterli.\n- Partilerin kapatılması davasını **Yargıtay Cumhuriyet Başsavcısı** açar, **Anayasa Mahkemesi** karar verir (üye tamsayısının **beşte üçü**, yani 15 üyeden 9’u; 2010’a kadar üçte ikiydi).\n- **Hâkimler, savcılar, yüksek yargı mensupları, TSK mensupları, kamu görevlileri (memurlar) ve yükseköğretim öncesi öğrenciler** partiye üye olamaz.',
       },
     ],
     quiz: [

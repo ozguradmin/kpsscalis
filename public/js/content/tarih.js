@@ -204,10 +204,10 @@ export default [
         viz: {
           type: 'compare', cols: [
             { h: 'Çözüldü', c: 'cog', items: ['**Kapitülasyonlar** tamamen kaldırıldı', '**Borçlar** paylaştırıldı, taksitle ödenecek', 'Yunanistan **savaş tazminatı yerine Karaağaç**’ı verdi', '**Nüfus mübadelesi** (Türk-Rum; İstanbul Rumları ve Batı Trakya Türkleri hariç)', 'Azınlıklar **Türk vatandaşı** sayıldı', 'Gökçeada ve Bozcaada bizde kaldı'] },
-            { h: 'Çözülemedi / sonraya kaldı', c: 'tar', items: ['**Musul** → 1926’da Irak’a (İngiltere)', '**Boğazlar** → uluslararası komisyon; 1936 **Montrö** ile bize geçti', '**Hatay** → 1939’da anavatana katıldı', '**Patrikhane** İstanbul’da kaldı (siyasi yetkisiz)'] },
+            { h: 'Çözülemedi ya da sonradan değişti', c: 'tar', items: ['**Musul (Irak sınırı)** → Lozan’da **çözülemedi**; 1926’da Irak’a (İngiltere) kaldı', '**Boğazlar** → Lozan’da uluslararası komisyona bırakıldı (egemenliğimiz kısıtlı); 1936 **Montrö** ile bize geçti', '**Hatay** → Lozan’ın konusu değildi (1921 Ankara Antl. ile Fransız Suriyesi’nde kalmıştı); 1939’da anavatana katıldı', '**Patrikhane** İstanbul’da kaldı (siyasi yetkisiz)'] },
           ],
         },
-        mn: { code: 'MUBOHA', t: 'Lozan’da çözülemeyenler: **MU**sul, **BO**ğazlar, **HA**tay.' },
+        mn: { code: 'MUBOHA', t: 'Lozan sonrası lehimize dönen/çözülen üç mesele: **MU**sul (Lozan’da tek çözülemeyen; 1926’da Irak’a), **BO**ğazlar (1936 Montrö), **HA**tay (1939). Sınavda “Lozan’da çözülemeyen” denirse cevap **Musul (Irak sınırı)**.' },
         note: { h: 'ÖSYM böyle sordu (2024, 2026)', t: 'Yunanistan tahribat karşılığında ne verdi? → **Karaağaç**. İtilaf İstanbul’u ne zaman boşalttı? → **Lozan TBMM’de onaylandıktan sonra** (6 hafta içinde).', exam: true },
       },
       {
@@ -253,13 +253,13 @@ export default [
     quiz: [
       { q: 'İstanbul Hükûmetinin Lozan Konferansı’na katılma girişimi aşağıdakilerden hangisiyle engellenmiştir?', o: ['İstiklal mahkemelerinin kurulması', 'Saltanatın kaldırılması', 'Başkomutanlık Kanunu’nun çıkarılması', 'Ankara’nın başkent olması', 'Halifeliğin kaldırılması'], a: 1, ex: '1 Kasım 1922’de **saltanat kaldırılınca** İstanbul hükümetinin yasal dayanağı kalmadı. (2020 KPSS Ön Lisans sorusu.)' },
       { q: 'Lozan Barış Antlaşması’na göre Yunanistan, Anadolu’da yaptığı tahribata karşılık savaş tazminatı yerine aşağıdakilerden hangisini kabul etmiştir?', o: ['Batı Trakya’yı Türkiye’ye vermeyi', 'Karaağaç ve çevresini Türkiye’ye vermeyi', 'Rodos’u Türkiye’ye bırakmayı', 'Gökçeada’yı askerden arındırmayı', 'Borçları tek başına ödemeyi'], a: 1, ex: 'Yunanistan tazminat ödemek yerine Edirne yakınındaki **Karaağaç**’ı bıraktı (2024 sorusu).' },
-      { q: 'Aşağıdakilerden hangisi Lozan Barış Antlaşması’nda **kesin çözüme kavuşturulamamıştır**?', o: ['Kapitülasyonlar', 'Savaş tazminatları', 'Irak sınırı (Musul)', 'Azınlıkların durumu', 'Osmanlı borçlarının paylaşımı'], a: 2, ex: 'Musul meselesi İngiltere ile görüşmelere bırakıldı, 1926’da Irak’a kaldı.', tip: 'MUBOHA: Musul, Boğazlar, Hatay çözülemedi.' },
+      { q: 'Aşağıdakilerden hangisi Lozan Barış Antlaşması’nda **kesin çözüme kavuşturulamamıştır**?', o: ['Kapitülasyonlar', 'Savaş tazminatları', 'Irak sınırı (Musul)', 'Azınlıkların durumu', 'Osmanlı borçlarının paylaşımı'], a: 2, ex: 'Musul meselesi İngiltere ile görüşmelere bırakıldı, 1926’da Irak’a kaldı.', tip: 'Lozan’da kesin çözülemeyen tek konu Irak sınırı (Musul).' },
       { q: 'Atatürk dönemine ait düzenlemeler eşleştirildiğinde aşağıdakilerden hangisi **yanlış** olur?', o: ['Şer’iye ve Evkaf Vekâletinin kaldırılması – Diyanet İşleri Başkanlığının kurulması', 'Cumhuriyetin ilan edilmesi – Meclis Hükûmeti sistemine geçilmesi', 'Soyadı Kanunu – Lakap ve unvanların kaldırılması', 'Devletçilik uygulaması – Sümerbank’ın kurulması', 'Yeni Türk alfabesi – Millet Mekteplerinin açılması'], a: 1, ex: 'Cumhuriyet ile **kabine sistemine** geçildi. Meclis Hükûmeti sistemi 1920’de TBMM ile başlamıştı. (2026 KPSS sorusu.)' },
       { q: 'Terakkiperver Cumhuriyet Fırkası’nın kapatılmasına yol açan gelişme aşağıdakilerden hangisidir?', o: ['Menemen Olayı', 'Şeyh Sait İsyanı', 'İzmir Suikastı', 'Serbest Cumhuriyet Fırkası’nın kurulması', '31 Mart Vakası'], a: 1, ex: '1925 **Şeyh Sait İsyanı** sonrası Takrir-i Sükûn Kanunu çıkarıldı ve parti kapatıldı. Menemen Olayı, Serbest Cumhuriyet Fırkası sonrasıdır (1930).' },
     ],
     flash: [
       ['Saltanat ne zaman kaldırıldı ve neden?', '**1 Kasım 1922** · Lozan’a İstanbul hükümeti de davet edildiği için'],
-      ['Lozan’da çözülemeyen 3 konu?', '**Musul, Boğazlar, Hatay** (MUBOHA)'],
+      ['Lozan’da çözülemeyen konu?', '**Irak sınırı (Musul)**; 1926’da Irak’a kaldı. Boğazlar 1936 Montrö, Hatay 1939.'],
       ['Yunanistan savaş tazminatı yerine ne verdi?', '**Karaağaç**'],
       ['Cumhuriyet’in ilanıyla hangi hükümet sistemine geçildi?', '**Kabine sistemi**'],
       ['3 Mart 1924’te kaldırılanlar/kurulanlar?', 'Halifelik kaldırıldı; **Tevhid-i Tedrisat**; Şer’iye ve Evkaf Vekâleti kaldırıldı → **Diyanet İşleri Başkanlığı**'],
