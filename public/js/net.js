@@ -116,7 +116,7 @@ export function estimate(st = store.get()) {
   }
   const sd = Math.sqrt(variance);
   const low = Math.max(0, total - 1.28 * sd), high = total + 1.28 * sd;
-  return { total, start, gain: total - start, per, D, Y, B, low, high, puan: puan(total), puanLow: puan(low), puanHigh: puan(high), time: { ...tm, ...fit }, free };
+  return { total, start, gain: total - start, per, D, Y, B, low, high, puan: puan(total), puanLow: puan(low), puanHigh: puan(high), time: { ...tm, fit: fit.per, needMin: fit.needMin, spareMin: fit.spareMin }, free };
 }
 
 // ---------- Süre ----------
