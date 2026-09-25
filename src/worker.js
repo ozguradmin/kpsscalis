@@ -51,15 +51,11 @@ export default {
           const ls = (url.searchParams.get('l') || '').split(',').filter((id) => LESSONS[id]).slice(0, 60);
           return json({ questions: await bankQuestions(env, ls, Math.min(60, Number(url.searchParams.get('n')) || 20)) });
         }
+        case '/api/tts':
+          if (request.method === 'POST') return tts(request, env, ctx);
+          break;
         case '/api/bank/report':
-          if (request.method === 'POST' && env.DB) {
-            const b = await request.json();
-            if (typeof b.id === 'string' && b.id.startsWith('ai:')) {
-              await env.DB.prepare('DELETE FROM qbank WHERE id = ?').bind(b.id.slice(0, 40)).run();
-              await env.DB.prepare('INSERT INTO ai_log (ts, kind, lesson, question, answer) VALUES (?, ?, ?, ?, ?)').bind(Date.now(), 'rapor', null, b.id.slice(0, 40), '').run().catch(() => {});
-            }
-            return json({ ok: true });
-          }
+          if (request.method === 'POST') return bankReport(request, env);
           break;
         case '/api/bank/fill':
           if (request.method === 'POST') return bankFill(request, env);
@@ -440,7 +436,7 @@ function contextText(c) {
 
 function profileText(p) {
   if (!p || typeof p !== 'object') return '';
-  return `\n\n## ÖZGÜR'ÜN DURUMU (uygulamadan, canlı)\n${String(p.text || '').slice(0, 3500)}`;
+  return `\n\n## ÖZGÜR'ÜN DURUMU (uygulamadan, canlı)\n${String(p.text || '').slice(0, 5000)}`;
 }
 
 async function chat(request, env, ctx) {
@@ -623,6 +619,74 @@ async function questionsEndpoint(request, env) {
   } catch (e) {
     return json({ error: 'Soru üretilemedi: ' + e.message }, 502);
   }
+}
+
+// ---------- Sesli okuma: Cartesia (Türkçe ses) ----------
+// Anahtar yalnızca Worker gizli değişkeninden (CARTESIA_API_KEY) okunur; kodda ve depoda yoktur.
+const TTS_VOICE = '5a31e4fb-f823-4359-aa91-82c0ae9a991c';
+async function sha(text) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}
+async function tts(request, env, ctx) {
+  if (!env.CARTESIA_API_KEY) return json({ error: 'tts-kapali' }, 503);
+  const body = await request.json().catch(() => ({}));
+  const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, 700);
+  if (!text) return json({ error: 'Metin yok' }, 400);
+  const cacheKey = new Request(`https://tts-cache.kpss-ozgur/${await sha(`sonic-3.6|${TTS_VOICE}|${text}`)}`);
+  const cache = caches.default;
+  const hit = await cache.match(cacheKey).catch(() => null);
+  if (hit) return hit;
+  if (!(await underLimit(request, env))) return json({ error: 'Bugünkü hak doldu' }, 429);
+  const r = await fetch('https://api.cartesia.ai/tts/bytes', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.CARTESIA_API_KEY}`, 'Cartesia-Version': '2026-08-14', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model_id: 'sonic-3.6', transcript: text, language: 'tr',
+      voice: { mode: 'id', id: TTS_VOICE },
+      output_format: { container: 'mp3', sample_rate: 44100, bit_rate: 128000 },
+    }),
+  });
+  if (!r.ok) { console.error('tts', r.status, (await r.text()).slice(0, 200)); return json({ error: `Ses servisi ${r.status}` }, 502); }
+  const audio = await r.arrayBuffer();
+  const res = new Response(audio, { headers: { 'content-type': 'audio/mpeg', 'cache-control': 'public, max-age=2592000' } });
+  ctx.waitUntil(cache.put(cacheKey, res.clone()).catch(() => {}));
+  return res;
+}
+
+// Özgür bir soruyu hatalı bulursa: silmeden önce hakem incelemesi.
+// Hakem (derin model) itirazı görerek soruyu şık şık değerlendirir; ayrıca iki bağımsız kör denetim yapılır.
+// Kusur doğrulanırsa soru bankadan çıkar; değilse kalır ve Özgür'e neden doğru olduğu anlatılır.
+async function bankReport(request, env) {
+  if (!env.DB) return json({ error: 'DB yok' }, 503);
+  const b = await request.json();
+  const id = typeof b.id === 'string' ? b.id.slice(0, 40) : '';
+  if (!id.startsWith('ai:')) return json({ error: 'Geçersiz soru' }, 400);
+  if (!(await underLimit(request, env))) return json({ error: 'Bugünkü hak doldu' }, 429);
+  const row = await env.DB.prepare('SELECT data FROM qbank WHERE id = ?').bind(id).first();
+  const q = row ? JSON.parse(row.data) : (b.q && Array.isArray(b.q.o) && b.q.o.length === 5 ? b.q : null);
+  if (!q) return json({ removed: false, verdict: 'yok', why: 'Soru bankada bulunamadı (daha önce çıkarılmış olabilir).' });
+  const reason = String(b.reason || '').slice(0, 500);
+  const L = 'ABCDE';
+  const hakemMsg = `Soru:\n${q.q}\n${q.o.map((o, j) => `${L[j]}) ${o}`).join('\n')}\nCevap anahtarı: ${L[q.a]}\nAçıklama: ${q.ex || '-'}\n\nÖğrencinin itirazı: ${reason || '(gerekçe yazmadı, sadece hatalı dedi)'}\n\n` +
+    'Sen ÖSYM itiraz komisyonusun. Her şıkkı tek tek değerlendir (olumsuz köklerde cevap yanlış/olmayan ifadedir). Soru kusurlu mu? Kusur: birden fazla doğru şık, anahtar yanlış, bilgi hatası, kök belirsiz ya da tartışmalı bilgi. ' +
+    'Yalnızca JSON: {"karar":"kusurlu"|"gecerli","dogru_sik":"A-E ya da null","aciklama":"öğrenciye 2-4 cümle, sade Türkçe"}';
+  const [hakem, blind] = await Promise.all([
+    runAI(env, MODELS.deep, { messages: [{ role: 'user', content: hakemMsg }], max_completion_tokens: 2500, temperature: 0.1, ...NO_THINK })
+      .then((r) => { const t = textOf(r); return JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); })
+      .catch(() => null),
+    verifyQuestion(env, q),
+  ]);
+  const flawed = (hakem && hakem.karar === 'kusurlu') || !blind.ok;
+  if (flawed) await env.DB.prepare('DELETE FROM qbank WHERE id = ?').bind(id).run();
+  const hk = hakem && hakem.aciklama ? String(hakem.aciklama).slice(0, 800) : '';
+  let why;
+  if (flawed && hakem && hakem.karar === 'kusurlu') why = hk;
+  else if (flawed) why = 'İtiraz komisyonu anahtarı doğru buldu, ama iki bağımsız kör denetim bu soruda tek bir doğru şık üzerinde birleşemedi. Tartışmalı soru sınav hazırlığına zarar verir; bu yüzden bankadan çıkarıldı.';
+  else why = hk || 'Tekrar denetimde soru tek doğru cevaplı çıktı.';
+  await env.DB.prepare('INSERT INTO ai_log (ts, kind, lesson, question, answer) VALUES (?, ?, ?, ?, ?)')
+    .bind(Date.now(), 'rapor:' + (flawed ? 'silindi' : 'kaldi'), q.l || null, `${id} ${reason}`.slice(0, 600), why).run().catch(() => {});
+  return json({ removed: flawed, verdict: flawed ? 'kusurlu' : 'gecerli', why, answer: L[q.a] });
 }
 
 // Soru bankasını önceden doldurmak için: bir ders için doğrulanmış sorular üretip kaydeder

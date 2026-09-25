@@ -10,7 +10,7 @@ const blank = () => ({
   extra: {},       // ekstra soru/ders kayıtları
   aiQs: {},        // dersId → üretilen sorular
   log: [],         // her cevap: { k, l, s, ok (1/0/-1 boş), src, at, sec, g (tahmin) }
-  settings: { theme: 'auto', tts: true },
+  settings: { theme: 'light', tts: true },
   updatedAt: 0,
 });
 

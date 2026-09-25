@@ -175,6 +175,7 @@ export function mountChat(container, ctx = {}, opts = {}) {
       const b = hist[mi].parts[pi].b;
       const st = b.state;
       const q = b.questions[st.i];
+      if (!st.done) { st.seen ||= {}; if (st.seen[st.i] == null) st.seen[st.i] = Date.now(); }
       const redraw = () => { saveHistory(); const y = sc.scrollTop; redrawMsg(mi); sc.scrollTop = y; };
       el.querySelectorAll('[data-opt]').forEach((o) => o.onclick = () => {
         if (st.answers[st.i] != null) return;
@@ -203,7 +204,8 @@ export function mountChat(container, ctx = {}, opts = {}) {
     const ok = pick === -1 ? -1 : pick === q.a ? 1 : 0;
     const key = q.key || null;
     const orig = pick >= 0 && q._map ? q._map[pick] : pick;
-    logAnswer({ k: key, l: q.l || null, s: LESSONS[q.l]?.s || null, ok, p: orig, src: 'hoca', g: b.state.guess[i] ? 1 : 0 });
+    const t0 = b.state.seen && b.state.seen[i];
+    logAnswer({ k: key, l: q.l || null, s: LESSONS[q.l]?.s || null, ok, p: orig, src: 'hoca', g: b.state.guess[i] ? 1 : 0, sec: t0 ? Math.min(900, Math.round((Date.now() - t0) / 1000)) : undefined });
     if (key) store.update((s) => {
       if (ok !== 1) {
         s.wrong[key] = { at: Date.now(), fixed: false };

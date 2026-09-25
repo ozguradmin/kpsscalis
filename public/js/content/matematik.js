@@ -12,7 +12,7 @@ export default [
       {
         h: 'Matematikte hedefimiz',
         b: 'Özgür, matematikte her şeyi öğrenmeye çalışmayacağız. 30 sorunun içinden **senin çözebileceğin 8-10 soruyu** seçip onlara odaklanacağız. İlk durak: sınavın başında hep gelen “**işleminin sonucu kaçtır?**” soruları. Bunlar tamamen **kural**dır; kuralı bilen yapar.',
-        viz: { type: 'bars', items: [['İşlem soruları', 4, '~4 soru'], ['Problemler', 8, '~8 soru'], ['Grafik-tablo', 2, '~2 soru'], ['Sayısal mantık', 4, '~3-4 soru'], ['Diğer + geometri', 12, '~12 soru']], c: 'mat', caption: 'Mor ve turuncu çubuklar bizim hedefimiz; son satırı sınavda atlayacağız.' },
+        viz: { type: 'bars', items: [['İşlem soruları', 4, '~4 soru', 'mat'], ['Problemler', 8, '~8 soru', 'mat'], ['Grafik-tablo', 2, '~2 soru', 'mat'], ['Sayısal mantık', 4, '~3-4 soru', 'mat'], ['Diğer + geometri', 12, '~12 soru', 'gray']], caption: 'Turuncu çubuklar bizim hedefimiz; gri satırı sınavda atlayacağız.' },
       },
       {
         h: 'İşlem sırası: kim önce?',

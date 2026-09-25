@@ -4,9 +4,10 @@ import { renderViz, md, inline, esc } from './viz.js';
 import { openChat, mountChat } from './chat.js';
 import { STRATEGY } from './content/extra.js';
 import { icon } from './icons.js';
-import { toast, fmtMin, fmtDur, applyTheme, toggleTheme, themeIcon, speak, stopSpeaking, prepQ, questionHTML, questionText, bindStrike, plain, LETTERS } from './ui.js';
+import { toast, fmtMin, fmtDur, applyTheme, speak, stopSpeaking, prepQ, questionHTML, questionText, bindStrike, plain, LETTERS } from './ui.js';
 import { cardText, strip } from './text.js';
 import { estimate, lessonNet, fmtNet, YIELD, mastery } from './net.js';
+import { yksRows } from './yks.js';
 import { studiedIds } from './profile.js';
 
 const $app = document.getElementById('app');
@@ -15,7 +16,6 @@ let cleanup = null;
 applyTheme();
 
 // ---------- kabuk yardımcıları ----------
-const themeBtn = () => `<button class="iconbtn" data-theme-toggle aria-label="Açık/koyu tema">${themeIcon()}</button>`;
 function topbar({ eyebrow = '', title = '', back = null, right = '', line = true }) {
   return `<header class="topbar ${line ? 'line' : ''}">${back ? `<a class="iconbtn" href="${back}" aria-label="Geri">${icon.back}</a>` : ''}
     <div class="ttl"><span class="eyebrow">${eyebrow}</span><b>${title}</b></div>${right}</header>`;
@@ -26,8 +26,6 @@ function page({ top, body, tabs = true, cls = '' }) {
 const sc = () => document.getElementById('sc');
 
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-theme-toggle]');
-  if (t) { toggleTheme(); document.querySelectorAll('[data-theme-toggle]').forEach((b) => { b.innerHTML = themeIcon(); }); return; }
   const g = e.target.closest('[data-go]');
   if (g) location.hash = `#/ders/${g.dataset.go}`;
 });
@@ -139,7 +137,7 @@ function viewHome() {
     : info.left === 1 ? `Bugün son çalışma günü. Yarın kapı <b>${DOOR_CLOSE}</b>'da kapanır.` : '4 Ekim Pazar 10.15 · sınav günü sayılmaz';
 
   $app.innerHTML = page({
-    top: topbar({ eyebrow: 'KPSS Ön Lisans · 2026', title: 'Aday: Özgür', right: `${themeBtn()}<a class="iconbtn" href="#/ayarlar" aria-label="Ayarlar">${icon.settings}</a>` }),
+    top: topbar({ eyebrow: 'KPSS Ön Lisans · 2026', title: 'Aday: Özgür', right: `<a class="iconbtn" href="#/ayarlar" aria-label="Ayarlar">${icon.settings}</a>` }),
     body: `
     <section class="hero" style="margin-top:14px">
       <div class="greet">${greet()}</div>
@@ -149,11 +147,11 @@ function viewHome() {
     </section>
 
     <div class="statrow">
-      <a class="stat ink" href="#/istatistik" style="text-decoration:none"><div class="v num">${fmtNet(est.total)}</div><div class="l">tahmini net · ≈${Math.round(est.puan)} puan</div></a>
+      <a class="stat ink" href="#/istatistik" style="text-decoration:none"><div class="v num">${Math.round(est.low)}–${Math.round(est.high)}</div><div class="l">bugün girsen net · ≈${Math.round(est.puan)} puan</div></a>
       <div class="stat"><div class="v num">${Math.round(todaySec / 60)}<small> dk</small></div><div class="l">bugün çalıştın</div></div>
       <a class="stat" href="#/tekrar" style="text-decoration:none;color:inherit"><div class="v num">${due}</div><div class="l">kart tekrar bekliyor</div></a>
     </div>
-    ${est.gain > 0.05 ? `<div class="gain" style="margin-top:8px">${icon.trend}<span>Başladığından beri <b>+${fmtNet(est.gain)}</b> net</span></div>` : ''}
+    ${Math.abs(est.gain) >= 0.1 ? `<div class="gain" style="margin-top:8px;${est.gain < 0 ? 'background:var(--warn-soft);color:var(--warn)' : ''}">${icon.trend}<span>YKS geçmişine göre başlangıcın ${fmtNet(est.start)} net · şimdi <b>${est.gain > 0 ? '+' : ''}${fmtNet(est.gain)}</b></span></div>` : ''}
 
     <section class="card">
       <div class="row between">
@@ -218,7 +216,7 @@ function viewPlan() {
   const all = Object.values(LESSONS).filter((l) => l.day);
   const done = all.filter((l) => lessonState(l.id).done).length;
   $app.innerHTML = page({
-    top: topbar({ eyebrow: '9 günlük plan', title: `${done}/${all.length} ders bitti`, right: themeBtn() }),
+    top: topbar({ eyebrow: '9 günlük plan', title: `${done}/${all.length} ders bitti` }),
     body: `<div style="margin-top:14px">${sheet(info)}</div>
     <div style="margin-top:18px">
     ${STUDY_DAYS.map((k, i) => {
@@ -259,6 +257,8 @@ function viewLesson(id) {
   const warm = dueCards().filter((cid) => cid.split('#')[0] !== id && LESSONS[cid.split('#')[0]]?.s === lesson.s).slice(0, 3);
   const steps = [];
   if (warm.length) steps.push({ k: 'warm', ids: warm });
+  // Ön soru (pretesting): dersi görmeden tahmin etmek, sonra öğrenileni daha kalıcı yapar. Puanlamaya girmez.
+  if (lesson.quiz && lesson.quiz.length) steps.push({ k: 'pre', q: prepQ(lesson.quiz[0]) });
   let cardNo = 0;
   const cardsTotal = lesson.cards.length;
   lesson.cards.forEach((c, ci) => steps.push(c.k === 'check' ? { ...prepQ(c), _ci: ci, _no: ++cardNo } : { ...c, _ci: ci, _no: ++cardNo }));
@@ -266,7 +266,7 @@ function viewLesson(id) {
   quiz.forEach((q, i) => steps.push({ k: 'quiz', q, i }));
   steps.push({ k: 'result' });
 
-  const st = { i: 0, answers: {}, checks: {}, guess: {}, struck: [], completed: false, last: -1 };
+  const st = { i: 0, answers: {}, checks: {}, guess: {}, struck: [], completed: false, last: -1, shown: {} };
   const saved = lessonState(id);
   if (saved.pos && !saved.done && saved.pos < steps.length - 1) st.i = saved.pos;
   const s0 = store.get();
@@ -312,6 +312,10 @@ function viewLesson(id) {
       const pick = st.checks[st.i];
       c.question = questionText(step, pick == null ? undefined : pick);
       c.screen = cardText({ h: step.h, b: step.b });
+    } else if (step.k === 'pre') {
+      c.step = 'Dersten önce ön soru (tahmin)';
+      c.question = questionText({ ...step.q, a: undefined, ex: '' }).replace(/\nDoğru cevap: undefined/, '');
+      c.answer = 'Ön soru: cevabı SÖYLEME, dersin sonunda görecek. Sadece merak uyandıracak kısa bir ipucu ver.';
     } else if (step.k === 'warm') {
       c.step = 'Isınma: önceki derslerden tekrar kartları';
       c.screen = step.ids.map((cid) => { const k = cardById(cid); return k ? `${plain(k.f)} → ${plain(k.b)}` : ''; }).join('\n');
@@ -330,6 +334,7 @@ function viewLesson(id) {
   function speakText() {
     const step = steps[st.i];
     if (step.k === 'quiz') return plain(step.q.q) + '. ' + step.q.o.map((o, j) => `${LETTERS[j]}: ${plain(o)}`).join('. ');
+    if (step.k === 'pre') return 'Ön soru. ' + plain(step.q.q) + '. ' + step.q.o.map((o, j) => `${LETTERS[j]}: ${plain(o)}`).join('. ');
     if (step.k === 'warm') return 'Isınma. ' + step.ids.map((cid) => plain(cardById(cid)?.f || '')).join('. ');
     if (step.k === 'result') return `Ders bitti Özgür. ${quiz.filter((q, i) => st.answers[i] === q.a).length} doğru.`;
     return [step.h, step.b, step.q, step.o && step.o.map((o, j) => `${LETTERS[j]}: ${o}`).join('. '), step.mn && `Kodlama: ${step.mn.code}. ${step.mn.t}`, step.note && step.note.t].filter(Boolean).map(plain).join('. ');
@@ -339,6 +344,7 @@ function viewLesson(id) {
   function render() {
     const step = steps[st.i];
     if (step.k === 'result' && !st.completed) complete();
+    if (st.shown[st.i] == null) st.shown[st.i] = Date.now();
     const moved = st.last !== st.i;
     const back = st.i < st.last;
     st.last = st.i;
@@ -351,6 +357,14 @@ function viewLesson(id) {
         <p class="muted small">Önce hatırlamaya çalış, sonra bulanık yere dokun. Hatırlamaya çalışmak, tekrar okumaktan çok daha kalıcıdır.</p>
         ${step.ids.map((cid) => { const c = cardById(cid); return c ? `<div class="card flat tight"><b>${inline(c.f)}</b><div class="hidden-ans" data-reveal style="margin-top:6px">${inline(c.b)}</div></div>` : ''; }).join('')}`;
       bar = `<button class="btn" data-next>Derse geç${icon.fwd}</button>`;
+    } else if (step.k === 'pre') {
+      const pick = st.pre;
+      html = `<div class="eyebrow">Ön soru · bilmen beklenmiyor</div><h2>Dersten önce bir tahmin</h2>
+        <p class="muted small">Konuyu görmeden tahmin et. Bilimsel olarak kanıtlı: önce tahmin etmek, cevabı merak ettirir ve öğrendiğini daha iyi tutarsın. Puanlamaya ve tahmini netine girmez.</p>` +
+        `<div class="qstem">${questionHTML(step.q, null, {}).split('<div class="opts"')[0]}</div>` +
+        `<div class="opts">${step.q.o.map((o, j) => `<button class="opt ${pick === j ? 'sel' : ''} ${pick != null && pick !== j ? 'dim' : ''}" data-pre="${j}" ${pick != null ? 'disabled' : ''}><span class="bubble ${pick === j ? 'filled' : ''}">${LETTERS[j]}</span><span>${inline(o)}</span></button>`).join('')}</div>` +
+        (pick != null ? `<div class="note"><div class="eyebrow">Tahminin kaydedildi</div>Doğru cevabı söylemiyorum: bu soru dersin sonunda tekrar karşına gelecek. Anlatımda cevabı yakalamaya çalış.</div>` : '');
+      bar = prevBtn + (pick != null ? `<button class="btn" data-next>Derse başla${icon.fwd}</button>` : `<button class="btn ghost" data-next>Hiç fikrim yok, geç</button>`);
     } else if (step.k === 'quiz') {
       const pick = st.answers[step.i];
       html = questionHTML(step.q, pick, {
@@ -388,12 +402,20 @@ function viewLesson(id) {
     $stage.querySelectorAll('[data-reveal]').forEach((b) => b.onclick = () => b.classList.add('show'));
     const more = $bar.querySelector('[data-more]');
     if (more) more.onclick = () => { st.checks[st.i] = (st.checks[st.i] || 1) + 1; render(); const all = $stage.querySelectorAll('.step'); all[all.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); };
+    if (step.k === 'pre') {
+      $stage.querySelectorAll('[data-pre]').forEach((b) => b.onclick = () => {
+        if (st.pre != null) return;
+        st.pre = Number(b.dataset.pre);
+        logAnswer({ k: `${id}#on`, l: id, s: lesson.s, ok: st.pre === step.q.a ? 1 : 0, src: 'on-test' });
+        render();
+      });
+    }
     if (step.k === 'check') {
       $stage.querySelectorAll('[data-opt]').forEach((b) => b.onclick = () => {
         if (st.checks[st.i] != null) return;
         const pick = Number(b.dataset.opt);
         st.checks[st.i] = pick;
-        logAnswer({ k: `${id}#c${step._ci}`, l: id, s: lesson.s, ok: pick === step.a ? 1 : 0, p: step._map ? step._map[pick] : pick, src: 'kontrol' });
+        logAnswer({ k: `${id}#c${step._ci}`, l: id, s: lesson.s, ok: pick === step.a ? 1 : 0, p: step._map ? step._map[pick] : pick, src: 'kontrol', sec: secSince(st.shown[st.i]) });
         render();
         $stage.querySelector('.feedback')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
@@ -419,7 +441,7 @@ function viewLesson(id) {
     st.answers[step.i] = pick;
     const wid = `${id}#${step.i}`;
     const ok = pick === -1 ? -1 : pick === step.q.a ? 1 : 0;
-    logAnswer({ k: wid, l: id, s: lesson.s, ok, p: pick >= 0 && step.q._map ? step.q._map[pick] : pick, src: 'ders', g: st.guess[step.i] ? 1 : 0 });
+    logAnswer({ k: wid, l: id, s: lesson.s, ok, p: pick >= 0 && step.q._map ? step.q._map[pick] : pick, src: 'ders', g: st.guess[step.i] ? 1 : 0, sec: secSince(st.shown[st.i]) });
     store.update((s) => {
       if (ok !== 1) s.wrong[wid] = { at: Date.now(), fixed: false };
       else if (s.wrong[wid]) s.wrong[wid].fixed = true;
@@ -486,7 +508,7 @@ function viewLesson(id) {
       <span class="bubble hero-b s" id="bigb">${esc(sub.short)}</span>
       <div class="bigscore num">${r.right}/${qCount}</div>
       <p class="muted" style="margin:2px 0 8px">doğru · ${wrong} yanlış · ${blank} boş · net <b>${net.toFixed(2).replace('.', ',')}</b></p>
-      ${r.gain > 0.01 ? `<div class="gain">${icon.trend}<span>Bu ders sana tahminen <b>+${fmtNet(r.gain)}</b> net kazandırdı</span></div>` : ''}
+      ${r.gain >= 0.05 ? `<div class="gain">${icon.trend}<span>Tahmini netine <b>+${fmtNet(r.gain)}</b> eklendi</span></div>` : r.gain <= -0.05 ? `<div class="gain" style="background:var(--warn-soft);color:var(--warn)"><span>Bu sonuç tahminini <b>${fmtNet(r.gain)}</b> net düşürdü. Dürüst olalım: konu henüz oturmadı; hata defteri ve tekrar kartları bunu düzeltir.</span></div>` : `<div class="small muted" style="margin:6px 0">Tahmini net değişmedi: ders içi sorular kolaydır, asıl kanıt deneme ve karışık testlerden gelir.</div>`}
       <p style="margin:10px 0">${msg}</p>
       <div class="grid3" style="text-align:left;margin:14px 0">
         <div class="stat"><div class="v num" style="font-size:22px">${fmtDur(r.sessionSec)}</div><div class="l">bu seferki süre</div></div>
@@ -510,7 +532,7 @@ function viewLesson(id) {
 
   function bindResult() {
     requestAnimationFrame(() => setTimeout(() => document.getElementById('bigb')?.classList.add('filled'), 250));
-    $stage.querySelector('[data-restart]').onclick = () => { st.answers = {}; st.checks = {}; st.guess = {}; st.completed = false; timer.resetSession(); go(0); };
+    $stage.querySelector('[data-restart]').onclick = () => { st.answers = {}; st.checks = {}; st.guess = {}; st.pre = undefined; st.completed = false; timer.resetSession(); go(0); };
     $stage.querySelector('[data-ai-review]').onclick = () => {
       const c = aiContext();
       openChat({ ...c, prompt: 'Bu dersin sonucunu yorumla: nerede hata yaptım, neden, neyi tekrar etmeliyim?' });
@@ -521,6 +543,8 @@ function viewLesson(id) {
   render();
   cleanup = () => timer();
 }
+
+const secSince = (t) => (t ? Math.min(900, Math.round((Date.now() - t) / 1000)) : undefined);
 
 function cardById(cid) {
   if (cid.startsWith('c:')) {
@@ -536,7 +560,8 @@ function cardById(cid) {
 // ---------- Soru oynatıcı (hata defteri, mini deneme) ----------
 // qs: [{ q, o, a, ex, tip, key, l, s }]; reveal: 'instant' (hemen geri bildirim) | 'end'
 function questionRunner({ title, eyebrow, qs, reveal = 'instant', minutes = null, exit = '#/daha', src, onFinish }) {
-  const st = { i: 0, answers: {}, guess: {}, struck: [], last: -1, started: Date.now(), finished: false };
+  const st = { i: 0, answers: {}, guess: {}, struck: [], last: -1, started: Date.now(), finished: false, spent: {}, cur: 0, enter: Date.now() };
+  const tick = () => { const n = Date.now(); st.spent[st.cur] = (st.spent[st.cur] || 0) + (n - st.enter) / 1000; st.enter = n; st.cur = st.i; };
   setTab(null);
   $app.innerHTML = `<div class="view player">
     <header class="topbar">
@@ -572,6 +597,7 @@ function questionRunner({ title, eyebrow, qs, reveal = 'instant', minutes = null
   };
 
   function draw() {
+    tick();
     const q = qs[st.i];
     const pick = st.answers[st.i];
     const moved = st.last !== st.i;
@@ -620,9 +646,10 @@ function questionRunner({ title, eyebrow, qs, reveal = 'instant', minutes = null
   }
 
   function record(i, pick) {
+    tick();
     const q = qs[i];
     const ok = pick === -1 || pick == null ? -1 : pick === q.a ? 1 : 0;
-    logAnswer({ k: q.key || null, l: q.l || null, s: q.s || null, ok, p: pick >= 0 && q._map ? q._map[pick] : pick, src, g: st.guess[i] ? 1 : 0 });
+    logAnswer({ k: q.key || null, l: q.l || null, s: q.s || null, ok, p: pick >= 0 && q._map ? q._map[pick] : pick, src, g: st.guess[i] ? 1 : 0, sec: Math.min(900, Math.round(st.spent[i] || 0)) || undefined });
     if (q.key) store.update((s) => {
       if (ok === 1) { if (s.wrong[q.key]) s.wrong[q.key].fixed = true; }
       else {
@@ -659,7 +686,7 @@ function viewReview() {
   const all = Object.keys(store.get().cards).filter((c) => cardById(c));
   if (!ids.length) {
     $app.innerHTML = page({
-      top: topbar({ eyebrow: 'Aralıklı tekrar', title: `${all.length} kart destede`, right: themeBtn() }),
+      top: topbar({ eyebrow: 'Aralıklı tekrar', title: `${all.length} kart destede` }),
       body: `<div class="empty"><span class="bubble filled"></span><h2>Şu an tekrar edilecek kart yok</h2>
       <p>Bir dersi bitirince o dersin bilgi kartları buraya eklenir. Kartlar sen unutmadan hemen önce (1, 2, 4 gün sonra) tekrar karşına çıkar.</p>
       ${all.length ? `<button class="btn ghost" id="allcards">Yine de 20 kart çalış</button>` : `<a class="btn" href="#/">Bugünkü derslere git</a>`}</div>
@@ -771,11 +798,11 @@ function viewMore() {
     ['#/strateji', 'Sınav stratejisi', '4 yanlış 1 doğru hesabı, süre planı, soru sırası', icon.target],
     ['#/ekstra', 'Ekstra konular', 'Günlük planın dışında, canın çalışmak isterse', icon.layers],
     ['#/uret', 'Yapay zekâ ile soru üret', 'İstediğin konudan yeni ÖSYM tarzı sorular', icon.spark],
-    ['#/istatistik', 'İstatistik ve net tahmini', 'Ne kadar çalıştın, hangi derste kaç net', icon.chart],
+    ['#/istatistik', 'Gerçekçi analiz', 'Bugün girsen kaç doğru, kaç yanlış, kaç net; YKS geçmişin', icon.chart],
     ['#/ayarlar', 'Ayarlar', 'Tema, sesli okuma, senkron', icon.settings],
   ];
   $app.innerHTML = page({
-    top: topbar({ eyebrow: 'Daha fazla', title: 'Ekstra çalışma ve ayarlar', right: themeBtn() }),
+    top: topbar({ eyebrow: 'Daha fazla', title: 'Ekstra çalışma ve ayarlar' }),
     body: `<div style="margin-top:10px">${items.map(([h, t, m, ic]) => `<a class="rowlink" href="${h}"><span class="ico">${ic}</span><span><span class="t">${t}</span><span class="m">${m}</span></span><span class="go">${icon.chev}</span></a>`).join('')}</div>`,
   });
 }
@@ -953,7 +980,27 @@ function viewGenerate() {
   };
 }
 
-// ---------- İstatistik ----------
+// ---------- Gerçekçi analiz ve istatistik ----------
+function insights(s, est) {
+  const log = s.log || [];
+  const out = [];
+  const tr = est.per.turkce;
+  out.push(`<b>Türkçe:</b> YKS'de Türkçe sorularının ~%91'ini işaretledin; işaretlediklerinin ~%29'u yanlıştı. 2024'te 12 yanlış = <b>3 net kayıp</b>. Bugün beklenen: ${fmtNet(tr.D)} doğru, ${fmtNet(tr.Y)} yanlış. En hızlı kazanç: iki şık arasında kalmadığın soruyu boş bırakmak.`);
+  out.push(`<b>Matematik:</b> YKS'de 160 sorudan sadece 13'ünü işaretledin ve 10'u doğruydu: bilmediğini boş bırakma disiplinin iyi. KPSS'de 30 sorunun ~15'i (işlem, kesir, yüzde, problem, grafik) çalışarak yapılabilir; geometriye girme.`);
+  out.push(`<b>Tarih zayıf, coğrafya görece iyi:</b> AYT'de tarih sorularının sadece %37'sini işaretleyip %55'ini tutturdun; coğrafyada %87 işaretleyip %66 tutturdun. Tarihte her ders net getirir, coğrafyada yorum gücünü bilgiyle desteklemek yeter.`);
+  const g = log.filter((x) => x.g && x.ok !== -1);
+  if (g.length >= 5) {
+    const r = g.filter((x) => x.ok === 1).length / g.length;
+    out.push(`<b>Tahminlerin:</b> "tahmin" işaretlediğin ${g.length} sorudan ${g.filter((x) => x.ok === 1).length} tanesi tuttu (%${Math.round(r * 100)}). ${r > 0.3 ? 'Bu oran %20\'nin üstünde: en az bir şıkkı eleyebildiğinde işaretlemen kârlı.' : r >= 0.2 ? 'Bu oran başa baş: sadece en az 2 şık eleyebildiğinde işaretle.' : 'Bu oran %20\'nin altında: tahminler sana net kaybettiriyor, emin değilsen boş bırak.'}`);
+  } else out.push('<b>Tahminlerin:</b> Soru çözerken emin olmadığında "Tahmin" düğmesine bas; 5 tahminden sonra işaretlemenin sana kazandırıp kazandırmadığını burada göreceksin.');
+  const t = est.time;
+  const slow = SUBJECTS.filter((x) => t.per[x.id].n >= 5 && t.per[x.id].sec > (x.id === 'matematik' ? 150 : x.id === 'turkce' ? 95 : 55));
+  out.push(`<b>Süre:</b> ${t.per.turkce.n + t.per.tarih.n + t.per.cografya.n >= 10 ? 'Uygulamadaki hızınla' : 'Ortalama bir adayın hızıyla (henüz yeterli verin yok)'} tüm sınava bakmak ~${Math.round(t.needMin)} dk sürer; süre 130 dk. ${t.needMin > 125 ? '<b>Süre yetmeyebilir</b>: Genel Kültür\'de bilmediğin soruda 30 saniyeden fazla durma.' : 'Süre yetiyor; kalan zamanı Türkçe paragrafları dikkatli okumaya ver.'}${slow.length ? ` Yavaş olduğun dersler: ${slow.map((x) => x.name).join(', ')}.` : ''}`);
+  const ev = Object.values(est.per).reduce((a, p) => a + p.evidence, 0);
+  out.push(ev < 30 ? '<b>Güven:</b> Henüz az soru çözdün; tahmin büyük ölçüde YKS geçmişine dayanıyor. Mini deneme ve hocanın karışık testleri tahmini en hızlı netleştiren şey.' : `<b>Güven:</b> Tahmin ${Math.round(ev)} soruluk ağırlıklı kanıta dayanıyor. Deneme sonuçları ders içi sorulardan daha çok sayılır.`);
+  return out;
+}
+
 function viewStats() {
   const s = store.get();
   const totalSec = Object.values(s.days).reduce((a, b) => a + b, 0);
@@ -962,31 +1009,36 @@ function viewStats() {
   const est = estimate(s);
   const log = s.log || [];
   const acc = log.filter((x) => x.ok !== -1);
-  const perSub = SUBJECTS.map((sub) => {
-    const ls = lessons.filter((l) => l.s === sub.id);
-    const d = ls.filter((l) => s.lessons[l.id]?.done);
-    const lg = acc.filter((x) => x.s === sub.id);
-    const time = ls.reduce((a, l) => a + (s.lessons[l.id]?.time || 0), 0);
-    return { sub, n: ls.length, d: d.length, acc: lg.length ? lg.filter((x) => x.ok === 1).length / lg.length : null, solved: lg.length, time, e: est.per[sub.id] };
-  });
+  const rows = yksRows();
   $app.innerHTML = page({
-    top: topbar({ eyebrow: 'İstatistik', title: 'Özgür\'ün çalışma karnesi', back: '#/daha' }),
+    top: topbar({ eyebrow: 'Gerçekçi analiz', title: 'Bugün sınava girsen', back: '#/daha' }),
     body: `
-    <section class="card" style="margin-top:14px"><div class="eyebrow">Tahmini sınav sonucu</div>
-      <div class="row" style="align-items:flex-end;gap:14px;margin-top:6px"><div style="font:800 54px/0.9 var(--display)" class="num">${fmtNet(est.total)}</div><div class="small muted" style="padding-bottom:4px">net · yaklaşık <b>${est.puan}</b> puan<br>başlangıç tahmini ${fmtNet(est.start)} net</div></div>
-      <p class="small muted" style="margin:10px 0 4px">Her dersin sınavda kaç soruyu kapsadığı ve senin o konudaki doğru oranın üzerinden hesaplanır. Ders bitirdikçe ve doğru çözdükçe yükselir.</p>
-      ${SUBJECTS.map((x) => { const e = est.per[x.id]; return `<div class="subjbar" data-s="${x.id}" style="grid-template-columns:96px 1fr 70px"><span class="small"><b>${x.name}</b></span><div class="progressbar"><i style="transform:scaleX(${e.now / e.q});background:var(--s)"></i></div><span class="small num" style="text-align:right">${fmtNet(e.now)}/${e.q}</span></div>`; }).join('')}
+    <section class="card" style="margin-top:14px">
+      <div class="eyebrow">Tahmini sonuç · %80 ihtimalle bu aralıkta</div>
+      <div class="row" style="align-items:flex-end;gap:14px;margin-top:6px"><div style="font:800 50px/0.9 var(--display)" class="num">${Math.round(est.low)}–${Math.round(est.high)}</div><div class="small muted" style="padding-bottom:4px">net · en olası <b>${fmtNet(est.total)}</b><br>puan ≈ <b>${Math.round(est.puanLow)}–${Math.round(est.puanHigh)}</b></div></div>
+      <p class="small" style="margin:10px 0 2px">Beklenen: <b>${Math.round(est.D)}</b> doğru, <b>${Math.round(est.Y)}</b> yanlış, <b>${Math.round(est.B)}</b> boş. YKS geçmişine göre başlangıç tahmini: ${fmtNet(est.start)} net.</p>
+      <div class="tablewrap" style="margin-top:10px"><table class="vtable"><thead><tr><th>Ders</th><th>D</th><th>Y</th><th>B</th><th>Net</th></tr></thead><tbody>
+      ${SUBJECTS.map((x) => { const e = est.per[x.id]; return `<tr data-s="${x.id}"><td style="color:var(--s)">${x.name}<div class="small muted" style="font-weight:400">${x.q} soru · senden ${Math.round(e.evidence)} cevap</div></td><td class="num">${fmtNet(e.D)}</td><td class="num">${fmtNet(e.Y)}</td><td class="num">${fmtNet(e.B)}</td><td class="num"><b>${fmtNet(e.now)}</b></td></tr>`; }).join('')}
+      </tbody></table></div>
     </section>
-    <div class="grid2">
+
+    <section class="card flat"><h3>Ne görüyorum?</h3><ul class="small" style="padding-left:1.1em;margin:8px 0 0">${insights(s, est).map((x) => `<li style="margin:.5em 0">${x}</li>`).join('')}</ul></section>
+
+    <section class="card flat"><h3>Nasıl hesaplanıyor?</h3>
+      <p class="small">Seni mutlu etmek için değil, doğruyu göstermek için: başlangıç noktası, hiç çalışmadan girdiğin <b>4 YKS'deki</b> davranışın (her derste soruların ne kadarını işaretlediğin ve ne kadarını tutturduğun). Sonra her çözdüğün soru tahmini günceller: <b>deneme ve hocanın testleri</b> tam sayılır; ders içi sorular kolay olduğu için <b>yarım</b> sayılır ve doğruları iskontolanır; eski cevapların ağırlığı günler geçtikçe azalır (unutma). <b>Ders bitirmek tek başına net getirmez</b>, sadece soru performansı getirir. Konuların sınavdaki ağırlığı 2014-2020 kitapçıklarındaki 294 sorudan hesaplandı.</p></section>
+
+    <h3 style="margin:22px 0 6px">YKS geçmişin (net = D − Y/4)</h3>
+    <div class="tablewrap"><table class="vtable"><thead><tr><th>Test</th>${rows[0].years.map((y) => `<th>${y.y}</th>`).join('')}</tr></thead><tbody>
+      ${rows.map((r) => `<tr><td>${r.label}<div class="small muted" style="font-weight:400">${r.n} soru</div></td>${r.years.map((y) => `<td class="num">${fmtNet(y.net)}<div class="small muted">${y.d}D ${y.w}Y</div></td>`).join('')}</tr>`).join('')}
+    </tbody></table></div>
+    <p class="small muted">Türkçe 2021'den 2023'e 11'den 25 nete çıktı: yorum gücün çalışmadan da gelişmiş. KPSS'de 30 Türkçe sorusu, netinin yarısından fazlasını getirecek.</p>
+
+    <div class="grid2" style="margin-top:18px">
       <div class="stat"><div class="v num">${fmtMin(totalSec)}</div><div class="l">toplam çalışma</div></div>
       <div class="stat"><div class="v num">${done.length}/${lessons.length}</div><div class="l">ders bitti</div></div>
       <div class="stat"><div class="v num">${log.length}</div><div class="l">çözülen soru</div></div>
-      <div class="stat"><div class="v num">${acc.length ? '%' + Math.round((acc.filter((x) => x.ok === 1).length / acc.length) * 100) : '–'}</div><div class="l">doğru oranı</div></div>
+      <div class="stat"><div class="v num">${acc.length ? '%' + Math.round((acc.filter((x) => x.ok === 1).length / acc.length) * 100) : '–'}</div><div class="l">uygulamadaki doğru oranı</div></div>
     </div>
-    <h3 style="margin:22px 0 6px">Derslere göre</h3>
-    ${perSub.map((p) => `<div class="card flat tight" data-s="${p.sub.id}"><div class="row between"><span class="tag">${p.sub.name}</span><span class="small muted">${p.solved} soru · ${fmtMin(p.time)}</span></div>
-      <div class="subjbar" style="grid-template-columns:86px 1fr 50px"><span class="small">Bitirilen</span><div class="progressbar"><i style="transform:scaleX(${p.d / p.n});background:var(--s)"></i></div><span class="small num">${p.d}/${p.n}</span></div>
-      <div class="subjbar" style="grid-template-columns:86px 1fr 50px"><span class="small">Doğru oranı</span><div class="progressbar"><i style="transform:scaleX(${p.acc || 0});background:var(--graphite)"></i></div><span class="small num">${p.acc == null ? '–' : '%' + Math.round(p.acc * 100)}</span></div></div>`).join('')}
     <h3 style="margin:22px 0 6px">Günlere göre</h3>
     <div class="card flat">${renderViz({ type: 'bars', items: STUDY_DAYS.map((k, i) => [`${i + 1}. gün`, Math.max(0.001, (s.days[k] || 0) / 60), `${Math.round((s.days[k] || 0) / 60)} dk`]), c: 'ink' })}</div>
     ${(s.extra.mocks || []).length ? `<h3 style="margin:22px 0 6px">Mini denemeler</h3><div class="card flat">${s.extra.mocks.map((m, i) => `<div class="row between" style="padding:4px 0"><span>${i + 1}. deneme</span><b class="num">${fmtNet(m.d - m.y / 4)} net / ${m.n}</b></div>`).join('')}</div>` : ''}`,
@@ -1000,8 +1052,8 @@ function viewSettings() {
     top: topbar({ eyebrow: 'Ayarlar', title: 'Uygulama', back: '#/daha' }),
     body: `
     <section class="card flat" style="margin-top:14px"><div class="row"><span class="ico">${icon.moon}</span><h3 style="flex:1">Görünüm</h3></div>
-      <div class="seg" id="theme" style="margin-top:12px;display:flex">${[['auto', 'Otomatik'], ['light', 'Açık'], ['dark', 'Koyu']].map(([k, l]) => `<button data-t="${k}" class="${(s.settings.theme || 'auto') === k ? 'on' : ''}" style="flex:1">${l}</button>`).join('')}</div>
-      <p class="small muted" style="margin:8px 0 0">Otomatik: telefonun ayarını izler.</p></section>
+      <div class="seg" id="theme" style="margin-top:12px;display:flex">${[['light', 'Aydınlık', icon.sun], ['dark', 'Gece', icon.moon]].map(([k, l, ic]) => `<button data-t="${k}" class="${(s.settings.theme === 'dark' ? 'dark' : 'light') === k ? 'on' : ''}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px">${ic}${l}</button>`).join('')}</div>
+      <p class="small muted" style="margin:8px 0 0">Seçimin bu cihazda ve senkronda saklanır; uygulamayı kapatıp açsan da aynı kalır.</p></section>
     <section class="card flat"><div class="row"><span class="ico">${icon.speak}</span><h3 style="flex:1">Sesli okuma</h3></div>
       <p class="small">Ders ekranındaki hoparlör, kartı telefonunun Türkçe sesiyle okur. Ses gelmiyorsa telefonun sessiz modda olabilir. iPhone'da daha iyi ses için: Ayarlar › Erişilebilirlik › Seslendirilen İçerik › Sesler › Türkçe.</p>
       <button class="btn ghost sm" id="ttstest">${icon.speak}Dene</button></section>
@@ -1020,7 +1072,7 @@ function viewSettings() {
 // ---------- Sınav günü ----------
 function viewExamDay() {
   $app.innerHTML = page({
-    top: topbar({ eyebrow: '4 Ekim 2026 · Pazar', title: 'Aday: Özgür', right: themeBtn() }),
+    top: topbar({ eyebrow: '4 Ekim 2026 · Pazar', title: 'Aday: Özgür' }),
     body: `<section class="exam-banner" style="margin-top:14px"><div class="eyebrow">Bugün sınav günü</div><h1 style="font-size:44px;margin:6px 0">Başarılar Özgür</h1>
       <p>Sınav <b>10.15</b>'te başlar. Kapı <b>10.00</b>'da kapanır; en geç 09.30'da binanın önünde ol.</p>
       <div class="clock num" id="clock">${countdownText()}</div></section>

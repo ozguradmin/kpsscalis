@@ -28,10 +28,9 @@ export function fmtDur(sec) {
 }
 
 // ---------- tema ----------
-const mq = window.matchMedia('(prefers-color-scheme: dark)');
+// Varsayılan aydınlık; seçilen tema localStorage + senkronda kalır.
 export function effectiveTheme() {
-  const t = store.get().settings.theme;
-  return t === 'light' || t === 'dark' ? t : mq.matches ? 'dark' : 'light';
+  return store.get().settings.theme === 'dark' ? 'dark' : 'light';
 }
 export function applyTheme() {
   const t = effectiveTheme();
@@ -40,53 +39,100 @@ export function applyTheme() {
   if (meta) meta.content = t === 'dark' ? '#111114' : '#F6F5F7';
   try { localStorage.setItem('kpss-theme', t); } catch (e) { /* yoksay */ }
 }
-mq.addEventListener?.('change', () => applyTheme());
-export function toggleTheme() {
-  const next = effectiveTheme() === 'dark' ? 'light' : 'dark';
-  store.update((s) => { s.settings.theme = next; });
-  applyTheme();
-  return next;
-}
-export const themeIcon = () => (effectiveTheme() === 'dark' ? icon.sun : icon.moon);
 
-// ---------- sesli okuma (tarayıcının Türkçe sesi) ----------
-// iOS'ta speechSynthesis.speaking bazen takılı kalır; durumu kendimiz tutarız.
+// ---------- sesli okuma ----------
+// Önce Cartesia'nın doğal Türkçe sesi (/api/tts, <audio> ile: iPhone sessizdeyken de çalar).
+// Servis yoksa telefonun kendi Türkçe sesine (speechSynthesis) düşer.
 let speakingBtn = null;
 let speakToken = 0;
 let warned = false;
+let serverTTS = true;
+const audio = typeof Audio !== 'undefined' ? new Audio() : null;
+if (audio) audio.preload = 'auto';
+const clipCache = new Map(); // metin → blob URL
+let silentUrl = null;
+
+function silentWav() {
+  if (silentUrl) return silentUrl;
+  const n = 400, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 16000, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+  silentUrl = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  return silentUrl;
+}
+
 function trVoice() {
   const vs = window.speechSynthesis.getVoices();
   return vs.find((v) => /^tr(-|_|$)/i.test(v.lang)) || null;
 }
 if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => {};
 
+function setBtn(btn, on) {
+  if (!btn) return;
+  btn.classList.toggle('on', on);
+  btn.innerHTML = on ? icon.stop : icon.speak;
+  btn.setAttribute('aria-label', on ? 'Okumayı durdur' : 'Sesli dinle');
+}
+
 export function stopSpeaking() {
   speakToken++;
+  if (audio) { audio.pause(); audio.onended = null; }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-  if (speakingBtn) { speakingBtn.classList.remove('on'); speakingBtn.innerHTML = icon.speak; speakingBtn.setAttribute('aria-label', 'Sesli dinle'); }
+  setBtn(speakingBtn, false);
   speakingBtn = null;
 }
 
-export function speak(text, btn) {
-  if (!('speechSynthesis' in window)) { toast('Bu tarayıcı sesli okumayı desteklemiyor'); return; }
-  const synth = window.speechSynthesis;
-  if (btn && speakingBtn === btn) { stopSpeaking(); return; }
-  stopSpeaking();
-  const my = ++speakToken;
-  const clean = plain(text).replace(/[#*_`>|]/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!clean) return;
-  // Uzun metinleri cümlelere böl: Chrome/Safari tek parçada 15 sn sonra susabiliyor
-  const parts = clean.match(/[^.!?…:]+[.!?…:]*/g) || [clean];
+function chunkText(clean, max) {
+  const parts = clean.match(/[^.!?…:;]+[.!?…:;]*/g) || [clean];
   const chunks = [];
   let cur = '';
-  for (const p of parts) { if ((cur + p).length > 220 && cur) { chunks.push(cur); cur = p; } else cur += p; }
-  if (cur.trim()) chunks.push(cur);
+  for (const p of parts) { if ((cur + p).length > max && cur) { chunks.push(cur.trim()); cur = p; } else cur += p; }
+  if (cur.trim()) chunks.push(cur.trim());
+  return chunks;
+}
+
+async function fetchClip(text) {
+  if (clipCache.has(text)) return clipCache.get(text);
+  const r = await fetch('/api/tts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
+  if (r.status === 503) { serverTTS = false; throw new Error('kapali'); }
+  if (!r.ok) throw new Error('tts ' + r.status);
+  const url = URL.createObjectURL(await r.blob());
+  clipCache.set(text, url);
+  if (clipCache.size > 60) { const [k, u] = clipCache.entries().next().value; URL.revokeObjectURL(u); clipCache.delete(k); }
+  return url;
+}
+
+function playUrl(url, my) {
+  return new Promise((resolve, reject) => {
+    if (my !== speakToken) return resolve();
+    audio.onended = () => resolve();
+    audio.onerror = () => reject(new Error('oynatılamadı'));
+    audio.src = url;
+    audio.play().catch(reject);
+  });
+}
+
+async function speakServer(chunks, my) {
+  let next = fetchClip(chunks[0]);
+  for (let i = 0; i < chunks.length; i++) {
+    const url = await next;
+    if (my !== speakToken) return;
+    if (i + 1 < chunks.length) { next = fetchClip(chunks[i + 1]); next.catch(() => {}); }
+    await playUrl(url, my);
+  }
+}
+
+function speakBrowser(clean, my) {
+  if (!('speechSynthesis' in window)) { toast('Bu tarayıcı sesli okumayı desteklemiyor'); stopSpeaking(); return; }
+  const synth = window.speechSynthesis;
+  const chunks = chunkText(clean, 220);
   const voice = trVoice();
-  if (!voice && !warned) { warned = true; toast('Telefonunda Türkçe ses yoksa okuma İngilizce aksanlı olabilir. iPhone: Ayarlar › Erişilebilirlik › Seslendirilen İçerik › Sesler › Türkçe', 5200); }
-  if (btn) { speakingBtn = btn; btn.classList.add('on'); btn.innerHTML = icon.stop; btn.setAttribute('aria-label', 'Okumayı durdur'); }
+  if (!voice && !warned) { warned = true; toast('Telefonunda Türkçe ses yoksa okuma aksanlı olabilir. iPhone: Ayarlar › Erişilebilirlik › Seslendirilen İçerik › Sesler › Türkçe', 5200); }
   let started = false;
   chunks.forEach((c, i) => {
-    const u = new SpeechSynthesisUtterance(c.trim());
+    const u = new SpeechSynthesisUtterance(c);
     u.lang = 'tr-TR'; u.rate = 0.98;
     if (voice) u.voice = voice;
     u.onstart = () => { started = true; };
@@ -94,26 +140,55 @@ export function speak(text, btn) {
     u.onerror = () => { if (my === speakToken) stopSpeaking(); };
     synth.speak(u);
   });
-  if (synth.paused) synth.resume();
   setTimeout(() => {
-    if (my === speakToken && !started && !synth.speaking) {
-      stopSpeaking();
-      toast('Ses çıkmadı: telefon sessiz modda olabilir. Yan tuştan sessizi kapatıp sesi aç.', 4200);
-    }
+    if (my === speakToken && !started && !synth.speaking) { stopSpeaking(); toast('Ses çıkmadı: telefon sessiz modda olabilir.', 4200); }
   }, 1600);
 }
 
+export function speak(text, btn) {
+  if (btn && speakingBtn === btn) { stopSpeaking(); return; }
+  stopSpeaking();
+  const my = ++speakToken;
+  const clean = plain(text).replace(/[#*_`>|]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!clean) return;
+  speakingBtn = btn || null;
+  setBtn(btn, true);
+  if (serverTTS && audio) {
+    // iOS: oynatma izni kullanıcının dokunuşunda alınmalı → önce sessiz bir ses çal
+    audio.src = silentWav();
+    audio.play().catch(() => {});
+    speakServer(chunkText(clean, 420), my)
+      .then(() => { if (my === speakToken) stopSpeaking(); })
+      .catch(() => { if (my === speakToken) speakBrowser(clean, my); });
+  } else speakBrowser(clean, my);
+}
+
 // ---------- hatalı soru bildirimi (yapay zekâ soruları) ----------
+// Tek dokunuşla silinmez: hakem incelemesi yapılır, sonuç Özgür'e açıklanır.
 const reported = new Set();
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-report]');
   if (!b) return;
   const key = b.dataset.report;
-  if (!confirm('Bu soruda hata olduğunu mu düşünüyorsun? (İki doğru şık, yanlış bilgi, anlaşılmaz kök…) Soru bankadan çıkarılır.')) return;
+  const reason = window.prompt('Bu soruda ne hatalı? (isteğe bağlı: ör. "B de doğru", "bilgi yanlış", "anlaşılmıyor")', '');
+  if (reason === null) return;
   reported.add(key);
-  b.outerHTML = '<div class="small muted" style="margin-top:8px">Bildirildi, bankadan çıkarıldı. Teşekkürler!</div>';
-  store.update((s) => { if (s.wrong[key]) s.wrong[key].fixed = true; });
-  try { await fetch('/api/bank/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: key }) }); } catch (err) { /* çevrimdışı */ }
+  const box = document.createElement('div');
+  box.className = 'small muted';
+  box.style.marginTop = '8px';
+  box.innerHTML = '<span class="typing"><i></i><i></i><i></i></span> Hakem inceliyor (10-30 sn)…';
+  b.replaceWith(box);
+  try {
+    const r = await fetch('/api/bank/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: key, reason }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'olmadı');
+    if (d.removed) store.update((s) => { if (s.wrong[key]) s.wrong[key].fixed = true; });
+    box.className = 'note' + (d.removed ? '' : ' exam');
+    box.innerHTML = `<div class="eyebrow">${d.removed ? 'Haklıydın: soru bankadan çıkarıldı' : `Hakem soruyu geçerli buldu (doğru: ${esc(d.answer || '')})`}</div>${esc(d.why || '')}`;
+  } catch (err) {
+    box.textContent = 'İnceleme şu an yapılamadı (bağlantı). Sonra tekrar dene.';
+    reported.delete(key);
+  }
 });
 
 // ---------- sorular ----------
@@ -156,7 +231,7 @@ export function questionHTML(q, pick, { head = '', guess = null, struck = [] } =
   }
   if (pick != null) {
     const ok = pick === q.a;
-    const rep = q.key && String(q.key).startsWith('ai:') ? (reported.has(q.key) ? '<div class="small muted" style="margin-top:8px">Bildirildi, bankadan çıkarıldı.</div>' : `<button class="chip" data-report="${esc(q.key)}" type="button" style="margin-top:10px;box-shadow:none">${icon.flag}<span>Soru hatalı mı? Bildir</span></button>`) : '';
+    const rep = q.key && String(q.key).startsWith('ai:') ? (reported.has(q.key) ? '<div class="small muted" style="margin-top:8px">İnceleme istendi.</div>' : `<button class="chip" data-report="${esc(q.key)}" type="button" style="margin-top:10px;box-shadow:none">${icon.flag}<span>Soru hatalı mı? Bildir</span></button>`) : '';
     h += `<div class="feedback ${ok ? 'ok' : 'no'}"><h3>${ok ? (guess ? 'Doğru, ama tahmindi' : 'Doğru!') : pick === -1 ? `Boş bıraktın · doğrusu ${LETTERS[q.a]}` : `Yanlış · doğrusu ${LETTERS[q.a]}`}</h3>${md(q.ex || '')}${q.tip ? `<div class="tip"><b>İpucu:</b> ${inline(q.tip)}</div>` : ''}${q.ai ? '<div class="small muted" style="margin-top:8px">Yapay zekâ yazdı, iki kez denetlendi.</div>' : ''}${rep}</div>`;
   }
   return h;

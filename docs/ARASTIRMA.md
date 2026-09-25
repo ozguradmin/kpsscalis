@@ -67,6 +67,21 @@ Genel gözlemler:
 - Bilgi sorularında çeldiriciler hep **aynı kategoriden** (beş cemiyet, beş antlaşma, beş il). Soru üretici bu kurala göre eğitildi.
 - Net tahmin motorundaki ders ağırlıkları (`public/js/net.js`, `YIELD`) bu tablodan hesaplandı.
 
+### Özgür'ün YKS geçmişi (2021-2024, hiç çalışmadan)
+
+Tahmin motorunun başlangıç noktası (`public/js/yks.js`). Net = doğru − yanlış/4.
+
+| Test | 2021 | 2022 | 2023 | 2024 | Yorum |
+|---|---|---|---|---|---|
+| TYT Türkçe (40) | 11,25 | 20,25 | 24,75 | 22,00 | Soruların %88-98'ini işaretliyor; 2023-24 doğruluk %71. Yorum gücü çalışmadan gelişmiş. |
+| TYT Sosyal (20) | 7,00 | 9,50 | 12,75 | 13,75 | Yorum ağırlıklı sosyal sorularda iyi. |
+| TYT Matematik (40) | 2,00 | 0,75 | 5,00 | 1,50 | Soruların sadece %5-12'sini işaretliyor: bilmediğini boş bırakıyor. |
+| AYT Tarih-1+2 (21) | 1,75 | 3,00 | 3,50 | 5,25 | İşaretleme %37, doğruluk %55: bilgi eksikliği. |
+| AYT Coğrafya-1+2 (17) | 7,75 | 11,25 | 6,50 | 8,50 | İşaretleme %87, doğruluk %66: görece güçlü alan. |
+
+KPSS'ye taşınan başlangıç (işaretleme a, doğruluk c): Türkçe 0,91/0,71 · Matematik 0,15/0,70 · Tarih 0,45/0,55 · Coğrafya 0,72/0,58 · Vatandaşlık 0,50/0,40 · Güncel 0,50/0,42.
+Bununla hiç çalışmadan beklenen: **~34 net** (%80 aralık ~26-42), yaklaşık 67 puan. Uygulamada çözülen her soru bu tahmini günceller; deneme ve karışık testler tam, ders içi sorular yarım ağırlıkla sayılır.
+
 ### 2026 KPSS Lisans (6 Eylül 2026): son eğilimler
 
 ÖSYM’nin en yeni tarzı: öğretmen-öğrenci diyaloğu biçiminde sorular (“Semih Öğretmen…”, “Aybüke Öğretmen…”), kavramı tarif edip adını sorma (çift-hane, Evlâd-ı Fâtihân, Gazavatname), kronolojiye dayalı eleme (Milletler Cemiyeti–Sadabat–Montrö). Uygulamadaki sorular bu tarza göre yazıldı.
@@ -92,6 +107,9 @@ Genel gözlemler:
 | **Çözümlü örnek → uygulama** (worked example effect) | Adım adım açılan matematik ve sözel mantık çözümleri |
 | **Karışık tekrar** (interleaving) | Mini deneme, derslerin karışık sorulduğu 24 soru |
 | **Hatadan öğrenme** | Hata defteri; her yanlışın açıklaması ve ipucu |
+| **Ön test** (pretesting; Richland, Kornell & Kao, 2009; Carpenter & Toftness, 2017) | Her dersin başında, dersin son sorusunun tahmini; yanlış tahmin bile sonraki öğrenmeyi güçlendirir, puana girmez |
+| **Güven işareti ve aşırı düzeltme** (hypercorrection effect; Butterfield & Metcalfe, 2001) | "Tahmin" düğmesi; emin olunan yanlışlar açıklamayla düzeltilir, tahminle tutanlar ayrıca gösterilir |
+| **Gerçekçi öz değerlendirme** (öğrenme yanılsaması; Bjork, 1994) | Ders içi kolay sorular tahmini netin sadece yarısı kadar sayılır; deneme ve karışık testler tam sayılır |
 | **Kısa oturum, uyku** | 10-15 dakikalık dersler; son gece yeni konu yok, 7-8 saat uyku önerisi |
 
 ## 5. Güncel bilgiler (Eylül 2026 itibarıyla doğrulandı)

@@ -20,7 +20,8 @@ export function buildProfile() {
   const log = st.log || [];
   const lines = [];
   lines.push(`Bugün ${todayKey()}, ${day}. çalışma günü (9 günden). Toplam çalışma: ${Math.round(Object.values(st.days || {}).reduce((a, b) => a + b, 0) / 60)} dk, bugün ${Math.round((st.days[todayKey()] || 0) / 60)} dk.`);
-  lines.push(`Tahmini net şu an ${fmtNet(est.total)} (başlangıç tahmini ${fmtNet(est.start)}, yaklaşık ${est.puan} puan).`);
+  lines.push(`Gerçekçi tahmin (bugün girse): ${fmtNet(est.total)} net, %80 aralık ${fmtNet(est.low)}–${fmtNet(est.high)}; ~${Math.round(est.D)} doğru, ${Math.round(est.Y)} yanlış, ${Math.round(est.B)} boş; ≈${Math.round(est.puan)} puan. YKS geçmişine dayalı başlangıç: ${fmtNet(est.start)} net. Özgür'e gerçekçi ol: bir konuyu öğrendi diye o konudan her soruyu yapar sanma.`);
+  lines.push('YKS geçmişi (hiç çalışmadan): TYT Türkçe neti 2021→2024: 11,25 / 20,25 / 24,75 / 22 (soruların %90+ işaretliyor, yanlışı çok). TYT Sosyal 7 / 9,5 / 12,75 / 13,75. TYT Matematik 2 / 0,75 / 5 / 1,5 (çoğunu boş bırakıyor). AYT tarih: soruların %37\'sini işaretleyip %55 doğru; AYT coğrafya: %87 işaretleyip %66 doğru. Güçlü: paragraf/yorum, coğrafya yorumu. Zayıf: tarih bilgisi, matematik, ezber.');
   for (const s of SUBJECTS) {
     const ls = Object.values(LESSONS).filter((l) => l.s === s.id && l.day).sort((a, b) => a.day - b.day);
     const done = ls.filter((l) => st.lessons[l.id]?.done);

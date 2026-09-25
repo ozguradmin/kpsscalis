@@ -139,8 +139,9 @@ const R = {
 
   bars(v) {
     const max = Math.max(...v.items.map((i) => i[1]));
-    return `<div class="bars">${v.items.map(([l, val, disp], i) => `
-      <div class="bar"><span>${inline(l)}</span><span class="track"><span class="fill" style="width:${(val / max) * 100}%;${delay(i, 100)}${v.c ? `;background:${col(v.c)}` : ''}"></span></span><b class="num">${esc(disp ?? val)}</b></div>`).join('')}</div>`;
+    // her satır: [etiket, değer, gösterim, (isteğe bağlı) renk]
+    return `<div class="bars">${v.items.map(([l, val, disp, c], i) => `
+      <div class="bar"><span>${inline(l)}</span><span class="track"><span class="fill" style="width:${(val / max) * 100}%;${delay(i, 100)}${c || v.c ? `;background:${col(c || v.c)}` : ''}"></span></span><b class="num">${esc(disp ?? val)}</b></div>`).join('')}</div>`;
   },
 
   pie(v) {
