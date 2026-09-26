@@ -711,7 +711,7 @@ const LEVEL_NAME = { onl: 'Ön Lisans', ort: 'Ortaöğretim', lis: 'Lisans', kit
 function realRow(r) {
   return {
     key: `real:${r.id}`, id: r.id, l: r.lesson, s: r.s, q: r.stem, o: JSON.parse(r.o || '[]'), a: r.a, konu: r.konu, bilgi: r.bilgi,
-    img: r.level === 'kit' ? null : `/api/realimg/${r.id}`, needimg: !!r.needimg, real: true, year: r.year, src: `${r.year} KPSS ${LEVEL_NAME[r.level] || ''}`.trim(),
+    img: r.level === 'kit' ? null : `/api/realimg/${r.id}?v=3`, needimg: !!r.needimg, real: true, year: r.year, src: `${r.year} KPSS ${LEVEL_NAME[r.level] || ''}`.trim(),
   };
 }
 export async function realByLessons(env, lessons, n, { subject = null, exclude = [], ids = null } = {}) {

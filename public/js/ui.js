@@ -274,7 +274,7 @@ const guessLabel = (on) => on ? `${icon.check}<span>Tahmin olarak işaretli</spa
 export function questionHTML(q, pick, { head = '', guess = null, struck = [] } = {}) {
   // Gerçek ÖSYM sorusu: kitapçıktaki orijinal görüntü (altı çizili yerler, harita, grafik aynen)
   let h = head + (q.real ? `<div class="realtag">${icon.flag}<span>Gerçek ÖSYM sorusu · ${esc(q.src || '')}</span></div>` : '') + (q.real && q.img
-    ? `<img class="qimg" src="${esc(q.img)}" alt="${esc(String(q.q || '').slice(0, 200))}" decoding="async">`
+    ? `<img class="qimg" src="${esc(q.img.includes('?') ? q.img : q.img + '?v=3')}" alt="${esc(String(q.q || '').slice(0, 200))}" decoding="async">`
     : stemHTML(q.q));
   if (q.viz) h += renderViz(q.viz);
   h += `<div class="opts" role="radiogroup">${q.o.map((o, j) => {
