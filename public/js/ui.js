@@ -202,7 +202,10 @@ export function prepQ(q) {
   if (numeric || roman || ordered || q.fixed) return { ...q };
   const idx = q.o.map((_, i) => i);
   for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
-  return { ...q, o: idx.map((i) => q.o[i]), a: idx.indexOf(q.a), _map: idx };
+  // Açıklamadaki harf atıflarını (“A şıkkı”, “B ve D şıkları”, “C) 16”) yeni sıraya çevir
+  const L = 'ABCDE';
+  const fix = (t) => typeof t !== 'string' ? t : t.replace(/(?<![A-Za-zÇĞİÖŞÜçğıöşü])([A-E])(?=\)|\s+(?:şık|seçene)|\s*(?:,|ve|ile)\s*[A-E](?:\)|\s+(?:şık|seçene)|\s*(?:,|ve|ile)))/g, (m, c) => L[idx.indexOf(L.indexOf(c))] || c);
+  return { ...q, o: idx.map((i) => q.o[i]), a: idx.indexOf(q.a), _map: idx, ex: fix(q.ex), tip: fix(q.tip) };
 }
 
 // OCR/LaTeX artıklarını temizle: $...$, \frac{a}{b}, \cdot, satır sonu tireleri ("duy- gusal")
@@ -272,15 +275,17 @@ function feedbackHTML(q, pick, guess) {
 const guessLabel = (on) => on ? `${icon.check}<span>Tahmin olarak işaretli</span>` : `${icon.sparkQ}<span>Emin değilim (tahmin)</span>`;
 
 export function questionHTML(q, pick, { head = '', guess = null, struck = [] } = {}) {
+  // “altı çizili” diyen metin sorularında tırnaklı kısım altı çizili gösterilir (üretilen sorularda tırnakla işaretlenir)
+  const ul = !q.img && /altı çizili/i.test(q.q || '') ? (t) => String(t).replace(/["“”]([^"“”\n]{1,120}?)["“”]/g, '++$1++') : (t) => t;
   // Gerçek ÖSYM sorusu: kitapçıktaki orijinal görüntü (altı çizili yerler, harita, grafik aynen)
   let h = head + (q.real ? `<div class="realtag">${icon.flag}<span>Gerçek ÖSYM sorusu · ${esc(q.src || '')}</span></div>` : '') + (q.real && q.img
     ? `<img class="qimg" src="${esc(q.img.includes('?') ? q.img : q.img + '?v=3')}" alt="${esc(String(q.q || '').slice(0, 200))}" decoding="async">`
-    : stemHTML(q.q));
+    : stemHTML(ul(q.q)));
   if (q.viz) h += renderViz(q.viz);
   h += `<div class="opts" role="radiogroup">${q.o.map((o, j) => {
     const cls = pick == null ? (struck.includes(j) ? 'struck' : '') : j === q.a ? 'right' : j === pick ? 'wrong' : 'dim';
     const fill = pick != null && (j === q.a || j === pick) ? `filled ${j === q.a ? 'right' : 'wrong'}` : '';
-    const label = q.real && q.img && (q.needimg || !o) ? `<span class="muted small">${o ? inline(cleanQ(o)) : 'Görseldeki ' + LETTERS[j] + ' şıkkı'}</span>` : `<span>${inline(cleanQ(o))}</span>`;
+    const label = q.real && q.img && (q.needimg || !o) ? `<span class="muted small">${o ? inline(cleanQ(o)) : 'Görseldeki ' + LETTERS[j] + ' şıkkı'}</span>` : `<span>${inline(cleanQ(ul(o)))}</span>`;
     return `<button class="opt ${cls}" data-opt="${j}" ${pick != null ? 'disabled' : ''} role="radio" aria-checked="${pick === j}"><span class="bubble ${fill}">${LETTERS[j]}</span>${label}</button>`;
   }).join('')}</div>`;
   if (pick == null) h += `<div class="guessrow"><span class="elim-hint">Şıkkı elemek için üstüne basılı tut</span></div>`;

@@ -1,5 +1,5 @@
 // Çevrimdışı çalışma: uygulama dosyalarını önbelleğe alır. API istekleri her zaman ağa gider.
-const CACHE = 'kpss-ozgur-v13';
+const CACHE = 'kpss-ozgur-v14';
 const CORE = [
   '/', '/index.html', '/css/app.css', '/manifest.webmanifest', '/icons/icon.svg',
   '/js/app.js', '/js/store.js', '/js/viz.js', '/js/chat.js', '/js/plan.js', '/js/trmap.js',
