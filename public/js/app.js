@@ -389,7 +389,7 @@ function viewLesson(id) {
     } else {
       html = cardHTML(step, st.i);
       if (step.k === 'check') {
-        bar = prevBtn + (st.checks[st.i] != null ? `<button class="btn" data-next>Devam${icon.fwd}</button>` : '<button class="btn" disabled>Bir şık seç</button>');
+        bar = prevBtn + (st.checks[st.i] != null ? `<button class="btn" data-next>Devam${icon.fwd}</button>` : `<button class="btn ghost" data-next>Cevaplamadan geç${icon.fwd}</button>`); // geçilen kontrol sorusu hiçbir yere kaydedilmez
       } else if (step.k === 'steps') {
         const shown = st.checks[st.i] || 1;
         bar = prevBtn + (shown < step.steps.length ? `<button class="btn ink" data-more>Sonraki adım (${shown}/${step.steps.length})</button>` : `<button class="btn" data-next>Anladım, devam${icon.fwd}</button>`);
