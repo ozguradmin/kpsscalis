@@ -32,13 +32,12 @@ export default [
       },
       {
         k: 'steps', h: 'Birlikte çözelim',
-        b: '“Bir şehri tanımanın yolu müzelerinden geçmez. Rehber kitaplar bize hangi binanın kaç yılında yapıldığını söyler; **ancak** o şehrin ruhunu, sabah fırından çıkan ekmeğin kokusunda, pazarda pazarlık eden kadınların sesinde buluruz.”\nSoru: Bu parçada asıl anlatılmak istenen nedir?',
+        b: '“Bir şehri tanımanın yolu müzelerinden geçmez. Rehber kitaplar bize hangi binanın kaç yılında yapıldığını söyler; **ancak** o şehrin ruhunu, sabah fırından çıkan ekmeğin kokusunda, pazarda pazarlık eden kadınların sesinde buluruz.”\n**Soru:** Bu parçada asıl anlatılmak istenen nedir?\nA) Müzeler, bir şehri tanımak için gereksizdir.\nB) Rehber kitaplar, yapıların tarihini öğrenmemizi sağlar.\nC) Bir şehri gerçekten tanımak, oranın gündelik yaşamını gözlemlemekle olur.\nD) Pazarlar, şehirlerin en canlı yerleridir.\nE) Her şehrin kendine özgü bir kokusu vardır.',
         steps: [
-          { t: 'Soru kökü olumlu: “asıl anlatılmak istenen”. Tek mesajı arıyoruz.' },
-          { t: '“**ancak**” kelimesini buldum. Sonrasına bakıyorum: şehrin ruhu, **gündelik hayatta** bulunur.' },
-          { t: 'İlk cümle de bunu destekliyor: müzeler yetmez.' },
-          { m: 'Ana düşünce: Bir şehri tanımak için oranın gündelik yaşamını gözlemlemek gerekir.' },
-          { t: 'Şıklardan “Müzeler gereksizdir.” olanı **çok geniş/yanlış**; “Rehber kitaplar tarih bilgisi verir.” olanı **çok dar**. İkisini ele.' },
+          { t: 'Soru kökü olumlu: “asıl anlatılmak istenen”. Parçanın tamamını kapsayan tek mesajı arıyoruz.' },
+          { t: '“**ancak**” kelimesini buldum. Sonrasına bakıyorum: şehrin ruhu **gündelik hayatta** (fırın, pazar) bulunur. İlk cümle de bunu destekliyor: müzeler yetmez.' },
+          { t: 'Şıkları süz: **A** çok ileri gidiyor (parça “yetmez” diyor, “gereksiz” demiyor). **B** ve **D** parçanın sadece bir ayrıntısı (çok dar). **E** parçada yok.' },
+          { m: 'Cevap: C · Bir şehri gerçekten tanımak, oranın gündelik yaşamını gözlemlemekle olur.' },
         ],
       },
       {

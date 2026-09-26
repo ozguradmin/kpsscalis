@@ -205,6 +205,43 @@ export function prepQ(q) {
   return { ...q, o: idx.map((i) => q.o[i]), a: idx.indexOf(q.a), _map: idx };
 }
 
+// OCR/LaTeX artıklarını temizle: $...$, \frac{a}{b}, \cdot, satır sonu tireleri ("duy- gusal")
+export function cleanQ(s) {
+  let t = String(s == null ? '' : s);
+  t = t.replace(/\\\(|\\\)|\$/g, '');
+  for (let k = 0; k < 3; k++) t = t.replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, (m, a, b) => `${/^[\w,.]+$/.test(a) ? a : '(' + a + ')'}/${/^[\w,.]+$/.test(b) ? b : '(' + b + ')'}`);
+  t = t.replace(/\\sqrt\s*\{([^{}]*)\}/g, '√($1)').replace(/\\(cdot|times)/g, '·').replace(/\\div/g, '÷').replace(/\\(left|right)\s*/g, '')
+    .replace(/\\(le|leq)\b/g, '≤').replace(/\\(ge|geq)\b/g, '≥').replace(/\\neq\b/g, '≠').replace(/\\pi\b/g, 'π').replace(/\\%/g, '%')
+    .replace(/\^\{([^{}]*)\}/g, '^$1').replace(/\\,|\\;|\\!|\\ /g, ' ').replace(/[⁣]/g, '');
+  t = t.replace(/([a-zçğıöşü])- ([a-zçğıöşü])/g, '$1$2');
+  const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '-': '⁻', n: 'ⁿ', x: 'ˣ' };
+  t = t.replace(/\^(-?[0-9]+|[nx])/g, (m, e) => [...e].map((c) => SUP[c] || c).join(''));
+  return t;
+}
+
+// Soru metnini parça (paragraf/öncüller) ve soru kökü olarak ayır
+export function splitStem(raw) {
+  let t = cleanQ(raw).replace(/\r/g, '').trim();
+  // aynı satıra sıkışmış öncülleri ayır: "... I. xxx II. yyy III. zzz"
+  if (/(^|\s)I\.\s/.test(t) && /\sII\.\s/.test(t)) t = t.replace(/\s+(?=(?:I{1,3}|IV|V)\.\s)/g, '\n');
+  let lines = t.split('\n').map((x) => x.trim()).filter(Boolean);
+  // son öncül soru köküyle birleşmişse ayır: "III. kentlerde ... azalması durumlarından hangileri ...?"
+  const lr = lines[lines.length - 1] || '';
+  if (/^(I{1,3}|IV|V)\.\s/.test(lr) && /\?\s*$/.test(lr)) {
+    const m = lr.match(/^(.*?)\s+((?:\S+(?:larından|lerinden|lardan|lerden|dakilerden|daki)\s+)?(?:hangileri|hangisi)\b.*\?)\s*$/);
+    if (m) lines = [...lines.slice(0, -1), m[1], m[2].charAt(0).toLocaleUpperCase('tr') + m[2].slice(1)];
+  }
+  let root = '', body = lines;
+  const last = lines[lines.length - 1] || '';
+  if (lines.length > 1 && /\?\s*$/.test(last)) { root = last; body = lines.slice(0, -1); }
+  else if (lines.length && /\?\s*$/.test(last) && last.length > 160) {
+    // tek satır: son soru cümlesini kök yap
+    const m = last.match(/^(.*[.!…:”"'])\s+([^.!?…]*\?)\s*$/s);
+    if (m && m[2].length < 260) { root = m[2]; body = [...lines.slice(0, -1), m[1]]; }
+  }
+  return { body, root };
+}
+
 export function qtext(s) {
   // Soru kökü: satır sonlarını ve I./II./III. öncüllerini koru
   return String(s).split('\n').map((ln) => {
@@ -216,6 +253,13 @@ export function qtext(s) {
 export function questionText(q, pick) {
   return `${plain(q.q)}\n${q.o.map((o, j) => `${LETTERS[j]}) ${plain(o)}`).join('\n')}\nDoğru cevap: ${LETTERS[q.a]}${q.ex ? `\nAçıklama: ${plain(q.ex)}` : ''}` +
     (pick != null ? `\nÖzgür'ün cevabı: ${pick === -1 ? 'boş bıraktı' : LETTERS[pick] + (pick === q.a ? ' (doğru)' : ' (yanlış)')}` : '');
+}
+
+function stemHTML(raw) {
+  const { body, root } = splitStem(raw);
+  const bodyHTML = qtext(body.join('\n'));
+  if (!root) return `<div class="qstem">${bodyHTML}</div>`;
+  return `<div class="qstem">${body.length ? `<div class="qpass">${bodyHTML}</div>` : ''}<div class="qroot">${inline(root)}</div></div>`;
 }
 
 // Tek soru: kök + şıklar + (cevaplandıysa) geri bildirim
@@ -231,17 +275,15 @@ export function questionHTML(q, pick, { head = '', guess = null, struck = [] } =
   // Gerçek ÖSYM sorusu: kitapçıktaki orijinal görüntü (altı çizili yerler, harita, grafik aynen)
   let h = head + (q.real ? `<div class="realtag">${icon.flag}<span>Gerçek ÖSYM sorusu · ${esc(q.src || '')}</span></div>` : '') + (q.real && q.img
     ? `<img class="qimg" src="${esc(q.img)}" alt="${esc(String(q.q || '').slice(0, 200))}" decoding="async">`
-    : `<div class="qstem">${qtext(q.q)}</div>`);
+    : stemHTML(q.q));
   if (q.viz) h += renderViz(q.viz);
   h += `<div class="opts" role="radiogroup">${q.o.map((o, j) => {
     const cls = pick == null ? (struck.includes(j) ? 'struck' : '') : j === q.a ? 'right' : j === pick ? 'wrong' : 'dim';
     const fill = pick != null && (j === q.a || j === pick) ? `filled ${j === q.a ? 'right' : 'wrong'}` : '';
-    const label = q.real && q.img && (q.needimg || !o) ? `<span class="muted small">${o ? inline(o) : 'Görseldeki ' + LETTERS[j] + ' şıkkı'}</span>` : `<span>${inline(o)}</span>`;
+    const label = q.real && q.img && (q.needimg || !o) ? `<span class="muted small">${o ? inline(cleanQ(o)) : 'Görseldeki ' + LETTERS[j] + ' şıkkı'}</span>` : `<span>${inline(cleanQ(o))}</span>`;
     return `<button class="opt ${cls}" data-opt="${j}" ${pick != null ? 'disabled' : ''} role="radio" aria-checked="${pick === j}"><span class="bubble ${fill}">${LETTERS[j]}</span>${label}</button>`;
   }).join('')}</div>`;
-  if (pick == null && guess != null) {
-    h += `<div class="guessrow"><span class="elim-hint">Şıkkı elemek için basılı tut</span><button class="chip ${guess ? 'on' : ''}" data-guess type="button">${guessLabel(guess)}</button></div>`;
-  }
+  if (pick == null) h += `<div class="guessrow"><span class="elim-hint">Şıkkı elemek için üstüne basılı tut</span></div>`;
   if (pick != null) h += feedbackHTML(q, pick, guess);
   return h;
 }
@@ -276,27 +318,37 @@ export function bindGuess(root, get, set) {
   };
 }
 
-// Basılı tutunca şıkkın üstünü çiz (yeniden çizmeden)
+// Basılı tutunca şıkkın üstünü çiz (yeniden çizmeden). iPhone'da pointer olayları uzun basışta kesilebildiği için
+// dokunmatikte touch olayları kullanılır; parmak 12 px'den fazla kayarsa (kaydırma) iptal olur.
 export function bindStrike(root, struck) {
+  const touch = 'ontouchstart' in window;
   root.querySelectorAll('.opt[data-opt]:not([disabled])').forEach((b) => {
+    if (b._strike) return;
+    b._strike = true;
     let t = null, fired = false, sx = 0, sy = 0;
-    const start = (e) => {
-      fired = false; sx = e.clientX; sy = e.clientY;
-      t = setTimeout(() => {
-        fired = true;
-        const j = Number(b.dataset.opt);
-        const i = struck.indexOf(j);
-        if (i >= 0) struck.splice(i, 1); else struck.push(j);
-        b.classList.toggle('struck', i < 0);
-        if (navigator.vibrate) navigator.vibrate(12);
-      }, 450);
+    const toggle = () => {
+      fired = true;
+      const j = Number(b.dataset.opt);
+      const i = struck.indexOf(j);
+      if (i >= 0) struck.splice(i, 1); else struck.push(j);
+      b.classList.toggle('struck', i < 0);
+      if (navigator.vibrate) navigator.vibrate(12);
     };
+    const start = (x, y) => { fired = false; sx = x; sy = y; clearTimeout(t); t = setTimeout(toggle, 420); };
+    const move = (x, y) => { if (Math.abs(x - sx) > 12 || Math.abs(y - sy) > 12) clearTimeout(t); };
     const end = () => clearTimeout(t);
-    b.addEventListener('pointerdown', start);
-    b.addEventListener('pointermove', (e) => { if (Math.abs(e.clientX - sx) > 8 || Math.abs(e.clientY - sy) > 8) clearTimeout(t); });
-    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, end));
+    if (touch) {
+      b.addEventListener('touchstart', (e) => { const p = e.touches[0]; start(p.clientX, p.clientY); }, { passive: true });
+      b.addEventListener('touchmove', (e) => { const p = e.touches[0]; move(p.clientX, p.clientY); }, { passive: true });
+      b.addEventListener('touchend', (e) => { end(); if (fired) e.preventDefault(); });
+      b.addEventListener('touchcancel', end);
+    } else {
+      b.addEventListener('pointerdown', (e) => start(e.clientX, e.clientY));
+      b.addEventListener('pointermove', (e) => move(e.clientX, e.clientY));
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, end));
+    }
     b.addEventListener('contextmenu', (e) => e.preventDefault());
-    b.addEventListener('click', (e) => { if (fired) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+    b.addEventListener('click', (e) => { if (fired) { fired = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
   });
 }
 

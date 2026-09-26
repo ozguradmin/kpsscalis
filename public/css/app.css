@@ -344,6 +344,10 @@ button.bubble:active { transform: scale(.9); }
 .realtag svg { width: 14px; height: 14px; }
 .qstem .roman { display: block; padding-left: 8px; }
 .qstem p { margin: .35em 0; }
+.qstem .qpass { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--s, var(--ink)); border-radius: 12px; padding: 10px 12px; font-size: 16px; line-height: 1.55; margin-bottom: 12px; }
+.qstem .qpass p:first-child { margin-top: 0; } .qstem .qpass p:last-child { margin-bottom: 0; }
+.qstem .qpass .roman { padding: 3px 0 3px 4px; }
+.qstem .qroot { font-weight: 700; line-height: 1.45; }
 .feedback { border-radius: var(--r); padding: 13px 15px; margin: 10px 0; animation: pop 240ms var(--ease-out) both; }
 .feedback.ok { background: var(--right-soft); }
 .feedback.no { background: var(--wrong-soft); }

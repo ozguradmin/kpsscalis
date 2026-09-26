@@ -28,6 +28,7 @@ export function inline(s) {
   return esc(s)
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/==(.+?)==/g, '<mark>$1</mark>')
+    .replace(/\+\+(.+?)\+\+/g, '<u>$1</u>')
     .replace(/(^|[\s(])_(.+?)_(?=[\s).,;:!?]|$)/g, '$1<i>$2</i>');
 }
 

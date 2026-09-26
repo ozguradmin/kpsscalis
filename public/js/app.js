@@ -449,6 +449,7 @@ function viewLesson(id) {
         bindBar();
         requestAnimationFrame(() => $stage.querySelector('.feedback')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
       });
+      if (st.checks[st.i] == null) bindStrike($stage, []);
     }
     if (step.k === 'quiz') {
       $stage.querySelectorAll('[data-opt]').forEach((b) => b.onclick = () => {
@@ -679,7 +680,7 @@ function questionRunner({ title, eyebrow, qs, reveal = 'instant', minutes = null
       // deneme: işaretle, değiştirebil, sonuç sonda
       $stage.innerHTML = head + questionHTML(q, null, {}).split('<div class="opts"')[0] +
         `<div class="opts">${q.o.map((o, j) => `<button class="opt ${pick === j ? 'sel' : ''} ${st.struck.includes(j) ? 'struck' : ''}" data-opt="${j}"><span class="bubble ${pick === j ? 'filled' : ''}">${LETTERS[j]}</span><span>${inline(o)}</span></button>`).join('')}</div>
-        <div class="guessrow"><span class="elim-hint">Şıkkı elemek için basılı tut</span><button class="chip ${st.guess[st.i] ? 'on' : ''}" data-guess type="button">${st.guess[st.i] ? icon.check + '<span>Tahmin olarak işaretli</span>' : icon.sparkQ + '<span>Emin değilim (tahmin)</span>'}</button></div>`;
+        <div class="guessrow"><span class="elim-hint">Şıkkı elemek için üstüne basılı tut</span></div>`;
     }
     $stage.className = `stage${moved ? ' enter' : ''}${back ? ' back' : ''}`;
     if (moved) sc().scrollTop = 0;
