@@ -714,11 +714,13 @@ function realRow(r) {
     img: r.level === 'kit' ? null : `/api/realimg/${r.id}`, needimg: !!r.needimg, real: true, year: r.year, src: `${r.year} KPSS ${LEVEL_NAME[r.level] || ''}`.trim(),
   };
 }
-export async function realByLessons(env, lessons, n, { subject = null, exclude = [] } = {}) {
+export async function realByLessons(env, lessons, n, { subject = null, exclude = [], ids = null } = {}) {
   if (!env.DB) return [];
   const where = [];
   const args = [];
-  if (lessons && lessons.length) { where.push(`lesson IN (${lessons.map(() => '?').join(',')})`); args.push(...lessons); }
+  // ids: ekstra derslerin elle seçilmiş soru listesi (konu etiketinden daha dar, tam o soru tipi)
+  if (ids && ids.length) { where.push(`id IN (${ids.map(() => '?').join(',')})`); args.push(...ids); }
+  else if (lessons && lessons.length) { where.push(`lesson IN (${lessons.map(() => '?').join(',')})`); args.push(...lessons); }
   if (subject) { where.push('s = ?'); args.push(subject); }
   where.push('a IS NOT NULL');
   // Son yıllar açık ara önce: yıl başına 0,25 puan geri düşer (2025 ≈ 0,25, 2015 ≈ 2,75); ön lisans önce, sonra ortaöğretim, lisans.
@@ -733,7 +735,8 @@ async function realQuestions(url, env) {
   const s = url.searchParams.get('s');
   const n = Math.min(60, Number(url.searchParams.get('n')) || 10);
   const exclude = (url.searchParams.get('x') || '').split(',').filter(Boolean).slice(0, 300);
-  return json({ questions: await realByLessons(env, ls, n, { subject: s && SUBJECT_NAMES[s] ? s : null, exclude }) });
+  const ids = (url.searchParams.get('ids') || '').split(',').filter((x) => /^[a-z]{3}\d{4}p?-(GY|GK)-\d{2}$/.test(x)).slice(0, 40);
+  return json({ questions: await realByLessons(env, ls, n, { subject: s && SUBJECT_NAMES[s] ? s : null, exclude, ids }) });
 }
 async function realStats(env) {
   if (!env.DB) return json({});

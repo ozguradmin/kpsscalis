@@ -484,13 +484,15 @@ function viewLesson(id) {
   // Dersin sonuna o konunun gerçek ÖSYM soruları (sayısı konunun sınavdaki ağırlığına göre)
   async function addRealQuestions() {
     // Ders sonu testi = gerçek ÖSYM soruları (asıl ölçü). Kendi sorularımızdan 2 tanesi "hızlı kontrol" olarak kalır.
-    const n = Math.max(3, Math.min(8, Math.round((YIELD[id] || 1) / 1.2)));
+    // Ekstra derslerde (lesson.real) o soru tipinin elle seçilmiş çıkmışları gelir; kendi 5 sorumuz da kalır
+    const pick = lesson.real;
+    const n = pick ? 5 : Math.max(3, Math.min(8, Math.round((YIELD[id] || 1) / 1.2)));
     const done = (store.get().log || []).filter((x) => x.ok === 1 && x.k && x.k.startsWith('real:')).map((x) => x.k).slice(-250);
     try {
-      const r = await fetch(`/api/real?l=${id}&n=${n}&x=${done.join(',')}`);
+      const r = await fetch(pick ? `/api/real?ids=${pick.join(',')}&n=${n}&x=${done.join(',')}` : `/api/real?l=${id}&n=${n}&x=${done.join(',')}`);
       const qs = ((await r.json()).questions || []);
       // Az sorulan konularda çıkmış soru yetmezse: aynı dersin çıkmışlarını ölçü alarak üretilmiş ve iki kez denetlenmiş sorularla tamamla
-      if (qs.length < n) {
+      if (qs.length < n && !pick) {
         try {
           const b = await (await fetch(`/api/bank?l=${id}&n=${n - qs.length}&hard=1`)).json();
           const seenK = new Set((store.get().log || []).filter((x) => x.ok === 1).map((x) => x.k));
@@ -499,7 +501,7 @@ function viewLesson(id) {
       }
       if (!qs.length || st.completed) return;
       const first = steps.findIndex((x) => x.k === 'quiz');
-      if (!Object.keys(st.answers).length && first >= 0 && st.i < first && quiz.length > 2) {
+      if (!pick && !Object.keys(st.answers).length && first >= 0 && st.i < first && quiz.length > 2) {
         quiz.splice(2);
         for (let j = steps.length - 1; j >= 0; j--) if (steps[j].k === 'quiz' && steps[j].i >= 2) steps.splice(j, 1);
       }
