@@ -16,7 +16,9 @@ export const YIELD = {
   // Türkçe: paragrafta ana düşünce ~10 soru; 2022-2025'te paragraf yapısı (akış, boşluk) yükselişte
   tr1: 9.7, tr2: 4.1, tr3: 6.4, tr4: 1.8, tr5: 1.5, tr6: 2, tr7: 2.9, tr8: 1.8, tr9: 0.5,
   // Matematik: sayı problemleri, temel işlemler ve (son yıllarda artan) sayısal mantık; ~3 soru geometri planda yok
-  mat1: 6.4, mat2: 1, mat3: 5.5, mat4: 0.6, mat5: 1.7, mat6: 1.7, mat7: 6.3, mat8: 2.1, mat9: 2, 'ex-mat1': 0.6,
+  mat1: 6.4, mat2: 1, mat3: 4.5, mat4: 0.6, mat5: 0.9, mat6: 0.7, mat7: 4, mat8: 2.1, mat9: 2, 'ex-mat1': 0.6,
+  // Kolay matematik ekstraları: kendi paylarını ana derslerden aldı (toplam değişmedi)
+  'ex-mat2': 1, 'ex-mat3': 1.5, 'ex-mat4': 0.8, 'ex-mat5': 1, 'ex-mat6': 0.8,
   // Tarih: 19. yy Osmanlı + çağdaş Türkiye en büyük blok
   tar1: 3.2, tar2: 2, tar3: 2.2, tar4: 3.2, tar5: 2.7, tar6: 3, tar7: 1.5, tar8: 1.9, tar9: 5, 'ex-tar2': 2.6, 'ex-tar1': 0.1,
   cog1: 1.3, cog2: 1.8, cog3: 2.7, cog4: 1.6, cog5: 2.8, cog6: 2.7, cog7: 1.9, cog8: 3.6, cog9: 0.1, 'ex-cog1': 0,

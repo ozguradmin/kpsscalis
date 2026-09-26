@@ -85,6 +85,146 @@ export const EXTRA_LESSONS = [
       ['Karşılıklı hareket?', 'Hızlar **toplanır**'],
     ],
   },
+  // ── Kolay matematik: kesir, uzun bölme ve tek-çift gerektirmeyen, okuyarak ve deneyerek çözülen soru tipleri ──
+  {
+    id: 'ex-mat2', s: 'matematik', min: 10,
+    title: 'Kolay matematik 1: grafik ve tablo okuma',
+    why: 'Hesap değil dikkat · sınavda 1-2 soru',
+    cards: [
+      {
+        h: 'Grafik sorusu aslında okuma sorusudur',
+        b: 'Grafik ve tablo soruları formül istemez; **doğru yeri okumayı** ister. Üç adım:\n- **Başlığı ve birimi** oku: adet mi, bin mi, TL mi?\n- Soru **hangi günü, hangi kişiyi** soruyor? Sadece onlara bak.\n- Gereken tek işlemi yap: çıkar, topla ya da kaç katı olduğunu bul.',
+        viz: { type: 'bars', items: [['Ocak', 40], ['Şubat', 20], ['Mart', 60], ['Nisan', 30]], c: 'mat', caption: 'Bir kırtasiyenin aylık defter satışı (adet)' },
+      },
+      {
+        h: 'En çok sorulan 4 şey',
+        viz: { type: 'cards', items: [['En çok / en az', 'En uzun çubuk **Mart (60)**, en kısa **Şubat (20)**', 'mat'], ['Fark', 'En çok − en az = 60 − 20 = **40**', 'ink'], ['Toplam', '40 + 20 + 60 + 30 = **150**', 'teal'], ['Kaç katı', 'Mart, Şubat’ın 60 ÷ 20 = **3 katı**', 'gray']] },
+      },
+      { k: 'check', q: 'Yukarıdaki grafiğe göre Ocak ayındaki satış, Nisan ayındaki satıştan kaç fazladır?', o: ['5', '10', '20', '30'], a: 1, ex: 'Ocak 40, Nisan 30 → 40 − 30 = **10**.' },
+      {
+        h: 'Tablo: satır ve sütunu kesiştir',
+        b: 'Tabloda aradığın sayı, **satırla sütunun kesiştiği** kutudadır. Parmağını önce satıra, sonra sütuna koy.',
+        viz: { type: 'table', s: 'matematik', head: ['Öğrenci', '1. deneme', '2. deneme'], rows: [['Ali', '20', '25'], ['Can', '30', '28'], ['Ece', '15', '24']] },
+        note: { h: 'Birim tuzağı', t: 'Grafikte “bin TL” yazıyorsa 12 demek **12.000 TL** demektir. Şıklarda hem 12 hem 12.000 olur; birimi okumayan yanılır.' },
+      },
+      { k: 'check', q: 'Tabloya göre hangi öğrencinin neti 2. denemede düşmüştür?', o: ['Ali', 'Can', 'Ece', 'Hiçbiri'], a: 1, ex: 'Can 30’dan 28’e düştü. Ali ve Ece arttı.' },
+    ],
+    quiz: [
+      { q: 'Bir fırının 4 günlük ekmek satışı şöyledir:\nPazartesi 120, Salı 90, Çarşamba 150, Perşembe 60\nBuna göre en çok satış yapılan gün ile en az satış yapılan gün arasındaki fark kaçtır?', o: ['30', '60', '90', '120', '150'], a: 2, ex: 'En çok Çarşamba 150, en az Perşembe 60 → 150 − 60 = **90**.' },
+      { q: 'Aynı fırın bu dört günde toplam kaç ekmek satmıştır?', o: ['400', '420', '440', '460', '480'], a: 1, ex: '120 + 90 + 150 + 60 = **420**.' },
+      { q: 'Bir okuldaki üç sınıfın öğrenci sayıları:\n9-A: 14 kız, 16 erkek\n9-B: 18 kız, 12 erkek\n9-C: 15 kız, 15 erkek\nBuna göre hangi sınıfta kız öğrenci sayısı erkek öğrenci sayısından fazladır?', o: ['9-A', '9-B', '9-C', '9-A ve 9-C', 'Hiçbiri'], a: 1, ex: 'Sadece 9-B’de kız (18) erkekten (12) fazla.' },
+      { q: 'Bir kafede pazartesi 50 çay satılmıştır. Salı günü pazartesinin 2 katı, çarşamba günü ise salıdan 30 eksik çay satılmıştır.\nÇarşamba günü kaç çay satılmıştır?', o: ['50', '60', '70', '80', '90'], a: 2, ex: 'Salı 50 × 2 = 100; çarşamba 100 − 30 = **70**.' },
+      { q: 'Bir grafikte bir dükkânın aylık satışları “bin TL” cinsinden verilmiştir: Ocak 12, Şubat 18.\nŞubat ayındaki satış, Ocak ayındakinden kaç TL fazladır?', o: ['6', '60', '600', '6.000', '60.000'], a: 3, ex: '18 − 12 = 6 **bin** TL = **6.000 TL**. Birim tuzağı!' },
+    ],
+    flash: [['Grafik sorusunda ilk iş?', 'Başlığı ve **birimi** oku (adet mi, bin mi?)'], ['“Kaç katı” nasıl bulunur?', 'Büyüğü küçüğe **böl**: 60 ÷ 20 = 3 katı']],
+  },
+  {
+    id: 'ex-mat3', s: 'matematik', min: 10,
+    title: 'Kolay matematik 2: kuralı oku, uygula',
+    why: 'Soru kuralı kendisi öğretir · 2-3 soru',
+    cards: [
+      {
+        h: 'Soru sana yeni bir oyun öğretiyor',
+        b: 'Bazı sorular yeni bir işaret uydurur: **a ◆ b = 2a + b** gibi. Korkma, bu bir tarif:\n- **a** yazan yere **birinci** sayıyı, **b** yazan yere **ikinci** sayıyı koy.\n- 3 ◆ 4 = 2 × 3 + 4 = 6 + 4 = **10**.',
+        mn: { code: 'HARF YERİNE SAYI', t: 'Tarifteki harfin yerine verilen sayıyı yaz, gerisi toplama-çıkarma.' },
+      },
+      {
+        h: 'İki örnek daha',
+        b: '- **a ★ b = a × b − a** ise 4 ★ 5 = 20 − 4 = **16**.\n- Parantez varsa **önce parantezi** çöz: (2 ◆ 1) ◆ 3 → önce 2 ◆ 1 = 2 × 2 + 1 = 5, sonra 5 ◆ 3 = 2 × 5 + 3 = **13**.',
+      },
+      { k: 'check', q: 'a ● b = a + 3b olduğuna göre, 2 ● 4 kaçtır?', o: ['10', '12', '14', '18'], a: 2, ex: '2 + 3 × 4 = 2 + 12 = **14**.' },
+      {
+        h: 'Sözle tanımlanan sayılar: liste yap, say',
+        b: 'Soru bazen “rakamları toplamı 10 olan sayılara **onlu sayı** diyelim” gibi bir tanım verir. Yapılacak şey **tek tek yazıp saymak**:\n- İki basamaklı onlu sayılar: 19, 28, 37, 46, 55, 64, 73, 82, 91 → **9 tane**.\n- Sistemli git: onlar basamağı 1, 2, 3… diye artsın, hiçbirini atlamazsın.',
+      },
+      { k: 'check', q: 'Rakamlarının çarpımı 12 olan iki basamaklı kaç sayı vardır?', o: ['2', '3', '4', '6'], a: 2, ex: '26, 62, 34, 43 → **4 tane**. (Sistemli git: 2×6, 3×4 ve ters çevrilmişleri.)' },
+    ],
+    quiz: [
+      { q: 'a ▲ b = a × a − b olduğuna göre, 5 ▲ 7 kaçtır?', o: ['12', '18', '20', '25', '32'], a: 1, ex: '5 × 5 − 7 = 25 − 7 = **18**.' },
+      { q: 'a ■ b = (a + b) × 2 olduğuna göre, (1 ■ 2) ■ 4 kaçtır?', o: ['12', '16', '20', '24', '28'], a: 2, ex: 'Önce parantez: 1 ■ 2 = (1 + 2) × 2 = 6. Sonra 6 ■ 4 = (6 + 4) × 2 = **20**.' },
+      { q: 'Bir sayının rakamları toplamı, rakamları çarpımına eşitse bu sayıya “denk sayı” denir.\nAşağıdakilerden hangisi denk sayıdır?', o: ['11', '13', '22', '24', '32'], a: 2, ex: '22: toplam 2 + 2 = 4, çarpım 2 × 2 = 4 → eşit. Diğerlerinde eşit değil (ör. 24: toplam 6, çarpım 8).' },
+      { q: 'Bir makineye girilen sayı önce 3 ile çarpılıyor, sonra sonuçtan 4 çıkarılıyor. Makineden 20 çıktığına göre makineye girilen sayı kaçtır?', o: ['5', '8', '9', '10', '12'], a: 1, ex: 'Şıklardan dene: 8 → 8 × 3 = 24 → 24 − 4 = **20** ✓.' },
+      { q: 'x ♦ y = x + y + x × y olduğuna göre, 2 ♦ 3 kaçtır?', o: ['11', '12', '13', '14', '15'], a: 0, ex: '2 + 3 + 2 × 3 = 5 + 6 = **11**.' },
+    ],
+    flash: [['a ◆ b = 2a + b ise 3 ◆ 4?', '2 × 3 + 4 = **10**'], ['Tanımlı işlemde parantez varsa?', '**Önce parantezi** çöz']],
+  },
+  {
+    id: 'ex-mat4', s: 'matematik', min: 8,
+    title: 'Kolay matematik 3: sayı örüntüleri',
+    why: 'Aradaki farkı bul · 1 soru',
+    cards: [
+      {
+        h: 'Üç soruyla her örüntüyü çöz',
+        b: 'Sıradaki sayıyı bulmak için şu sırayla bak:\n- **1. Fark** sabit mi? 4, 9, 14, 19 → hep **+5** → sıradaki **24**.\n- **2. Kat** sabit mi? 3, 6, 12, 24 → hep **×2** → sıradaki **48**.\n- **3. Fark büyüyor mu?** 2, 3, 5, 8, 12 → farklar +1, +2, +3, +4 → sıradaki 12 + 5 = **17**.',
+        mn: { code: 'FARK → KAT → FARKIN FARKI', t: 'Önce çıkar, olmazsa böl, o da olmazsa farkları alt alta yaz.' },
+      },
+      { k: 'check', q: '5, 8, 11, 14, ? örüntüsünde soru işareti yerine ne gelir?', o: ['15', '16', '17', '18'], a: 2, ex: 'Her seferinde +3 → 14 + 3 = **17**.' },
+      {
+        h: 'İç içe iki örüntü',
+        b: 'Bazen sayılar **birer atlayarak** iki ayrı örüntü oluşturur: 1, 10, 2, 20, 3, 30, ?\n- Tek sıradakiler: 1, 2, 3 → sonra **4**.\n- Çift sıradakiler: 10, 20, 30.\nSoru işareti tek sıraya düştüğü için cevap **4**.',
+      },
+      { k: 'check', q: '2, 6, 18, 54, ? örüntüsünde soru işareti yerine ne gelir?', o: ['72', '108', '162', '216'], a: 2, ex: 'Her seferinde ×3 → 54 × 3 = **162**.' },
+    ],
+    quiz: [
+      { q: '7, 12, 17, 22, ? örüntüsünde soru işareti yerine aşağıdakilerden hangisi gelmelidir?', o: ['25', '26', '27', '28', '29'], a: 2, ex: '+5 → 22 + 5 = **27**.' },
+      { q: '1, 4, 9, 16, 25, ? örüntüsünde soru işareti yerine aşağıdakilerden hangisi gelmelidir?', o: ['30', '32', '35', '36', '49'], a: 3, ex: 'Farklar +3, +5, +7, +9 → sonraki +11 → 25 + 11 = **36** (bunlar 1², 2², 3²… diye de görülebilir).' },
+      { q: '3, 5, 9, 17, 33, ? örüntüsünde soru işareti yerine aşağıdakilerden hangisi gelmelidir?', o: ['49', '57', '65', '66', '70'], a: 2, ex: 'Farklar +2, +4, +8, +16 (hep iki katı) → sonraki +32 → 33 + 32 = **65**.' },
+      { q: '100, 90, 81, 73, 66, ? örüntüsünde soru işareti yerine aşağıdakilerden hangisi gelmelidir?', o: ['60', '61', '62', '63', '64'], a: 0, ex: 'Farklar −10, −9, −8, −7 → sonraki −6 → 66 − 6 = **60**.' },
+      { q: '2, 20, 4, 40, 6, ? örüntüsünde soru işareti yerine aşağıdakilerden hangisi gelmelidir?', o: ['8', '12', '50', '60', '80'], a: 3, ex: 'İç içe iki örüntü: 2, 4, 6 ve 20, 40, ?. Soru işareti ikinci örüntüde → **60**.' },
+    ],
+    flash: [['Örüntüde ilk bakılacak şey?', 'Ardışık iki sayının **farkı**'], ['Fark sabit değilse?', '**Kat**a bak, o da değilse **farkların farkına**']],
+  },
+  {
+    id: 'ex-mat5', s: 'matematik', min: 10,
+    title: 'Kolay matematik 4: şıklardan deneyerek problem çöz',
+    why: 'Denklem kurmadan · 2-3 soru',
+    cards: [
+      {
+        h: 'Denklem kurmak zorunda değilsin',
+        b: 'ÖSYM sayısal şıkları **küçükten büyüğe** dizer. Şıkları tek tek soruya yerleştir, hangisi tutuyorsa cevap odur.\n- **C şıkkından başla** (ortadaki).\n- Sonuç fazla çıkarsa daha küçük şıkka (A-B), az çıkarsa daha büyüğe (D-E) geç.\n- Çoğu soruda 2-3 denemede bulursun.',
+        mn: { code: 'C’DEN BAŞLA', t: 'Ortadan dene; büyük çıkarsa yukarı, küçük çıkarsa aşağı.' },
+      },
+      {
+        h: 'Örnek: yaş problemi',
+        b: '“Annenin yaşı kızının yaşının 3 katıdır. 10 yıl sonra annenin yaşı kızının yaşının 2 katı olacaktır. Kız kaç yaşındadır?” Şıklar: 5, 8, 10, 12, 15\n- **C) 10 dene:** kız 10 → anne 3 × 10 = 30.\n- 10 yıl sonra: kız 20, anne 40. 40 = 2 × 20 ✓\n- Cevap **10**. Denklem yok, sadece çarpma ve toplama.',
+      },
+      { k: 'check', q: 'Toplamları 30 olan iki sayıdan biri diğerinin 4 katıdır. Küçük sayı kaçtır? (Şıklardan dene!)', o: ['4', '5', '6', '7'], a: 2, ex: '6 dene: büyük 6 × 4 = 24; 6 + 24 = **30** ✓.' },
+    ],
+    quiz: [
+      { q: 'Bir sayının 5 katının 8 eksiği 42’dir. Bu sayı kaçtır?', o: ['6', '8', '10', '12', '14'], a: 2, ex: '10 dene: 10 × 5 = 50, 50 − 8 = **42** ✓.' },
+      { q: 'Ali’nin parası Veli’nin parasının 2 katıdır. Ali, Veli’ye 20 TL verirse paraları eşit oluyor. Veli’nin parası kaç TL’dir?', o: ['10', '20', '30', '40', '50'], a: 3, ex: '40 dene: Ali 80. Ali 20 verince Ali 60, Veli 60 → eşit ✓.' },
+      { q: 'Bir babanın yaşı oğlunun yaşının 4 katıdır. 5 yıl sonra yaşları toplamı 60 olacaktır. Oğul bugün kaç yaşındadır?', o: ['8', '10', '12', '14', '16'], a: 1, ex: '10 dene: baba 40. 5 yıl sonra 15 + 45 = **60** ✓.' },
+      { q: 'Bir otoparkta toplam 20 araç (araba ve motosiklet) vardır. Toplam tekerlek sayısı 64’tür. Otoparkta kaç araba vardır? (Araba 4, motosiklet 2 tekerlekli)', o: ['8', '10', '12', '14', '16'], a: 2, ex: '12 dene: 12 araba × 4 = 48, 8 motosiklet × 2 = 16; 48 + 16 = **64** ✓.' },
+      { q: 'Ardışık üç doğal sayının toplamı 48’dir. Bu sayıların en büyüğü kaçtır?', o: ['14', '15', '16', '17', '18'], a: 3, ex: '48 ÷ 3 = 16 ortadaki sayı → 15, 16, **17**.' },
+    ],
+    flash: [['Sayısal şıklar nasıl dizilir?', '**Küçükten büyüğe**; denemeye C’den başla'], ['Deneme sonucu büyük çıkarsa?', 'Daha **küçük** şıkka (A-B) geç']],
+  },
+  {
+    id: 'ex-mat6', s: 'matematik', min: 8,
+    title: 'Kolay matematik 5: kafadan yüzde',
+    why: 'Beş kısayol · 1-2 soru',
+    cards: [
+      {
+        h: 'Beş kısayol yeter',
+        viz: { type: 'table', s: 'matematik', head: ['Yüzde', 'Nasıl?', '400’ün…'], rows: [['%10', 'Sondaki sıfırı sil (10’a böl)', '**40**'], ['%20', '%10’un 2 katı', '**80**'], ['%5', '%10’un yarısı', '**20**'], ['%25', 'Dörde böl', '**100**'], ['%50', 'Yarısı', '**200**']] },
+        mn: { code: '%10 = BİR SIFIR SİL', t: '400 → 40. Gerisi %10’dan türer.' },
+      },
+      { k: 'check', q: '600’ün %25’i kaçtır?', o: ['60', '120', '150', '300'], a: 2, ex: '%25 = dörde böl → 600 ÷ 4 = **150**.' },
+      {
+        h: 'İndirim ve zam',
+        b: '- **%20 indirim**, 200 TL’lik ürün: %10’u 20 → %20’si 40 → 200 − 40 = **160 TL**.\n- **%10 zam**, 500 TL: %10’u 50 → 500 + 50 = **550 TL**.',
+        note: { h: 'Tuzak', t: 'Önce %50 zam sonra %50 indirim **eski fiyatı vermez**: 200 → 300 → 150. İndirim, zamlı (daha büyük) fiyattan hesaplanır.' },
+      },
+    ],
+    quiz: [
+      { q: '800’ün %10’u kaçtır?', o: ['8', '40', '80', '100', '160'], a: 2, ex: 'Bir sıfır sil: **80**.' },
+      { q: 'Fiyatı 300 TL olan bir ceket %20 indirimle kaç TL’ye satılır?', o: ['180', '200', '240', '260', '280'], a: 2, ex: '%10’u 30 → %20’si 60 → 300 − 60 = **240**.' },
+      { q: 'Bir sınıftaki 40 öğrencinin %25’i gözlüklüdür. Bu sınıfta gözlüklü olmayan kaç öğrenci vardır?', o: ['10', '20', '25', '30', '35'], a: 3, ex: '%25 = 40 ÷ 4 = 10 gözlüklü → 40 − 10 = **30** gözlüksüz.' },
+      { q: 'Maaşı 20.000 TL olan birinin maaşına %5 zam yapılıyor. Yeni maaşı kaç TL olur?', o: ['20.500', '21.000', '22.000', '25.000', '30.000'], a: 1, ex: '%10’u 2.000 → %5’i 1.000 → 20.000 + 1.000 = **21.000**.' },
+      { q: '200 TL’lik bir ürüne önce %50 zam, sonra %50 indirim yapılıyor. Ürünün son fiyatı kaç TL’dir?', o: ['100', '150', '200', '250', '300'], a: 1, ex: 'Zamla 200 + 100 = 300. İndirim 300’ün yarısı = 150 → **150 TL**. Eski fiyata dönmez!' },
+    ],
+    flash: [['%10 nasıl bulunur?', 'Sondaki **bir sıfırı sil** (10’a böl)'], ['%25 nasıl bulunur?', '**Dörde böl**']],
+  },
   {
     id: 'ex-tar2', s: 'tarih', min: 14,
     title: 'Çok sorulan dönem: Osmanlı’da yenileşme ve çok partili hayat',
