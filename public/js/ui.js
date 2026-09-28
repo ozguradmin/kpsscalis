@@ -2,6 +2,7 @@
 import { inline, md, esc, renderViz } from './viz.js';
 import { store } from './store.js';
 import { icon } from './icons.js';
+import { vizText } from './text.js';
 
 export const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 export const plain = (s) => String(s || '').replace(/\*\*|==/g, '').replace(/(^|[\s(])_(.+?)_(?=[\s).,;:!?]|$)/g, '$1$2');
@@ -256,7 +257,7 @@ export function qtext(s) {
 }
 
 export function questionText(q, pick) {
-  return `${q.full ? `(Sorunun görseldeki tam metni:)\n${q.full}\n(Şıklar:)` : plain(q.q)}\n${q.o.map((o, j) => `${LETTERS[j]}) ${plain(o)}`).join('\n')}\nDoğru cevap: ${LETTERS[q.a]}${q.ex ? `\nAçıklama: ${plain(q.ex)}` : ''}` +
+  return `${q.full ? `(Sorunun görseldeki tam metni:)\n${q.full}\n(Şıklar:)` : plain(q.q)}${q.viz ? `\n(Soruyla birlikte ekranda çizilen grafik/tablo: ${vizText(q.viz)})` : ''}\n${q.o.map((o, j) => `${LETTERS[j]}) ${plain(o)}`).join('\n')}\nDoğru cevap: ${LETTERS[q.a]}${q.ex ? `\nAçıklama: ${plain(q.ex)}` : ''}` +
     (pick != null ? `\nÖzgür'ün cevabı: ${pick === -1 ? 'boş bıraktı' : LETTERS[pick] + (pick === q.a ? ' (doğru)' : ' (yanlış)')}` : '');
 }
 
@@ -282,7 +283,7 @@ export function questionHTML(q, pick, { head = '', guess = null, struck = [] } =
   const ul = !q.img && /altı çizili/i.test(q.q || '') && !/\+\+/.test(q.q || '') ? (t) => String(t).replace(/["“”]([^"“”\n]{1,60}?)["“”]/g, '++$1++') : (t) => t;
   // Gerçek ÖSYM sorusu: kitapçıktaki orijinal görüntü (altı çizili yerler, harita, grafik aynen)
   let h = head + (q.real ? `<div class="realtag">${icon.flag}<span>Gerçek ÖSYM sorusu · ${esc(q.src || '')}</span></div>` : '') + (q.real && q.img
-    ? `<img class="qimg" src="${esc(q.img.replace(/\?v=\d+$/, '') + '?v=4')}" alt="${esc(String(q.q || '').slice(0, 200))}" decoding="async">`
+    ? `<img class="qimg" src="${esc(q.img.replace(/\?v=\d+$/, '') + '?v=5')}" alt="${esc(String(q.q || '').slice(0, 200))}" decoding="async">`
     : stemHTML(ul(q.q)));
   if (q.viz) h += renderViz(q.viz);
   h += `<div class="opts" role="radiogroup">${q.o.map((o, j) => {
