@@ -199,7 +199,9 @@ export function prepQ(q) {
   const numeric = q.o.every((o) => /^[\s\d.,/−\-+%°:×]+(\s*(TL|lira|yıl|yaş|ay|gün|saat|dk|dakika|kg|km|m|cm|metre|kişi|tane|adet|derece|birim|birimkare))?$/i.test(String(o).trim()));
   const roman = q.o.some((o) => /^(Yalnız\s)?(I{1,3}|IV|V)(\s|$|,)/.test(String(o).trim()));
   const ordered = q.o.every((o) => /^[IVX]+$/.test(String(o).trim()));
-  if (numeric || roman || ordered || q.fixed) return { ...q };
+  // Açıklama/ipucu şık harfine atıf yapıyorsa (ör. “B ve C dar, D parçada yok”) karıştırma: açıklama yanlış şıkkı gösterirdi
+  const refs = /(?<![A-Za-z0-9ÇĞİÖŞÜçğıöşü])[A-E](?=[\s)'’,.:;]|$)/.test(`${q.ex || ''} ${q.tip || ''}`);
+  if (numeric || roman || ordered || q.fixed || refs) return { ...q };
   const idx = q.o.map((_, i) => i);
   for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
   // Açıklamadaki harf atıflarını (“A şıkkı”, “B ve D şıkları”, “C) 16”) yeni sıraya çevir
@@ -254,7 +256,7 @@ export function qtext(s) {
 }
 
 export function questionText(q, pick) {
-  return `${plain(q.q)}\n${q.o.map((o, j) => `${LETTERS[j]}) ${plain(o)}`).join('\n')}\nDoğru cevap: ${LETTERS[q.a]}${q.ex ? `\nAçıklama: ${plain(q.ex)}` : ''}` +
+  return `${q.full ? `(Sorunun görseldeki tam metni:)\n${q.full}\n(Şıklar:)` : plain(q.q)}\n${q.o.map((o, j) => `${LETTERS[j]}) ${plain(o)}`).join('\n')}\nDoğru cevap: ${LETTERS[q.a]}${q.ex ? `\nAçıklama: ${plain(q.ex)}` : ''}` +
     (pick != null ? `\nÖzgür'ün cevabı: ${pick === -1 ? 'boş bıraktı' : LETTERS[pick] + (pick === q.a ? ' (doğru)' : ' (yanlış)')}` : '');
 }
 
@@ -276,10 +278,11 @@ const guessLabel = (on) => on ? `${icon.check}<span>Tahmin olarak işaretli</spa
 
 export function questionHTML(q, pick, { head = '', guess = null, struck = [] } = {}) {
   // “altı çizili” diyen metin sorularında tırnaklı kısım altı çizili gösterilir (üretilen sorularda tırnakla işaretlenir)
-  const ul = !q.img && /altı çizili/i.test(q.q || '') ? (t) => String(t).replace(/["“”]([^"“”\n]{1,120}?)["“”]/g, '++$1++') : (t) => t;
+  // Zaten işaretli (++…++) sorulara dokunma; sadece kısa ifadeleri (en çok 60 karakter) işaretle
+  const ul = !q.img && /altı çizili/i.test(q.q || '') && !/\+\+/.test(q.q || '') ? (t) => String(t).replace(/["“”]([^"“”\n]{1,60}?)["“”]/g, '++$1++') : (t) => t;
   // Gerçek ÖSYM sorusu: kitapçıktaki orijinal görüntü (altı çizili yerler, harita, grafik aynen)
   let h = head + (q.real ? `<div class="realtag">${icon.flag}<span>Gerçek ÖSYM sorusu · ${esc(q.src || '')}</span></div>` : '') + (q.real && q.img
-    ? `<img class="qimg" src="${esc(q.img.includes('?') ? q.img : q.img + '?v=3')}" alt="${esc(String(q.q || '').slice(0, 200))}" decoding="async">`
+    ? `<img class="qimg" src="${esc(q.img.replace(/\?v=\d+$/, '') + '?v=4')}" alt="${esc(String(q.q || '').slice(0, 200))}" decoding="async">`
     : stemHTML(ul(q.q)));
   if (q.viz) h += renderViz(q.viz);
   h += `<div class="opts" role="radiogroup">${q.o.map((o, j) => {

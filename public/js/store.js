@@ -93,7 +93,9 @@ function mergeInto(a, b) {
   }
   for (const [id, w] of Object.entries(b.wrong || {})) {
     const m = out.wrong[id];
-    out.wrong[id] = m ? { ...m, ...w, fixed: !!(m.fixed && w.fixed) } : w;
+    // anahtar düzeltmesiyle kapanan kayıt (fixedAt) sonradan açılmadıysa kapalı kalır
+    const keep = (x, y) => !!(x.fixed && x.fixedAt && x.fixedAt >= (y.at || 0));
+    out.wrong[id] = m ? { ...m, ...w, fixed: !!(m.fixed && w.fixed) || keep(m, w) || keep(w, m), fixedAt: Math.max(m.fixedAt || 0, w.fixedAt || 0) || undefined } : w;
   }
   for (const [d, s] of Object.entries(b.days || {})) out.days[d] = Math.max(out.days[d] || 0, s);
   const seen = new Set();

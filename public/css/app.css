@@ -287,6 +287,12 @@ button.bubble:active { transform: scale(.9); }
 .ticks i.done { background: var(--graphite); }
 .ticks i.cur { background: var(--ink); }
 .ticks i.q { background: color-mix(in srgb, var(--ink) 25%, transparent); }
+.tickkey { display: flex; gap: 12px; padding: 0 var(--gutter) 6px; font-size: 11px; color: var(--muted); }
+.tickkey[hidden] { display: none; }
+.tickkey span { display: inline-flex; align-items: center; gap: 4px; }
+.tickkey i { width: 14px; height: 4px; border-radius: 3px; display: inline-block; }
+.tickkey .k-done { background: var(--graphite); } .tickkey .k-cur { background: var(--ink); }
+.tickkey .k-card { background: var(--line-2); } .tickkey .k-q { background: color-mix(in srgb, var(--ink) 25%, transparent); }
 .ticks i.q.done { background: var(--graphite-2); }
 
 .stage { padding-top: 14px; }

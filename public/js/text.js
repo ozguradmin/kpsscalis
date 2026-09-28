@@ -34,6 +34,6 @@ export function cardText(c) {
 }
 
 export function questionText(q, withAnswer = true) {
-  return `${strip(q.q)}\n${q.o.map((o, j) => `${L[j]}) ${strip(o)}`).join('\n')}${withAnswer ? `\nDoğru: ${L[q.a]}${q.ex ? `\nAçıklama: ${strip(q.ex)}` : ''}` : ''}`;
+  return `${q.full ? `(Sorunun görseldeki tam metni:)\n${q.full}\n(Şıklar:)` : strip(q.q)}\n${q.o.map((o, j) => `${L[j]}) ${strip(o)}`).join('\n')}${withAnswer ? `\nDoğru: ${L[q.a]}${q.ex ? `\nAçıklama: ${strip(q.ex)}` : ''}` : ''}`;
 }
 

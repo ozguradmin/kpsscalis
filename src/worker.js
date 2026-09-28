@@ -367,7 +367,7 @@ async function buildQuiz(env, args, profile, status) {
       } catch (e) { /* bankadakilerle devam */ }
     }
   }
-  qs = qs.slice(0, n).map((q) => ({ q: q.q, o: q.o, a: q.a, ex: q.ex || '', tip: q.tip || '', l: q.l, key: q.key, ai: !!q.ai, viz: q.viz || null, img: q.img || null, needimg: !!q.needimg, real: !!q.real, src: q.src || null }));
+  qs = qs.slice(0, n).map((q) => ({ q: q.q, o: q.o, a: q.a, ex: q.ex || '', tip: q.tip || '', l: q.l, key: q.key, ai: !!q.ai, viz: q.viz || null, img: q.img || null, needimg: !!q.needimg, real: !!q.real, src: q.src || null, full: q.full || null }));
   return { type: 'quiz', id: `t${Date.now().toString(36)}`, title, questions: qs };
 }
 
@@ -444,7 +444,8 @@ function contextText(c) {
   if (l) out.push(`Ders: ${SUBJECT_NAMES[l.s]} · ${l.day ? l.day + '. gün' : 'ekstra'} · ${strip(l.title)} (kimlik: ${l.id})`);
   if (c.step) out.push(`Bulunduğu adım: ${String(c.step).slice(0, 120)}`);
   if (c.screen) out.push(`Ekranda gördüğü içerik:\n${String(c.screen).slice(0, 3000)}`);
-  if (c.question) out.push(`Baktığı soru:\n${String(c.question).slice(0, 2500)}`);
+  if (c.question) out.push(`Baktığı soru:\n${String(c.question).slice(0, 3500)}`);
+  if (c.question && String(c.question).includes('görseldeki tam metni')) out.push('Not: Bu gerçek ÖSYM sorusunun metni görselden otomatik okundu. Şekil/tablo tarifindeki bir değer çözümle çelişirse uydurma; Özgür’e görseldeki değeri sor. Cevap anahtarı kesindir.');
   if (c.answer) out.push(`Özgür'ün bu sorudaki durumu: ${String(c.answer).slice(0, 300)}`);
   if (l) out.push(`Bu derste anlatılanların özeti (kaynak olarak kullan):\n${lessonSummary(l, 4500)}`);
   return out.length ? `\n\n## ŞU AN EKRANDA (Özgür bunu görüyor; "hangi adımdasın" diye SORMA, buradan bil)\n${out.join('\n')}` : '';
@@ -687,6 +688,11 @@ async function realPut(request, env) {
         .bind(it.id, q.exam, q.level, q.year, q.sec, q.n, q.s, q.lesson, q.konu, q.tip, q.kok, q.stem, JSON.stringify(q.o), q.a, q.needimg ? 1 : 0, q.bilgi));
       ok++;
     }
+    if (it.full) {
+      if (!e.f || (await sha256hex(new TextEncoder().encode(it.full))) !== e.f) { bad++; continue; }
+      stmts.push(env.DB.prepare('UPDATE real_q SET full = ? WHERE id = ?').bind(it.full, it.id));
+      ok++;
+    }
     if (it.img) {
       const bytes = b64ToBytes(it.img);
       if (await sha256hex(bytes) !== e.i) { bad++; continue; }
@@ -711,7 +717,9 @@ const LEVEL_NAME = { onl: 'Ön Lisans', ort: 'Ortaöğretim', lis: 'Lisans', kit
 function realRow(r) {
   return {
     key: `real:${r.id}`, id: r.id, l: r.lesson, s: r.s, q: r.stem, o: JSON.parse(r.o || '[]'), a: r.a, konu: r.konu, bilgi: r.bilgi,
-    img: r.level === 'kit' ? null : `/api/realimg/${r.id}?v=3`, needimg: !!r.needimg, real: true, year: r.year, src: `${r.year} KPSS ${LEVEL_NAME[r.level] || ''}`.trim(),
+    // full: görselden eksiksiz okunmuş metin (ortak tanım/grafik, matematik ifadeleri); hoca bunu görür
+    full: r.full || null,
+    img: r.level === 'kit' ? null : `/api/realimg/${r.id}?v=4`, needimg: !!r.needimg, real: true, year: r.year, src: `${r.year} KPSS ${LEVEL_NAME[r.level] || ''}`.trim(),
   };
 }
 export async function realByLessons(env, lessons, n, { subject = null, exclude = [], ids = null } = {}) {

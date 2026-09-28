@@ -140,6 +140,7 @@ export const EXTRA_LESSONS = [
         h: 'Soru kendi kuralını öğretir',
         b: 'Bu tip sorular ezber istemez; kuralı **sorunun içinde** verir. ÖSYM’de gördüğümüz dört şekli:\n- **Tanımlı işlem:** a ⊗ b = …\n- **Yeni sayı tanımı:** “uyumlu sayı”, “artıl sayı” gibi uydurma adlar\n- **Dijital saat:** saat ve dakika rakamları arasında bir eşitlik\n- **Hücre doldurma:** “komşu hücrelerin farkı en az 2” gibi bir kural\nYol: **1)** Kuralı kendi cümlenle söyle. **2)** Sorudaki **örnekle** kuralı dene (ÖSYM hep örnek verir). **3)** Sayma sorusunda **sistemli liste** yap.',
         mn: { code: 'SÖYLE → DENE → LİSTELE', t: 'Kuralı kendi sözünle söyle, örnekte dene, sonra sırayla yaz.' },
+        note: { h: 'Bu garip işaretler ne?', t: '**⊕, ⊗, ◆, ▲, ■, Δ** gerçek bir matematik işlemi değildir. Soru, **o soruya özel bir işlem uydurur** ve ne yapacağını yanına yazar: “a ◆ b = 2a + b” demek, “◆ gördüğün yerde birinci sayının 2 katına ikinciyi ekle” demektir. ÖSYM bu soru tipini tam böyle sorar: 2012’de **a ⊗ b**, 2014’te **a ⊕ b**. İşareti ezberlemen gerekmez; her soruda tarif yeniden verilir.' },
       },
       {
         h: 'Tanımlı işlem: harf yerine sayı',

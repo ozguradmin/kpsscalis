@@ -294,6 +294,7 @@ function viewLesson(id) {
       <button class="iconbtn" id="tts" aria-label="Sesli dinle">${icon.speak}</button>
     </header>
     <div class="ticks" id="ticks"></div>
+    <div class="tickkey" id="tickkey"><span><i class="k-done"></i>geçtiğin</span><span><i class="k-cur"></i>şu an</span><span><i class="k-card"></i>anlatım</span><span><i class="k-q"></i>soru</span></div>
     <div class="scroll" id="sc"><div class="stage" id="stage"></div></div>
     <div class="actionbar"><button class="fab" id="fab" aria-label="Hocaya sor: bu ekranı görür">${icon.ai}</button><div class="in" id="bar"></div></div>
   </div>`;
@@ -360,6 +361,8 @@ function viewLesson(id) {
     const back = st.i < st.last;
     st.last = st.i;
     $ticks.innerHTML = tickHTML();
+    // Çizgilerin anlamı: sadece ilk iki adımda gösterilir
+    document.getElementById('tickkey').hidden = st.i > 1;
     let html = '';
     const prevBtn = `<button class="btn ghost square" data-prev ${st.i ? '' : 'disabled'} aria-label="Geri">${icon.back}</button>`;
     let bar = '';
@@ -475,7 +478,7 @@ function viewLesson(id) {
     store.update((s) => {
       if (ok !== 1) {
         s.wrong[wid] = { at: Date.now(), fixed: false };
-        if (q.real) (s.qbank ||= {})[wid] = { q: q.q, o: q.o, a: q.a, ex: q.ex, tip: q.tip, l: id, img: q.img, real: true, needimg: q.needimg, src: q.src, s: lesson.s };
+        if (q.real) (s.qbank ||= {})[wid] = { q: q.q, o: q.o, a: q.a, ex: q.ex, tip: q.tip, l: id, img: q.img, full: q.full || undefined, real: true, needimg: q.needimg, src: q.src, s: lesson.s };
         else if (q.gen) (s.qbank ||= {})[wid] = { q: q.q, o: q.o, a: q.a, ex: q.ex, tip: q.tip, l: id, s: lesson.s };
       } else if (s.wrong[wid]) s.wrong[wid].fixed = true;
     });
@@ -576,7 +579,7 @@ function viewLesson(id) {
       <span class="bubble hero-b s" id="bigb">${esc(sub.short)}</span>
       <div class="bigscore num">${r.right}/${qCount}</div>
       <p class="muted" style="margin:2px 0 8px">doğru · ${wrong} yanlış · ${blank} boş · net <b>${net.toFixed(2).replace('.', ',')}</b></p>
-      ${r.gain >= 0.05 ? `<div class="gain">${icon.trend}<span>Tahmini netine <b>+${fmtNet(r.gain)}</b> eklendi</span></div>` : r.gain <= -0.05 ? `<div class="gain" style="background:var(--warn-soft);color:var(--warn)"><span>Bu sonuç tahminini <b>${fmtNet(r.gain)}</b> net düşürdü. Dürüst olalım: konu henüz oturmadı; hata defteri ve tekrar kartları bunu düzeltir.</span></div>` : `<div class="small muted" style="margin:6px 0">Tahmini net değişmedi: ders içi sorular kolaydır, asıl kanıt deneme ve karışık testlerden gelir.</div>`}
+      ${r.gain >= 0.05 ? `<div class="gain">${icon.trend}<span>Tahmini netine <b>+${fmtNet(r.gain)}</b> eklendi</span></div>` : r.gain <= -0.05 ? `<div class="gain" style="background:var(--warn-soft);color:var(--warn)"><span>Bu sonuç tahminini <b>${fmtNet(r.gain)}</b> net düşürdü. Dürüst olalım: konu henüz oturmadı; hata defteri ve tekrar kartları bunu düzeltir.</span></div>` : `<div class="small muted" style="margin:6px 0">Netine etkisi küçük (${r.gain >= 0 ? '+' : ''}${r.gain.toFixed(2).replace('.', ',')}): bu konu sınavda ortalama <b>${String(Math.round((YIELD[id] || 0) * 10) / 10).replace('.', ',')}</b> soruya denk geliyor ve birkaç soru henüz az kanıt. Aynı konuyu denemede ve karışık testlerde de doğru yaptıkça tahmin yükselir.</div>`}
       <p style="margin:10px 0">${msg}</p>
       <div class="grid3" style="text-align:left;margin:14px 0">
         <div class="stat"><div class="v num" style="font-size:22px">${fmtDur(r.sessionSec)}</div><div class="l">bu seferki süre</div></div>
@@ -741,7 +744,7 @@ function questionRunner({ title, eyebrow, qs, reveal = 'instant', minutes = null
       if (ok === 1) { if (s.wrong[q.key]) s.wrong[q.key].fixed = true; }
       else {
         s.wrong[q.key] = { at: Date.now(), fixed: false };
-        if (q.key.startsWith('ai:') || q.key.startsWith('real:')) (s.qbank ||= {})[q.key] = { q: q.q, o: q._orig || q.o, a: q._origA ?? q.a, ex: q.ex, tip: q.tip, l: q.l, img: q.img, real: q.real, needimg: q.needimg, src: q.src, s: q.s };
+        if (q.key.startsWith('ai:') || q.key.startsWith('real:')) (s.qbank ||= {})[q.key] = { q: q.q, o: q._orig || q.o, a: q._origA ?? q.a, ex: q.ex, tip: q.tip, l: q.l, img: q.img, full: q.full || undefined, real: q.real, needimg: q.needimg, src: q.src, s: q.s };
       }
     });
   }
@@ -1271,6 +1274,34 @@ function viewExamDay() {
 store.on(() => { if (!$tab.hidden) renderTabs(activeTab); });
 route();
 pull().then((changed) => { if (changed && ['', '#/', '#/plan', '#/istatistik'].includes(location.hash)) route(); });
+
+// Çıkmış soruların anahtarı/metni sonradan düzeltilebilir: kayıtlı kopyaları (hata defteri, günlük) sunucudakiyle eşitle.
+// Anahtarı düzeltilen soruda Özgür'ün cevabı aslında doğruysa günlük doğruya çevrilir, hata defterinden çıkar.
+async function syncRealKeys() {
+  const s0 = store.get();
+  const keys = [...new Set([...Object.keys(s0.qbank || {}), ...(s0.log || []).map((x) => x.k)].filter((k) => k && k.startsWith('real:')))];
+  if (!keys.length) return;
+  const fresh = {};
+  for (let i = 0; i < keys.length; i += 40) {
+    try {
+      const r = await fetch(`/api/real?ids=${keys.slice(i, i + 40).map((k) => k.slice(5)).join(',')}&n=40`);
+      for (const q of (await r.json()).questions || []) fresh[q.key] = q;
+    } catch (e) { return; }
+  }
+  let changed = 0;
+  store.update((s) => {
+    for (const [k, q] of Object.entries(fresh)) {
+      const c = s.qbank?.[k];
+      if (c && (c.a !== q.a || !c.full)) { Object.assign(c, { a: q.a, o: q.o, full: q.full || undefined, img: q.img }); changed++; }
+      const mine = (s.log || []).filter((x) => x.k === k && typeof x.p === 'number' && x.p >= 0);
+      for (const x of mine) { const ok = x.p === q.a ? 1 : 0; if (x.ok !== ok) { x.ok = ok; changed++; } }
+      const last = mine[mine.length - 1];
+      if (last && s.wrong?.[k] && last.p === q.a && !s.wrong[k].fixed) { s.wrong[k].fixed = true; s.wrong[k].fixedAt = Date.now(); changed++; }
+    }
+  });
+  if (changed && ['', '#/', '#/plan', '#/istatistik'].includes(location.hash)) route();
+}
+setTimeout(syncRealKeys, 2500);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
