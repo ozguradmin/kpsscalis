@@ -8,7 +8,6 @@ import { mailTick, sendMail, dailyDigest } from './mail.js';
 import { dispatch, recoverStuck, createApplication, ApplyWorkflow } from './apply/index.js';
 import { chat, dailyReview, stateSummary, validateSetting, runTool } from './brain.js';
 import { runModelEval } from './evals.js';
-import { legacyTick, pauseLegacy } from './legacy.js';
 import { SOURCES } from './sources/index.js';
 import { DEFAULT_MODELS } from './lib/llm.js';
 
@@ -25,7 +24,6 @@ async function tick(env, ctx, { force = null } = {}) {
     await setSetting(env, 'last_tick', t0, 'cron');
     if (!settings.boards_seeded) { await seedBoards(env); await setSetting(env, 'boards_seeded', true); }
     const step = async (name, fn) => { try { out[name] = await fn(); } catch (e) { out[name] = { error: e.message }; await log(env, 'tick', `${name} hatası: ${e.message}`, { level: 'error' }); } };
-    await step('legacy', () => legacyTick(env));
     await step('mail', () => mailTick(env, settings));
     if (!settings.paused) {
       await step('discover', () => discoverTick(env, settings));
@@ -91,9 +89,7 @@ async function runTask(env, ctx, task) {
     case 'eval': ctx.waitUntil(runModelEval(env)); return { ok: true, note: 'Model yarışması arka planda başladı (birkaç dakika).' };
     case 'digest': await dailyDigest(env, settings); return { ok: true };
     case 'dispatch': return dispatch(env, settings, { max: 1, userActive: true });
-    case 'legacy': return legacyTick(env);
     case 'tick': return tick(env, ctx);
-    case 'pause_legacy': return pauseLegacy(env);
     default: {
       const src = SOURCES.find((s) => s.id === task);
       if (src) return runSource(env, src);
@@ -141,7 +137,7 @@ async function api(request, env, ctx) {
       allRows(env, "SELECT * FROM actions WHERE status='open' ORDER BY priority, created_at DESC LIMIT 30"),
       usageToday(env), aiCostToday(env), browserHoursThisMonth(env),
       allRows(env, "SELECT a.id, a.status, a.started_at, j.company, j.title, (SELECT id FROM recordings r WHERE r.app_id=a.id ORDER BY created_at DESC LIMIT 1) rec FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.status IN ('applying','prepared') ORDER BY a.updated_at DESC LIMIT 5"),
-      allRows(env, "SELECT a.id, a.status, a.submitted_at, a.updated_at, j.company, j.title, j.source FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.legacy=0 OR a.status IN ('interview','confirmed','submitted') ORDER BY a.updated_at DESC LIMIT 12"),
+      allRows(env, "SELECT a.id, a.status, a.submitted_at, a.updated_at, j.company, j.title, j.source FROM applications a JOIN jobs j ON j.id=a.job_id ORDER BY a.updated_at DESC LIMIT 12"),
     ]);
     const trend = await allRows(env, "SELECT strftime('%Y-%m-%d', discovered_at/1000, 'unixepoch', '+3 hours') d, COUNT(*) found, SUM(status IN ('approved','queued','applied','review','needs_human')) ok FROM jobs WHERE discovered_at > ? GROUP BY d ORDER BY d", now() - 14 * DAY);
     const appTrend = await allRows(env, "SELECT strftime('%Y-%m-%d', submitted_at/1000, 'unixepoch', '+3 hours') d, COUNT(*) n FROM applications WHERE submitted_at > ? GROUP BY d ORDER BY d", now() - 14 * DAY);

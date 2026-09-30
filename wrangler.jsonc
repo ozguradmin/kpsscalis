@@ -14,8 +14,7 @@
   "browser": { "binding": "BROWSER" },
   "d1_databases": [
     { "binding": "DB", "database_name": "ozgur-is-ajani", "database_id": "3827bdf9-60ff-42ec-996f-9c4f9447d6c9" },
-    { "binding": "MAILDB", "database_name": "ozgurguler-mail", "database_id": "caab2371-6dfc-452a-8daf-f508e089eefd" },
-    { "binding": "OLDDB", "database_name": "ozgur-job-agent-db", "database_id": "68602084-8e3c-4ba5-9f84-2d2e439f1764" }
+    { "binding": "MAILDB", "database_name": "ozgurguler-mail", "database_id": "caab2371-6dfc-452a-8daf-f508e089eefd" }
   ],
   "r2_buckets": [{ "binding": "R2", "bucket_name": "ozgur-is-ajani" }],
   "workflows": [{ "name": "ozgur-is-ajani-apply", "binding": "APPLY", "class_name": "ApplyWorkflow" }],

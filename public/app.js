@@ -175,7 +175,7 @@ async function viewApps(params) {
   const tabs = [['', 'Tümü'], ['submitted', 'Gönderildi'], ['confirmed', 'Onaylandı'], ['interview', 'Mülakat'], ['next_step', 'Sonraki adım'], ['needs_human', 'Sana kaldı'], ['failed', 'Başarısız'], ['rejected', 'Olumsuz']];
   setMain(`<div class="top"><div><h1>Başvurular</h1><div class="sub">Her başvurunun ön yazısı, form cevapları, ekran görüntüsü ve e-postaları kanıt olarak saklanır.</div></div></div>
     <div class="tabs">${tabs.map(([k, l]) => `<button data-st="${k}" class="${st === k ? 'on' : ''}">${l} ${k ? `<span class="muted">${c[k] || 0}</span>` : ''}</button>`).join('')}</div>
-    <div class="card"><div class="list">${d.rows.length ? d.rows.map((a) => `<a class="item" href="#/basvuru/${a.id}"><div class="main"><div class="t">${esc(a.company)} <span class="muted" style="font-weight:400">— ${esc(a.title)}</span></div><div class="m">${esc(a.source)}${a.legacy ? ' · eski ajan' : ''}${a.method ? ' · ' + esc(a.method) : ''}${a.error ? ' · ' + esc(a.error) : ''}</div></div><div class="r">${pill(APP_ST, a.status)}<br>${when(a.submitted_at || a.updated_at)}${a.rec ? '<br>▶ kayıt' : ''}</div></a>`).join('') : '<div class="empty">Bu filtrede başvuru yok.</div>'}</div></div>`);
+    <div class="card"><div class="list">${d.rows.length ? d.rows.map((a) => `<a class="item" href="#/basvuru/${a.id}"><div class="main"><div class="t">${esc(a.company)} <span class="muted" style="font-weight:400">— ${esc(a.title)}</span></div><div class="m">${esc(a.source)}${a.method ? ' · ' + esc(a.method) : ''}${a.error ? ' · ' + esc(a.error) : ''}</div></div><div class="r">${pill(APP_ST, a.status)}<br>${when(a.submitted_at || a.updated_at)}${a.rec ? '<br>▶ kayıt' : ''}</div></a>`).join('') : '<div class="empty">Bu filtrede başvuru yok.</div>'}</div></div>`);
   document.querySelectorAll('[data-st]').forEach((b) => b.onclick = () => { location.hash = '#/basvurular' + (b.dataset.st ? `?status=${b.dataset.st}` : ''); });
 }
 
@@ -365,7 +365,7 @@ async function viewLog(params) {
   const type = params.get('t') || '';
   shell('#/gunluk', '<div class="empty">Yükleniyor…</div>');
   const rows = await api('/events' + (type ? `?type=${type}` : ''));
-  const types = ['', 'discover', 'triage', 'apply', 'mail', 'brain', 'account', 'eval', 'legacy', 'tick'];
+  const types = ['', 'discover', 'triage', 'apply', 'mail', 'brain', 'account', 'eval', 'tick'];
   setMain(`<div class="top"><div><h1>Günlük</h1><div class="sub">Sistemin yaptığı her şey (60 gün saklanır).</div></div></div>
     <div class="tabs">${types.map((t) => `<button data-t="${t}" class="${type === t ? 'on' : ''}">${t || 'Tümü'}</button>`).join('')}</div>
     <div class="card feed">${rows.map((e) => `<div class="e ${e.level}"><div class="tm">${clock(e.ts)}<br><span class="tiny">${new Date(e.ts + TR).toISOString().slice(5, 10)}</span></div><div class="x"><span class="tag">${esc(e.type)}</span>${esc(e.msg)}${e.ref ? ` <a class="tiny" href="#/${e.ref.startsWith('app_') ? 'basvuru/' + e.ref : 'kaynaklar'}">${esc(e.ref)}</a>` : ''}${e.data ? `<details><summary>ayrıntı</summary><div class="pre mono">${esc(e.data)}</div></details>` : ''}</div></div>`).join('') || '<div class="empty">Kayıt yok</div>'}</div>`);
@@ -400,9 +400,9 @@ async function viewSettings() {
       <div class="card"><h2>Öğrenilmiş kurallar</h2><div class="small muted">Beynin öz değerlendirmede eklediği kurallar (eleme, analiz, ön yazı, ajan).</div>${Object.entries(s.prompt_addenda || {}).map(([k, v]) => `<details><summary>${esc(k)}</summary><div class="pre small">${esc(v)}</div></details>`).join('') || '<div class="muted small">Henüz yok</div>'}
         <div class="sp"></div><h3>Rol ağırlıkları</h3><div class="mono">${esc(JSON.stringify(s.role_weights))}</div><h3 style="margin-top:8px">Kaynak ağırlıkları</h3><div class="mono">${esc(JSON.stringify(s.source_weights))}</div></div>
     </div><div class="sp"></div>
-    <div class="card"><div class="row between"><h2>Profil bilgileri (${facts.length})</h2><button class="btn sm" id="af">+ Bilgi ekle</button></div><div class="small muted">Başvurularda yalnızca CV ve buradaki bilgiler kullanılır. Eski ajandan aktarılanlar dahil.</div>
+    <div class="card"><div class="row between"><h2>Profil bilgileri (${facts.length})</h2><button class="btn sm" id="af">+ Bilgi ekle</button></div><div class="small muted">Başvurularda yalnızca CV ve buradaki bilgiler kullanılır.</div>
       <div class="scroll-x" style="max-height:420px;overflow:auto"><table class="t">${facts.map((f) => `<tr><td class="mono" style="width:32%">${esc(f.key)}</td><td class="small">${esc(String(f.value).slice(0, 300))}</td><td class="tiny muted">${esc(String(f.source || '').slice(0, 40))}</td></tr>`).join('')}</table></div></div>
-    <div class="sp"></div><div class="card"><h2>Bakım</h2><div class="row wrap"><button class="btn sm" data-run="mail">E-postaları şimdi işle</button><button class="btn sm" data-run="triage">Eleme turu</button><button class="btn sm" data-run="review">Öz değerlendirme yap</button><button class="btn sm" data-run="digest">Özet e-postası gönder</button><button class="btn sm" data-run="pause_legacy">Eski ajanı durdur</button></div></div>`);
+    <div class="sp"></div><div class="card"><h2>Bakım</h2><div class="row wrap"><button class="btn sm" data-run="mail">E-postaları şimdi işle</button><button class="btn sm" data-run="triage">Eleme turu</button><button class="btn sm" data-run="review">Öz değerlendirme yap</button><button class="btn sm" data-run="digest">Özet e-postası gönder</button></div></div>`);
   document.querySelectorAll('[data-k]').forEach((el) => el.onchange = async () => {
     const t = el.dataset.t; let v = el.value;
     if (t === 'bool') v = v === 'true'; else if (t === 'num') v = Number(v); else if (t === 'arr') v = v.split(',').map((x) => x.trim()).filter(Boolean);

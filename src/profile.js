@@ -5,7 +5,7 @@ import { safeJSON, b64 } from './lib/util.js';
 
 export { CV_EN, CV_TR };
 
-// Özgür'ün daha önce (eski ajana Telegram'dan) açıkça söylediği ve CV'de olan temel gerçekler.
+// Özgür'ün kendi söylediği ve CV'deki temel gerçekler.
 // facts tablosu bunları geçersiz kılabilir.
 export const CORE = {
   full_name: 'Özgür Güler',

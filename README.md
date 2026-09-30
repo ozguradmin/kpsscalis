@@ -1,6 +1,6 @@
 # Özgür İş Ajanı v2
 
-Özgür Güler adına uzaktan iş ilanlarını bulan, eleyen, ilana özel ön yazıyla başvuran ve e-postaları takip eden otonom sistem. Tamamı Cloudflare üzerinde çalışır (Workers, D1, R2, Workflows, Browser Run, Workers AI, Email Service); hızlı yargılar için TypeSafe Jev.
+Özgür Güler adına uzaktan iş ilanlarını bulan, eleyen, ilana özel ön yazıyla başvuran ve e-postaları takip eden otonom sistem. Sıfırdan kuruldu; tamamı Cloudflare üzerinde çalışır (Workers, D1, R2, Workflows, Browser Run, Workers AI, Email Service); hızlı yargılar için TypeSafe Jev.
 
 ## Akış (her 10 dakikada bir)
 1. **Keşif** — 19 kaynak (Get on Board, Remotar, Djinni, DOU, Habr, Arbeitnow, Landing.jobs, Alignerr, HN, Tecnoempleo…) ve ilanlardan öğrenilen şirket kariyer sayfaları (Greenhouse, Lever, Ashby, Recruitee, Workable, Personio, Teamtailor, Breezy, SmartRecruiters).
