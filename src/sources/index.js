@@ -429,7 +429,9 @@ export const SOURCES = [
       const out = [];
       for (const h of c.hits || []) {
         if (h.parent_id !== Number(story.objectID)) continue; // sadece üst seviye ilanlar
-        const text = htmlToText(h.comment_text || '', 6000);
+        // HN metni uzun bağlantıları "…" ile kısaltır; gerçek adresler href'lerde
+        const hrefs = [...String(h.comment_text || '').matchAll(/href="([^"]+)"/g)].map((m) => m[1].replace(/&#x2F;/g, '/').replace(/&amp;/g, '&').replace(/&#x3D;/g, '=').replace(/&#x3F;/g, '?'));
+        const text = htmlToText(h.comment_text || '', 6000) + (hrefs.length ? `\nLinks: ${[...new Set(hrefs)].join(' ')}` : '');
         if (!/remote/i.test(text.slice(0, 400))) continue;
         const first = text.split('\n')[0];
         const parts = first.split('|').map((x) => x.trim());
