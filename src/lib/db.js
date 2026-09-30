@@ -25,7 +25,7 @@ export const DEFAULTS = {
   daily_browser_minutes: 20,     // Browser Run: ücretsiz 10 saat/ay ≈ 20 dk/gün
   monthly_browser_hours: 10,
   recording_days: 3,             // çalışma kayıtları kaç gün tutulur
-  handoff_wait_minutes: 20,      // CAPTCHA vb. için canlı devralma bekleme süresi (sen çevrimiçiysen)
+  handoff_wait_minutes: 10,      // CAPTCHA vb. için canlı devralma bekleme süresi (sen son 5 dk içinde paneldeysen)
   auto_reply_mail: false,        // işverene gelen sorulara otomatik cevap (varsayılan: taslak + bildirim)
   digest_email: true,            // günlük özet e-postası
   notify_email: 'destek@ozgurguler.tech',

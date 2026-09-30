@@ -49,7 +49,7 @@ async function tick(env, ctx, { force = null } = {}) {
       await step('triage', () => triageTick(env, settings));
       await step('recover', () => recoverStuck(env));
       const lastSeen = Number(settings.last_seen || 0);
-      await step('dispatch', () => dispatch(env, settings, { max: 1, userActive: now() - lastSeen < 20 * MIN }));
+      await step('dispatch', () => dispatch(env, settings, { max: 1, userActive: now() - lastSeen < 5 * MIN }));
     }
     await step('cleanup', () => cleanup(env, settings));
     // Günlük işler (Türkiye saatiyle)
