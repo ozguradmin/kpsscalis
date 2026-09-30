@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ozgur-is-ajani",
+  "account_id": "3c39c225b3a27de7822833feb24b65b1",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "limits": { "cpu_ms": 300000 },
+  "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }],
+  "assets": { "directory": "./public", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
+  "ai": { "binding": "AI" },
+  "browser": { "binding": "BROWSER" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "ozgur-is-ajani", "database_id": "3827bdf9-60ff-42ec-996f-9c4f9447d6c9" },
+    { "binding": "MAILDB", "database_name": "ozgurguler-mail", "database_id": "caab2371-6dfc-452a-8daf-f508e089eefd" },
+    { "binding": "OLDDB", "database_name": "ozgur-job-agent-db", "database_id": "68602084-8e3c-4ba5-9f84-2d2e439f1764" }
+  ],
+  "r2_buckets": [{ "binding": "R2", "bucket_name": "ozgur-is-ajani" }],
+  "workflows": [{ "name": "ozgur-is-ajani-apply", "binding": "APPLY", "class_name": "ApplyWorkflow" }],
+  "send_email": [{ "name": "EMAIL" }],
+  "triggers": { "crons": ["*/10 * * * *"] }
+}
