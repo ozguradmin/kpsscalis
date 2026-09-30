@@ -6,7 +6,7 @@ import { coverLetter } from './materials.js';
 import { openBrowser, Recorder } from './browser.js';
 import { runAgent } from './agent.js';
 import { profileContext, cvBase64, CORE } from '../profile.js';
-import { waitForMail, sendMail } from '../mail.js';
+import { waitForMail, sendMail, alertUser } from '../mail.js';
 import { seal, unseal, strongPassword } from '../lib/auth.js';
 import { detectATS } from '../sources/index.js';
 
@@ -166,6 +166,12 @@ async function finalize(env, settings, appId, job, r, recId) {
   await env.DB.prepare('UPDATE jobs SET status=?, reason=CASE WHEN ? IS NOT NULL THEN ? ELSE reason END WHERE id=?').bind(jobStatus, status !== 'submitted' ? r.reason : null, clip(r.reason || '', 300), job.id).run();
   if (status === 'submitted') await bumpUsage(env, 'applications', 1);
   if (status === 'needs_human') await addAction(env, { kind: 'needs_human', title: `${job.company} — ${job.title}: elle tamamlanabilir`, detail: `${r.reason}. Ön yazı ve cevaplar hazır; panelden "Canlı devral" ile yeniden başlatabilir ya da bağlantıdan kendin gönderebilirsin.`, url: startUrl(job), job_id: job.id, app_id: appId, priority: 2, dedupe: 'nh_' + appId });
+  const handoffMailed = status === 'needs_human' && await env.DB.prepare("SELECT 1 FROM events WHERE type='alert' AND ref=?").bind('handoff_' + appId).first();
+  if (status === 'needs_human' && !handoffMailed) {
+    const st = await getSettings(env);
+    await alertUser(env, st, { key: 'nh_' + job.id, appId, url: startUrl(job), subject: `2 dakikalık iş: ${job.company} başvurusu seni bekliyor`,
+      text: `${job.company} — ${job.title}\nNeden durdu: ${r.reason}\n\nForm büyük ölçüde dolduruldu; ön yazı ve cevaplar panelde hazır. Panelden "Canlı devral"a basarsan ajan formu yeniden doldurur, sen sadece robot doğrulamasını yaparsın. Ya da bağlantıdan kendin gönderebilirsin.` });
+  }
   // öğrenme: bu site/ATS için not
   const scope = job.ats || hostOf(startUrl(job));
   if (scope && ['submitted', 'failed', 'needs_human', 'blocked'].includes(status)) {

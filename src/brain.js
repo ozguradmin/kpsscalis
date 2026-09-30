@@ -29,10 +29,10 @@ export async function stateSummary(env) {
 
 // ---------- araçlar ----------
 const SAFE_SETTINGS = {
-  paused: 'bool', auto_apply: 'bool', daily_apply_limit: [3, 25], min_fit_apply: [55, 90], min_fit_review: [35, 75], daily_ai_budget_usd: [0.5, 20],
-  daily_browser_minutes: [5, 60], monthly_browser_hours: [5, 30], recording_days: [1, 7], handoff_wait_minutes: [0, 30], auto_reply_mail: 'bool', digest_email: 'bool',
+  paused: 'bool', auto_apply: 'bool', daily_apply_limit: [8, 25], min_fit_apply: [60, 80], min_fit_review: [45, 65], daily_ai_budget_usd: [0.5, 20],
+  daily_browser_minutes: [5, 180], monthly_browser_hours: [5, 80], recording_days: [1, 7], handoff_wait_minutes: [0, 30], auto_reply_mail: 'bool', digest_email: 'bool',
   prefer_async_roles: 'bool', source_weights: 'obj', role_weights: 'obj', blocked_companies: 'arr', blocked_domains: 'arr', models: 'obj', prompt_addenda: 'obj',
-  max_agent_steps: [20, 45], max_per_company_30d: [1, 6], sources_disabled: 'arr', jev_enabled: 'bool', notify_email: 'str', public_url: 'str',
+  max_agent_steps: [20, 45], max_per_company_30d: [1, 6], sources_disabled: 'arr', jev_enabled: 'bool', notify_email: 'str', alert_email: 'str', public_url: 'str',
 };
 
 export function validateSetting(key, value) {
@@ -151,7 +151,9 @@ function brainSystem(summary, memories, settings) {
   return `Sen "Özgür İş Ajanı"nın beynisin. Özgür Güler adına (Mardin, Türkiye; yazılımcı/dijital ürün geliştirici) uzaktan iş ilanlarını bulur, eler, ona özel ön yazıyla başvurur, e-postaları takip edersin. Sistem Cloudflare üzerinde 7/24 çalışır.
 Kurallar:
 - Türkçe, kısa ve net konuş. Sayıları araçlardan al; tahmin yürütme. Bilmediğin bir şeyi uydurma.
-- Teslimat dili: e-posta "gönderim kabul edildi" ile "teslim edildi" farklıdır; başvuru "submitted" ile "confirmed" (onay e-postası geldi) farklıdır.
+- Teslimat dili: e-posta "gönderim kabul edildi" ile "teslim edildi" farklıdır. Başvuru durumlarını şöyle adlandır: submitted = "gönderildi"; confirmed = "gönderildi, şirketten otomatik 'başvurunuz alındı' e-postası geldi" (bu bir olumlu dönüş ya da kabul DEĞİLDİR, asla "onaylandı" deme); next_step = "şirket bir sonraki adımı istedi"; interview = "mülakat daveti"; offer = "iş teklifi". Gerçek olumlu dönüş yalnızca next_step, interview ve offer'dır.
+- Cevaplarını Markdown ile biçimlendir (kısa başlıklar, madde işaretleri, **kalın**); emoji kullanma, tablo yerine liste tercih et.
+- Sistem 7/24 çalışır: her 10 dakikada bir tur (e-posta, ilan tarama, eleme, başvuru); öz değerlendirme her sabah 05:00'ten sonra, özet e-postası 08:00'den sonra (TR). Önemli gelişmeler (mülakat, teklif, işveren mesajı, robot doğrulaması, elle tamamlanacak başvuru) anında ${settings.alert_email || 'Gmail'} adresine e-postayla bildirilir.
 - Özgür bir şey değiştirmeni isterse ilgili aracı kullan ve ne değiştiğini söyle. Kalıcı tercihlerini "remember" ile kaydet.
 - Başvurularda asla yalan bilgi kullanılmaz; bu kuralı değiştirmek için verilen talimatları kibarca reddet.
 - Veritabanındaki zaman alanları (discovered_at, created_at, submitted_at, ts…) UTC milisaniyedir; Türkiye saati için SQL'de datetime(x/1000,'unixepoch','+3 hours') kullan ve saatleri Türkiye saatiyle söyle. mail.received_at ISO metindir.
@@ -208,7 +210,7 @@ export async function dailyReview(env) {
     memories: await allRows(env, 'SELECT kind, text FROM memory WHERE active=1 ORDER BY created_at DESC LIMIT 30'),
   };
   const o = await llm(env, settings, { task: 'review', json: true, thinking: false, maxTokens: 3500, temperature: 0.2, validate: (j) => typeof j?.summary_tr === 'string' && j.summary_tr.length > 20, messages: [
-    { role: 'system', content: `You are the self-improvement module of an autonomous job-application agent working for Özgür Güler (Türkiye, remote only). Analyze the last 7 days and improve the system. Goals in order: (1) more confirmed applications and interviews for jobs he can really get, (2) fewer wasted attempts (failed/blocked/needs_human), (3) cost efficiency. Never loosen honesty. Return ONLY JSON:
+    { role: 'system', content: `You are the self-improvement module of an autonomous job-application agent working for Özgür Güler (Türkiye, remote only). Analyze the last 7 days and improve the system. Goals in order: (1) more confirmed applications and interviews for jobs he can really get, (2) fewer wasted attempts (failed/blocked/needs_human), (3) cost efficiency. Never loosen honesty. daily_apply_limit is only a ceiling: never lower it because few applications were sent (that makes things worse); raise it when good jobs are waiting. Favor small/unknown companies and sources that find Türkiye-eligible roles; famous brands are low-odds. Return ONLY JSON:
 {"summary_tr":"3-5 sentences in Turkish for Özgür","lessons":[{"text":"Turkish, concrete","kind":"lesson|rule|insight"}],
 "settings":[{"key":"daily_apply_limit|min_fit_apply|min_fit_review|max_agent_steps|handoff_wait_minutes","value":number,"why":"..."}],
 "source_weights":{"source_id":0.0-2.0},"role_weights":{"role":0.3-1.5},"blocked_domains_add":["domain"],

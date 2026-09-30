@@ -6,10 +6,11 @@
 
 ## Her 10 dakikada bir
 1. **E-posta** — destek@ozgurguler.tech kutusu (ozgurguler-mail D1) okunur; başvuru bağlamıyla sınıflandırılır (onay, olumsuz, mülakat, test, işveren mesajı, doğrulama, anket…), başvurulara bağlanır. Kayıt/profil/CV isteyen e-postalar ajana **takip görevi** olur; mülakat/test gibi sadece Özgür'ün yapabilecekleri "Sana kalanlar"a düşer.
-2. **Keşif** — 19 pano (Get on Board, Remotar, Djinni, Habr, Arbeitnow, Landing.jobs, Alignerr, HN, Tecnoempleo, Himalayas, Jobicy…) ve ilanlardan öğrenilen şirket kariyer sayfaları (Greenhouse, Lever, Ashby, Recruitee, Workable, Personio, Teamtailor, Breezy, SmartRecruiters; Türk şirketleri dahil).
+2. **Keşif** — Workable'ın küresel araması (Türkiye'den uzaktan işe alan küçük şirketler + çok dilli arama), Torre (her yerden uzaktan), Get on Board, Remotar, Djinni, Habr, Arbeitnow, Landing.jobs, HN, Tecnoempleo, Himalayas… ve ilanlardan öğrenilen küçük şirketlerin kariyer sayfaları. Ünlü şirketlerin panoları taranmaz; analizde şirket büyüklüğü ve işe alınma şansı puanlanır, küçük/bilinmeyen şirketler öne alınır.
 3. **Eleme** — kod kuralları → TypeSafe Jev (Türkiye'den olur mu, başka dil şartı, dolandırıcılık, uyum) → Gemma 4 ön eleme → derin analiz ve karar.
 4. **Başvuru** — Cloudflare Workflow içinde Browser Run ajanı: formu doldurur, CV yükler, gerekirse hesap açar, e-postadan doğrulama kodunu alır. Günlük sınır, şirket başına 30 günde en fazla 2 başvuru, tarayıcı dakika kotası.
-5. **Kanıt** — ön yazı, form cevapları, son ekranın tam görüntüsü kalıcı; adım adım ekran kaydı 3 gün (R2 yaşam döngüsü + Worker temizliği).
+5. **Bildirim** — mülakat, teklif, işveren mesajı, sonraki adım, robot doğrulaması ve elle tamamlanacak başvurular anında ozgurglr256@gmail.com'a e-postalanır (günde en fazla 15); sabah özeti de oraya gider.
+6. **Kanıt** — ön yazı, form cevapları, son ekranın tam görüntüsü kalıcı; adım adım ekran kaydı 3 gün (R2 yaşam döngüsü + Worker temizliği).
 
 ## Beyin
 - Panelden sohbet: araç kullanan ajan (istatistik, ilan/başvuru/e-posta sorgulama, ayar değiştirme, hemen başvur, salt okunur SQL).

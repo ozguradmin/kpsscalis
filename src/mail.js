@@ -143,6 +143,9 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
     }
     if (['interview', 'assessment', 'offer', 'recruiter'].includes(category) && action !== 'signup_or_profile') {
       await addAction(env, { kind: category, title: `${app ? app.company + ': ' : ''}${clip(m.subject, 120)}`, detail: summary || clip(body, 400), app_id: app?.id || null, priority: category === 'offer' || category === 'interview' ? 1 : 2, dedupe: 'mail_' + m.id });
+      const LBL = { offer: '🎉 İş teklifi', interview: 'Mülakat daveti', assessment: 'Sonraki adım / test', recruiter: 'İşverenden mesaj' };
+      await alertUser(env, settings, { key: 'mail_' + m.id, appId: app?.id, subject: `${LBL[category]}: ${app ? app.company : m.from_name || m.from_address}`,
+        text: `${summary || ''}\n\nKimden: ${m.from_name || ''} <${m.from_address}>\nKonu: ${m.subject}\n${app ? `Başvuru: ${app.company} — ${app.title || ''}\n` : ''}\n--- e-postanın başı ---\n${clip(body, 1500)}${draft ? `\n\n--- cevap taslağı (panelden düzenleyip gönderebilirsin) ---\n${draft}` : ''}` });
       if (settings.auto_reply_mail && draft && category === 'recruiter') await sendMail(env, settings, { to: m.from_address, subject: /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`, text: draft, appId: app?.id });
     }
     processed++;
@@ -150,6 +153,26 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
   }
   if (processed) await log(env, 'mail', `${processed} yeni e-posta işlendi`);
   return { processed };
+}
+
+// Özgür'e anında bildirim (Gmail). Aynı olay için bir kez; günde en fazla 15.
+export async function alertUser(env, settings, { key, subject, text, url = null, appId = null }) {
+  const to = settings.alert_email;
+  if (!to) return false;
+  const dup = await env.DB.prepare("SELECT 1 FROM events WHERE type='alert' AND ref=? LIMIT 1").bind(key).first();
+  if (dup) return false;
+  const today = await env.DB.prepare("SELECT COUNT(*) n FROM events WHERE type='alert' AND ts>?").bind(now() - DAY).first();
+  if ((today?.n || 0) >= 15) return false;
+  const panel = settings.public_url || 'https://ozgur-is-ajani.ozgurglr256.workers.dev';
+  const body = `${text}\n\n${url ? `Bağlantı: ${url}\n` : ''}Panel: ${panel}/${appId ? `#/basvuru/${appId}` : ''}\n\n— İş ajanı (otomatik bildirim)`;
+  try {
+    const res = await env.EMAIL.send({ to, from: { email: settings.from_email || 'destek@ozgurguler.tech', name: 'İş Ajanı' }, subject, text: body });
+    await log(env, 'alert', `Bildirim gönderimi kabul edildi → ${to}: ${clip(subject, 100)}`, { ref: key, data: { messageId: res?.messageId, appId } });
+    return true;
+  } catch (e) {
+    await log(env, 'mail', `Bildirim gönderilemedi: ${e.message}`, { level: 'warn', ref: appId });
+    return false;
+  }
 }
 
 // E-posta gönder (Cloudflare Email Service) ve posta sistemindeki "Gönderilenler"e kopyasını yaz
@@ -168,6 +191,8 @@ export async function sendMail(env, settings, { to, subject, text, attachments =
   return res;
 }
 
+const STATUS_TR = { queued: 'sırada', prepared: 'hazırlandı', applying: 'başvuruyor', submitted: 'gönderildi', confirmed: 'gönderildi, şirketten otomatik "alındı" e-postası geldi', next_step: 'SONRAKİ ADIM istendi', interview: 'MÜLAKAT', offer: 'TEKLİF', rejected: 'olumsuz', needs_human: 'sana kaldı', not_eligible: 'uygun değil', closed: 'ilan kapalı', blocked: 'engel', failed: 'başarısız', cancelled: 'iptal' };
+
 // Günlük özet (sabah)
 export async function dailyDigest(env, settings) {
   const since = now() - DAY;
@@ -179,10 +204,10 @@ export async function dailyDigest(env, settings) {
   const cost = await q('SELECT COALESCE(SUM(cost),0) c FROM ai_usage WHERE day=?', dayKey(since));
   const lines = [
     `Son 24 saat: ${found.n || 0} yeni ilan tarandı, ${approved.n || 0} tanesi uygun bulundu.`,
-    '', 'Başvurular:', ...(apps.length ? apps.map((a) => `- ${a.company} — ${a.title}: ${a.status}`) : ['- (yok)']),
+    '', 'Başvurular:', ...(apps.length ? apps.map((a) => `- ${a.company} — ${a.title}: ${STATUS_TR[a.status] || a.status}`) : ['- (yok)']),
     '', 'Senin bakman gerekebilecekler:', ...(acts.length ? acts.map((a) => `- ${a.title}${a.detail ? ` — ${clip(a.detail, 160)}` : ''}`) : ['- (yok)']),
     '', `Dünkü yapay zekâ maliyeti: ${Number(cost.c || 0).toFixed(2)} $ (Cloudflare kredisinden).`,
     '', 'Panel: ' + (settings.public_url || ''),
   ];
-  await sendMail(env, settings, { to: settings.notify_email, subject: `İş ajanı günlük özet — ${dayKey()}`, text: lines.join('\n') });
+  await sendMail(env, settings, { to: settings.alert_email || settings.notify_email, subject: `İş ajanı günlük özet — ${dayKey()}`, text: lines.join('\n') });
 }

@@ -44,7 +44,87 @@ function job(o) {
 
 // ---------------- kaynaklar ----------------
 // cadence: dakika cinsinden tarama sıklığı. label: panelde görünen ad. kind: board | aggregator | ats
+const TORRE_ROLES = ['full stack developer', 'frontend developer', 'react developer', 'mobile developer', 'ai trainer', 'qa tester', 'content creator', 'social media manager'];
+const WORKABLE_Q = ['', 'developer', 'react', 'frontend', 'AI trainer', 'content', 'social media', 'Turkish', 'türkçe', 'desarrollador', 'desenvolvedor', 'entwickler', 'développeur', 'sviluppatore', 'programista'];
+
+async function workableSearch(params, pages = 3) {
+  const out = [];
+  let token = '';
+  for (let p = 0; p < pages; p++) {
+    const qs = new URLSearchParams({ workplace: 'remote', ...params, ...(token ? { pageToken: token } : {}) });
+    const d = await fetchJSON(`https://jobs.workable.com/api/v1/jobs?${qs}`);
+    out.push(...(d.jobs || []));
+    token = d.nextPageToken;
+    if (!token) break;
+  }
+  return out;
+}
+const workableJob = (source, j) => job({ source, external_id: j.id, url: j.url, company: j.company?.title, title: j.title,
+  location: [...(j.locations || []).filter((l) => l !== 'TELECOMMUTE'), 'remote'].join(' · '),
+  description: htmlToText([j.description, j.requirementsSection, j.benefitsSection].join('\n')), tags: [j.department, j.employmentType],
+  posted_at: j.created, lang: /^[a-z]{2}$/.test(j.language || '') ? j.language : undefined, remote_hint: 'remote' });
+
 export const SOURCES = [
+  {
+    // Workable'ın küresel araması: çoğu küçük/orta şirket; "Türkiye" konumlu uzaktan ilanlar doğrudan Türkiye'den işe alır
+    id: 'workable_tr', label: 'Workable — Türkiye\'den uzaktan', cadence: 120, lang: 'en',
+    async fetch() {
+      const seen = new Set(), out = [];
+      for (const q of ['', 'developer', 'yazılım', 'content', 'AI']) {
+        for (const j of await workableSearch({ location: 'Turkey', ...(q ? { query: q } : {}) }, q ? 1 : 7).catch(() => [])) {
+          if (seen.has(j.id)) continue;
+          seen.add(j.id);
+          out.push({ ...workableJob('workable_tr', j), location: `${(j.locations || []).filter((l) => l !== 'TELECOMMUTE').join(' · ')} · remote (Türkiye'den)` });
+        }
+      }
+      if (!out.length) throw new Error('Workable yanıt vermedi');
+      return out;
+    },
+  },
+  {
+    id: 'workable', label: 'Workable küresel (çok dilli, küçük şirketler)', cadence: 240, lang: 'en',
+    async fetch() {
+      const seen = new Set(), out = [];
+      for (const q of WORKABLE_Q.filter(Boolean)) {
+        for (const j of await workableSearch({ query: q }, 1).catch(() => [])) {
+          if (seen.has(j.id) || Date.now() - Date.parse(j.created) > 21 * 86400000) continue;
+          seen.add(j.id);
+          out.push(workableJob('workable', j));
+        }
+      }
+      return out;
+    },
+  },
+  {
+    // Torre: Latin Amerika ağırlıklı küçük şirketler; sadece "her yerden" uzaktan ve ücreti makul olanlar
+    id: 'torre', label: 'Torre (küçük şirketler, her yerden uzaktan)', cadence: 360, lang: 'en',
+    async fetch() {
+      const hits = new Map();
+      for (const role of TORRE_ROLES) {
+        const d = await fetch('https://search.torre.co/opportunities/_search?size=20&lang=en&aggregate=false', {
+          method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0' },
+          body: JSON.stringify({ and: [{ remote: { term: true } }, { 'skill/role': { text: role, proficiency: 'proficient' } }] }),
+        }).then((r) => r.ok ? r.json() : { results: [] }).catch(() => ({ results: [] }));
+        for (const r of d.results || []) {
+          const pay = r.compensation?.data;
+          if (r.place?.locationType !== 'remote_anywhere' || r.status !== 'open') continue;
+          if (pay?.maxHourlyUSD && r.compensation.visible && pay.maxHourlyUSD < 12) continue; // aday ~30 $/sa bekliyor
+          if (Date.now() - Date.parse(r.created) > 45 * 86400000) continue;
+          hits.set(r.id, r);
+        }
+      }
+      const out = [];
+      for (const r of [...hits.values()].slice(0, 40)) {
+        const d = await fetchJSON(`https://torre.ai/api/suite/opportunities/${r.id}`).catch(() => null);
+        const langs = (d?.languages || []).map((l) => `${l.language?.name} (${l.fluency})`).join(', ');
+        const details = (d?.details || []).map((x) => x.content).filter((x) => x && x !== '-').join('\n');
+        const pay = r.compensation?.visible && r.compensation.data ? `${r.compensation.data.minAmount}-${r.compensation.data.maxAmount} ${r.compensation.data.currency}/${r.compensation.data.periodicity}` : null;
+        out.push(job({ source: 'torre', external_id: r.id, url: `https://torre.ai/post/${r.id}-${r.slug}`, company: (r.organizations || [])[0]?.name, title: r.objective,
+          location: 'Remote (anywhere)', description: `${r.tagline || ''}\nLanguages: ${langs}\nSkills: ${(r.skills || []).map((s) => s.name).join(', ')}\n${details}`, salary: pay, posted_at: r.created, remote_hint: 'remote' }));
+      }
+      return out;
+    },
+  },
   {
     id: 'getonbrd', label: 'Get on Board (Latin Amerika, İspanyolca)', cadence: 240, lang: 'es',
     async fetch() {
@@ -275,16 +355,15 @@ export function detectATS(url) {
   return null;
 }
 
-// Uzaktan çalışmaya elverişli, doğrulanmış tohum listesi (30 Eylül 2026'da API'leri yanıt verdi)
+// Tohum listesi bilinçli olarak küçük: ünlü şirketler (binlerce başvuru alan) yerine ilanlardan öğrenilen küçük şirketler taranır.
+// Burada sadece Türkiye'den işe alan küçük/orta Türk şirketleri ve küçük bir Polonya ajansı var.
 export const SEED_BOARDS = [
-  ...['canonical', 'wikimedia', 'mozilla', 'grafanalabs', 'elastic', 'remotecom', 'vercel', 'gitlab', 'agency', 'cloudflare', 'duolingo', 'okx', 'bitpanda', 'getyourguide', 'n26'].map((s) => ['greenhouse', s]),
-  ...['posthog', 'supabase', 'n8n', 'linear', 'railway', 'zapier', 'mercor', 'lovable', 'replit', 'resend', 'clickhouse', 'sanity'].map((s) => ['ashby', s]),
-  ...['toptal', 'jobgether', 'binance', 'outreach'].map((s) => ['lever', s]),
-  ['recruitee', 'bunq'], ['recruitee', 'espeo'],
-  // Türkiye'den işe alım yapan Türk teknoloji şirketleri (30 Eylül 2026'da doğrulandı)
-  ['greenhouse', 'insider'], ['ashby', 'codeway'], ['lever', 'trendyol'], ['lever', 'dreamgames'], ['lever', 'iyzico'], ['ashby', 'agavegames'], ['greenhouse', 'udemy'],
+  ['recruitee', 'espeo'], ['ashby', 'codeway'], ['ashby', 'agavegames'], ['lever', 'iyzico'],
 ];
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 3;
+
+// Herkesin başvurduğu ünlü şirketler: panoları taranmaz, ilanları geri plana düşer
+export const FAMOUS = /\b(google|meta|amazon|apple|microsoft|netflix|binance|okx|coinbase|stripe|shopify|gitlab|github|vercel|cloudflare|canonical|mozilla|wikimedia|elastic|grafana|duolingo|getyourguide|n26|bitpanda|posthog|supabase|linear|railway|zapier|replit|lovable|clickhouse|sanity|toptal|mercor|outreach|udemy|trendyol|insider|tether|openai|anthropic|airbnb|uber|spotify|atlassian|canva|figma|notion|datadog|mongodb|hashicorp|automattic|invisible|meridial|micro1|dataannotation|outlier|scale ai|turing|imerit|alignerr|labelbox|remote\.com|deel|oyster)\b/i;
 
 const REMOTEISH = /remote|anywhere|worldwide|global|distributed|home ?office|telework|teletrabajo|remoto|zdaln|удал[её]н|віддал|uzaktan|emea|europe|türk|turkey|istanbul/i;
 

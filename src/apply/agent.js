@@ -4,6 +4,7 @@ import { act, snapshot, liveHandoff } from './browser.js';
 import { HONESTY_RULES, CORE } from '../profile.js';
 import { clip, now, sleep, hostOf, sha256 } from '../lib/util.js';
 import { log, addAction } from '../lib/db.js';
+import { alertUser } from '../mail.js';
 
 const SUCCESS_RE = /(thank(s| you) for (your )?(applying|application|submitting|interest)|application (has been |was )?(received|submitted|sent|complete)|we('ve| have) received your application|successfully (submitted|applied)|your application is (in|complete)|başvurunuz (alındı|iletildi|tamamlandı)|candidatura (enviada|recebida)|solicitud (enviada|recibida)|bewerbung (wurde )?(erfolgreich )?(versendet|übermittelt|eingegangen)|danke für deine bewerbung|merci pour votre candidature|отклик отправлен|спасибо за отклик|dziękujemy za (aplikację|zgłoszenie))/i;
 const CLOSED_RE = /(no longer (accepting|available)|position (has been )?(filled|closed)|job (is )?(closed|expired|not found)|this job has expired|ilan yayından kaldırıldı|page not found|404)/i;
@@ -101,11 +102,15 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
         continue;
       }
       if (d.status === 'captcha') {
-        const wait = userActive && settings.handoff_wait_minutes > 0 && handoffs < 1 ? settings.handoff_wait_minutes * 60000 : 0;
+        // Panel açıksa ya da Türkiye saatiyle gündüzse (09-24) canlı bağlantıyı Gmail'e yollayıp bekle; gece beklemez
+        const trHour = (new Date().getUTCHours() + 3) % 24;
+        const wait = (userActive || trHour >= 9) && settings.handoff_wait_minutes > 0 && handoffs < 1 ? settings.handoff_wait_minutes * 60000 : 0;
         const h = await liveHandoff(page, { instructions: `Özgür, ${job.company} başvurusunda robot doğrulaması çıktı. Lütfen doğrulamayı tamamla ve "Done"a bas; gerisini ben yaparım.`, waitMs: wait }).catch(() => null);
         if (h?.url) {
           await addAction(env, { kind: 'handoff', title: `${job.company}: robot doğrulaması (canlı devral)`, detail: wait ? `${Math.round(wait / 60000)} dk bekliyorum. Bağlantıyı açıp doğrulamayı yap, "Done"a bas.` : 'Canlı oturum açık; bağlantı 1 saat geçerli. İstersen panelden "Canlı devral" ile yeniden başlat.', url: h.url, app_id: app.id, job_id: job.id, priority: 1, ttlMs: 3600000, dedupe: 'handoff_' + app.id });
           await env.DB.prepare('UPDATE applications SET live_url=? WHERE id=?').bind(h.url, app.id).run();
+          if (wait && !userActive) await alertUser(env, settings, { key: 'handoff_' + app.id, appId: app.id, url: h.url, subject: `Robot doğrulaması: ${job.company} (${Math.round(wait / 60000)} dk bekliyorum)`,
+            text: `${job.company} — ${job.title} başvurusunda form dolduruldu ama site "robot değilim" doğrulaması istiyor. Bu doğrulamayı yapay zekâ geçemez.\n\nAşağıdaki bağlantıyı telefondan aç, doğrulamayı yap ve "Done"a bas; ajan kaldığı yerden gönderir. ${Math.round(wait / 60000)} dakika bekliyorum, sonra başvuru "Sana kalanlar"a düşer.` }).catch(() => {});
         }
         if (h?.done) {
           handoffs++;

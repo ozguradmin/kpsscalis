@@ -3,6 +3,7 @@ import { now, DAY, clip, safeJSON, hostOf } from './lib/util.js';
 import { log, allRows } from './lib/db.js';
 import { llm, jev } from './lib/llm.js';
 import { CORE } from './profile.js';
+import { FAMOUS } from './sources/index.js';
 
 export const PROFILE_BRIEF = `Candidate: Özgür Güler, lives in Mardin, Türkiye (Turkish citizen), remote only. Turkish native; English intermediate (good in writing, prefers async/written communication; avoids English voice/video calls and face-video recordings). ~3 years building software with AI-assisted workflows: TypeScript, JavaScript, React, Next.js, Node.js, Hono, Capacitor, SQL/D1, Cloudflare Workers, Firebase, REST APIs. Shipped 4 mobile apps (App Store/Google Play), multilingual AI content automation platform, speech-to-text tool, LLM evaluation toolkit. Grew social media accounts to 1M+ followers (content, growth). Associate degree in Oral and Dental Health (2026). Good fits: frontend/fullstack/mobile web dev, AI training/evaluation (esp. Turkish language, coding, dental/health), content/localization in Turkish, QA/testing, automation, social media/content growth. Expected ~30 USD/hour. Starts immediately.`;
 
@@ -100,7 +101,9 @@ const ANALYSIS_SYS = `You are a senior recruiter working FOR the candidate. Anal
 {"company":"real company name","title":"clean title","language":"ISO code of the listing","apply_method":"ats_form|email|job_board_account|external_site|unknown","apply_email":"address if applications go by email else null","needs_account":true|false,
 "turkey_ok":true|false|null,"location_rule":"short quote/paraphrase of the location/residency rule","languages_required":["iso"],"english_level_needed":"none|basic|intermediate|fluent|native",
 "requires_video":true|false,"requires_calls":"none|few|frequent","contract":"contractor|employee|freelance|unknown","seniority":"junior|mid|senior|lead|any","salary":"text or null",
-"must_haves":["..."],"candidate_has":["..."],"candidate_missing":["..."],"fit":0-100,"decision":"apply|review|reject","why":"2 sentences in Turkish","pitch":"1-2 sentences in English: the most relevant true angle from the candidate's real background","red_flags":["..."]}
+"must_haves":["..."],"candidate_has":["..."],"candidate_missing":["..."],"fit":0-100,"decision":"apply|review|reject","why":"2 sentences in Turkish","pitch":"1-2 sentences in English: the most relevant true angle from the candidate's real background","red_flags":["..."],
+"company_scale":"tiny|small|mid|large|famous","hire_chance":0-100}
+company_scale: tiny (<20 people, unknown), small (<100), mid (<1000), large, famous (household tech brand that gets thousands of applicants per role). hire_chance: realistic chance this candidate gets an interview, considering competition (famous brands and big AI-training marketplaces get flooded; small unknown companies, Turkish-speaking roles and non-English-market companies hiring worldwide are much better odds).
 Decide "apply" only if the candidate can realistically be hired from Türkiye, meets most must-haves, and no fluent language other than English/Turkish is needed. Prefer roles where work is written/async and deliverables are digital. A requirement for recorded face-video or frequent live English calls lowers fit (candidate avoids them) but does not auto-reject AI-training roles with optional video.`;
 
 async function analysisStage(env, settings, jobs) {
@@ -123,7 +126,13 @@ async function analysisStage(env, settings, jobs) {
       const ageDays = j.posted_at ? (now() - j.posted_at) / DAY : 7;
       const fresh = Math.max(0.5, 1.2 - ageDays / 30);
       const async = settings.prefer_async_roles && (a.requires_calls === 'frequent' || a.requires_video) ? 0.8 : 1;
-      const priority = +(fit * rw * sw * fresh * async).toFixed(2);
+      // Rekabet: ünlü şirketler geri, küçük/bilinmeyen ve Türkiye'ye açık olanlar öne
+      const famous = FAMOUS.test(`${a.company || j.company}`) ? 'famous' : a.company_scale;
+      const scale = { tiny: 1.35, small: 1.3, mid: 1, large: 0.7, famous: 0.45 }[famous] ?? 1;
+      const chance = 0.6 + Math.max(0, Math.min(100, Number(a.hire_chance) || 40)) / 125;
+      const local = j.source === 'workable_tr' || a.turkey_ok === true && /türk|turkey|turkish|istanbul|ankara|izmir/i.test(`${j.location} ${a.location_rule || ''}`) ? 1.25 : 1;
+      const priority = +(fit * rw * sw * fresh * async * scale * chance * local).toFixed(2);
+      if (famous === 'famous' && status === 'approved') { status = 'review'; reason = `${reason} (ünlü şirket: rekabet çok yüksek, otomatik başvuru yerine incelemede)`; }
       if (status === 'approved') approved++; else if (status === 'review') review++; else rej++;
       await setJob(env, j.id, { stage: 4, status, decision: a.decision || null, reason: clip(reason, 400), fit, priority, analysis: a,
         company: a.company && a.company.length < 80 ? a.company : j.company, langs_required: a.languages_required || null });

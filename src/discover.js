@@ -1,5 +1,5 @@
 // Keşif: kaynakları sırayla tarar, yeni ilanları kaydeder, ilanlardaki ATS panolarını öğrenip onları da tarar.
-import { SOURCES, fetchBoard, detectATS, SEED_BOARDS } from './sources/index.js';
+import { SOURCES, fetchBoard, detectATS, SEED_BOARDS, FAMOUS } from './sources/index.js';
 import { now, sha256, normKey, MIN, safeJSON, uid } from './lib/util.js';
 import { log, allRows } from './lib/db.js';
 
@@ -49,6 +49,7 @@ export async function learnBoards(env, jobs, from) {
       if (a) found.set(`${a.ats}:${a.slug}`, { ...a, company: j.company });
     }
   }
+  for (const [id, a] of found) if (FAMOUS.test(`${a.company} ${a.slug}`)) found.delete(id);
   if (!found.size) return 0;
   const stmts = [...found.entries()].map(([id, a]) => env.DB.prepare('INSERT OR IGNORE INTO boards (id, ats, slug, company, added_at, added_from) VALUES (?,?,?,?,?,?)').bind(id, a.ats, a.slug, a.company || a.slug, now(), from));
   const res = await env.DB.batch(stmts);
@@ -57,7 +58,14 @@ export async function learnBoards(env, jobs, from) {
 
 export async function seedBoards(env) {
   const stmts = SEED_BOARDS.map(([ats, slug]) => env.DB.prepare('INSERT OR IGNORE INTO boards (id, ats, slug, company, added_at, added_from) VALUES (?,?,?,?,?,?)').bind(`${ats}:${slug}`, ats, slug, slug, now(), 'seed'));
+  const keep = SEED_BOARDS.map(([a, s]) => `${a}:${s}`);
+  // Listeden çıkan tohum panoları (ünlü şirketler) artık taranmaz
+  stmts.push(env.DB.prepare(`UPDATE boards SET status='famous' WHERE added_from='seed' AND status='active' AND id NOT IN (${keep.map(() => '?').join(',')})`).bind(...keep));
   await env.DB.batch(stmts);
+  // Öğrenilmiş panolardan ünlü olanlar
+  const learned = await allRows(env, "SELECT id, company, slug FROM boards WHERE status='active'");
+  const famous = learned.filter((b) => FAMOUS.test(`${b.company} ${b.slug}`)).map((b) => env.DB.prepare("UPDATE boards SET status='famous' WHERE id=?").bind(b.id));
+  if (famous.length) await env.DB.batch(famous);
 }
 
 async function sourceState(env) {
