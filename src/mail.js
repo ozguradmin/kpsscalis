@@ -3,15 +3,18 @@ import { now, uid, clip, htmlToText, hostOf, normKey, sleep, DAY, dayKey } from 
 import { log, allRows, addAction, bumpUsage } from './lib/db.js';
 import { jev, llm } from './lib/llm.js';
 
-const CODE_RE = /(?:code|kod|código|codice|Code|verification|doğrulama|security|pin|otp)[^0-9]{0,60}?\b(\d{4,8})\b|\b(\d{6})\b(?=[^0-9]{0,40}(?:is your|to verify|verification|code|kod))/i;
-const LINK_RE = /https?:\/\/[^\s"'<>)\]]+/g;
+const isYear = (x) => /^(19|20)\d{2}$/.test(x);
+const codeLike = (x) => /^[A-Za-z0-9]{4,10}$/.test(x) && /\d/.test(x) && !isYear(x) && !/^\d{7,}$/.test(x);
 
-export function extractCode(text) {
-  const t = String(text || '');
-  const m = t.match(CODE_RE);
-  if (m) return m[1] || m[2];
-  const six = t.match(/(?:^|\s)(\d{6})(?:\s|$)/);
-  return six ? six[1] : null;
+// Doğrulama kodu: önce HTML'de öne çıkarılmış kod (h1/h2/strong/b/td/span), sonra metindeki "code: X" kalıbı, sonra tek başına 4-8 haneli sayı
+export function extractCode(text, html = '') {
+  const h = String(html || '');
+  for (const m of h.matchAll(/<(h1|h2|h3|strong|b|td|span|p|div)[^>]*>\s*([A-Za-z0-9]{4,10})\s*<\/\1>/gi)) if (codeLike(m[2])) return m[2];
+  const t = `${text || ''}\n${h.replace(/<[^>]+>/g, ' ')}`;
+  const near = t.match(/(?:code|kod|código|codice|pin|otp|passcode)\s*(?:is|:|-|=)?\s*([A-Za-z0-9]{4,10})\b/i);
+  if (near && codeLike(near[1])) return near[1];
+  for (const m of t.matchAll(/(?:^|[\s:>])(\d{4,8})(?=[\s.<]|$)/g)) if (!isYear(m[1])) return m[1];
+  return null;
 }
 
 export function extractVerifyLink(text, html) {
@@ -29,7 +32,7 @@ export async function waitForMail(env, { since, hint = '', want = 'code', timeou
     for (const m of rows.results || []) {
       const hay = `${m.from_address} ${m.subject} ${m.text_body}`.toLowerCase();
       if (h && !h.split(/\s+/).some((w) => w.length > 2 && hay.includes(w))) continue;
-      if (want === 'code') { const c = extractCode(`${m.subject}\n${m.text_body || htmlToText(m.html_body)}`); if (c) return c; }
+      if (want === 'code') { const c = extractCode(`${m.subject}\n${m.text_body || ''}`, m.html_body); if (c) return c; }
       else { const l = extractVerifyLink(m.text_body, m.html_body); if (l) return l; }
     }
     await sleep(8000);
@@ -77,7 +80,7 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
     const hay = normKey(`${m.from_name} ${m.subject} ${body.slice(0, 1500)} ${dom}`);
     let app = apps.find((a) => { const c = normKey(a.company); return c.length > 2 && hay.includes(c); })
       || apps.find((a) => { const h = hostOf(a.apply_url || a.url).split('.').slice(-2, -1)[0]; return h && h.length > 3 && dom.includes(h); });
-    const code = category === 'verification' ? extractCode(`${m.subject}\n${body}`) : null;
+    const code = category === 'verification' ? extractCode(`${m.subject}\n${m.text_body || ''}`, m.html_body) : null;
     const link = category === 'verification' ? extractVerifyLink(m.text_body, m.html_body) : null;
     let summary = null, draft = null;
     if (['interview', 'assessment', 'recruiter', 'offer', 'rejection'].includes(category)) {
