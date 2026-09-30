@@ -281,7 +281,10 @@ export const SEED_BOARDS = [
   ...['posthog', 'supabase', 'n8n', 'linear', 'railway', 'zapier', 'mercor', 'lovable', 'replit', 'resend', 'clickhouse', 'sanity'].map((s) => ['ashby', s]),
   ...['toptal', 'jobgether', 'binance', 'outreach'].map((s) => ['lever', s]),
   ['recruitee', 'bunq'], ['recruitee', 'espeo'],
+  // Türkiye'den işe alım yapan Türk teknoloji şirketleri (30 Eylül 2026'da doğrulandı)
+  ['greenhouse', 'insider'], ['ashby', 'codeway'], ['lever', 'trendyol'], ['lever', 'dreamgames'], ['lever', 'iyzico'], ['ashby', 'agavegames'], ['greenhouse', 'udemy'],
 ];
+export const SEED_VERSION = 2;
 
 const REMOTEISH = /remote|anywhere|worldwide|global|distributed|home ?office|telework|teletrabajo|remoto|zdaln|удал[её]н|віддал|uzaktan|emea|europe|türk|turkey|istanbul/i;
 

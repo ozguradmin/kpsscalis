@@ -9,7 +9,7 @@ import { mailTick, sendMail, dailyDigest } from './mail.js';
 import { dispatch, recoverStuck, createApplication, ApplyWorkflow } from './apply/index.js';
 import { chat, dailyReview, stateSummary, validateSetting, runTool } from './brain.js';
 import { runModelEval } from './evals.js';
-import { SOURCES } from './sources/index.js';
+import { SOURCES, SEED_VERSION } from './sources/index.js';
 import { DEFAULT_MODELS } from './lib/llm.js';
 
 export { ApplyWorkflow };
@@ -41,7 +41,7 @@ async function tick(env, ctx, { force = null } = {}) {
   try {
     const settings = await getSettings(env);
     await setSetting(env, 'last_tick', t0, 'cron');
-    if (!settings.boards_seeded) { await seedBoards(env); await setSetting(env, 'boards_seeded', true); }
+    if (settings.boards_seed_version !== SEED_VERSION) { await seedBoards(env); await setSetting(env, 'boards_seed_version', SEED_VERSION); }
     const step = async (name, fn) => { try { out[name] = await fn(); } catch (e) { out[name] = { error: e.message }; await log(env, 'tick', `${name} hatası: ${e.message}`, { level: 'error' }); } };
     await step('mail', () => mailTick(env, settings));
     if (!settings.paused) {
