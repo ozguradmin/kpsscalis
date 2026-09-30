@@ -1,5 +1,5 @@
 // Beyin: panelden sohbet (araç kullanan ajan), günlük öz değerlendirme ve kendini ayarlama.
-import { llm } from './lib/llm.js';
+import { llm, jev } from './lib/llm.js';
 import { getSettings, setSetting, log, allRows, oneRow, DEFAULTS, lease } from './lib/db.js';
 import { now, uid, clip, DAY, dayKey, trTime, safeJSON } from './lib/util.js';
 import { SOURCES } from './sources/index.js';
@@ -29,10 +29,10 @@ export async function stateSummary(env) {
 
 // ---------- araçlar ----------
 const SAFE_SETTINGS = {
-  paused: 'bool', auto_apply: 'bool', daily_apply_limit: [1, 25], min_fit_apply: [40, 95], min_fit_review: [20, 90], daily_ai_budget_usd: [0.5, 20],
+  paused: 'bool', auto_apply: 'bool', daily_apply_limit: [3, 25], min_fit_apply: [55, 90], min_fit_review: [35, 75], daily_ai_budget_usd: [0.5, 20],
   daily_browser_minutes: [5, 60], monthly_browser_hours: [5, 30], recording_days: [1, 7], handoff_wait_minutes: [0, 30], auto_reply_mail: 'bool', digest_email: 'bool',
   prefer_async_roles: 'bool', source_weights: 'obj', role_weights: 'obj', blocked_companies: 'arr', blocked_domains: 'arr', models: 'obj', prompt_addenda: 'obj',
-  max_agent_steps: [10, 45], max_per_company_30d: [1, 6], sources_disabled: 'arr', jev_enabled: 'bool', notify_email: 'str', public_url: 'str',
+  max_agent_steps: [20, 45], max_per_company_30d: [1, 6], sources_disabled: 'arr', jev_enabled: 'bool', notify_email: 'str', public_url: 'str',
 };
 
 export function validateSetting(key, value) {
@@ -213,7 +213,7 @@ export async function dailyReview(env) {
 "settings":[{"key":"daily_apply_limit|min_fit_apply|min_fit_review|max_agent_steps|handoff_wait_minutes","value":number,"why":"..."}],
 "source_weights":{"source_id":0.0-2.0},"role_weights":{"role":0.3-1.5},"blocked_domains_add":["domain"],
 "prompt_addenda":{"triage":"full replacement text or null","analysis":"...","letter":"...","agent":"..."}}
-Only change things the data supports; keep each prompt_addenda under 700 chars, written as short imperative rules in English. Use null to keep an addendum unchanged.` },
+Only change things the data supports; keep each prompt_addenda under 700 chars, written as short imperative rules in English. Use null to keep an addendum unchanged.\nHARD LIMITS: never lower max_agent_steps below 20; never add agent rules that make it give up on normal forms (field counts, 'unusual fields', unknown optional fields) — agent rules must teach HOW to complete specific sites/fields better; never weaken honesty rules; with fewer than 10 applications of data, prefer small changes.` },
     { role: 'user', content: JSON.stringify(data).slice(0, 60000) }] });
   const r = o.json || {};
   const applied = [];
@@ -236,7 +236,21 @@ Only change things the data supports; keep each prompt_addenda under 700 chars, 
   }
   if (r.prompt_addenda && typeof r.prompt_addenda === 'object') {
     const pa = { ...(settings.prompt_addenda || {}) };
-    for (const k of ['triage', 'analysis', 'letter', 'agent']) if (typeof r.prompt_addenda[k] === 'string' && r.prompt_addenda[k].trim()) pa[k] = clip(r.prompt_addenda[k], 900);
+    for (const k of ['triage', 'analysis', 'letter', 'agent']) {
+      const text = typeof r.prompt_addenda[k] === 'string' ? r.prompt_addenda[k].trim() : '';
+      if (!text) continue;
+      // Bariyer: yeni kural sistemi körleştirir ya da dürüstlüğü zayıflatırsa uygulanmaz
+      let ok = true;
+      try {
+        const g = await jev(env, { component: k, rule_text: text, purpose: 'Autonomous agent that finds remote jobs for one candidate and completes online application forms truthfully.' }, {
+          blocks: { type: 'noul', instructions: 'Would following `rule_text` likely make the agent skip or abandon ordinary, legitimate job applications or ordinary forms it could complete (e.g. stop because a form has many fields, stop on any unknown field, reject broad categories of fitting jobs)?' },
+          dishonest: { type: 'noul', instructions: 'Does `rule_text` encourage giving false, exaggerated or unverifiable information about the candidate?' },
+        });
+        ok = g.blocks.noul < 0.4 && g.dishonest.noul < 0.3;
+        if (!ok) await log(env, 'brain', `Öz değerlendirme kuralı reddedildi (${k}): ${clip(text, 300)}`, { level: 'warn', data: { blocks: g.blocks.noul, dishonest: g.dishonest.noul } });
+      } catch (e) { ok = false; }
+      if (ok) pa[k] = clip(text, 900);
+    }
     await setSetting(env, 'prompt_addenda', pa, 'self-review'); applied.push('prompt_addenda');
   }
   for (const l of (r.lessons || []).slice(0, 8)) {
