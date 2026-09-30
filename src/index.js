@@ -145,7 +145,9 @@ async function api(request, env, ctx) {
   if (path === '/logout') return json({ ok: true }, 200, { 'set-cookie': logoutCookie() });
   const body = method === 'POST' ? await request.json().catch(() => ({})) : {};
   // Çevrimiçi izi (canlı devralma için) ve panel adresi
-  ctx.waitUntil((async () => { await setSetting(env, 'last_seen', now(), 'panel'); const s = await getSettings(env); if (s.public_url !== url.origin) await setSetting(env, 'public_url', url.origin, 'panel'); })());
+  // Sadece gerçek tarayıcıdan gelen istekler "Özgür panelde" sayılır (komut satırı izlemeleri canlı devralmayı boşuna bekletmesin)
+  const human = /Mozilla\//.test(request.headers.get('user-agent') || '');
+  ctx.waitUntil((async () => { if (human) await setSetting(env, 'last_seen', now(), 'panel'); const s = await getSettings(env); if (s.public_url !== url.origin) await setSetting(env, 'public_url', url.origin, 'panel'); })());
   let m;
 
   if ((m = route(method, path, ['GET', '/overview']))) {
