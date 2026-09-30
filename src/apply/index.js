@@ -9,6 +9,8 @@ import { profileContext, cvBase64, CORE } from '../profile.js';
 import { waitForMail, sendMail, alertUser } from '../mail.js';
 import { seal, unseal, strongPassword } from '../lib/auth.js';
 import { detectATS } from '../sources/index.js';
+import { loadSessions, saveSessions, regDomain } from '../sessions.js';
+const regDomainOf = (u) => { try { return regDomain(new URL(u).hostname); } catch (e) { return ''; } };
 
 async function getJob(env, id) { return env.DB.prepare('SELECT * FROM jobs WHERE id=?').bind(id).first(); }
 async function getApp(env, id) { return env.DB.prepare('SELECT * FROM applications WHERE id=?').bind(id).first(); }
@@ -109,10 +111,15 @@ export async function submit(env, appId, { userActive = false } = {}) {
     const o = await openBrowser(env, { recording: true });
     browser = o.browser;
     await rec.start(o.sessionId);
+    ctx.saveSession = (pg) => saveSessions(env, pg || o.page, { note: `${job.company} başvurusu` });
+    const nc = await loadSessions(env, o.page).catch(() => 0);
+    if (nc) rec.note(`Kayıtlı oturumlar yüklendi (${nc} çerez)`);
     await o.page.goto(startUrl(job), { waitUntil: 'domcontentloaded', timeout: 45000 });
     try { await o.page.waitForNetworkIdle({ idleTime: 600, timeout: 6000 }); } catch (e) { /* devam */ }
     await rec.shot(o.page, 'Başvuru sayfası açıldı');
     result = await runAgent(env, settings, { page: o.page, job, app: { ...app, id: appId }, letter: app.letter, rec, ctx, account, maxSteps: settings.max_agent_steps, userActive });
+    // Başarılı başvurudan sonra bu sitenin oturumunu sakla (hesap açıldıysa bir dahaki sefere giriş gerekmesin)
+    if (result.status === 'submitted') await saveSessions(env, o.page, { only: [regDomainOf(o.page.url())], note: `${job.company} başvurusu` }).catch(() => {});
     // kalıcı kanıt: son ekran
     try {
       const shot = await o.page.screenshot({ type: 'jpeg', quality: 70, fullPage: true });
@@ -166,11 +173,11 @@ async function finalize(env, settings, appId, job, r, recId) {
   await env.DB.prepare('UPDATE jobs SET status=?, reason=CASE WHEN ? IS NOT NULL THEN ? ELSE reason END WHERE id=?').bind(jobStatus, status !== 'submitted' ? r.reason : null, clip(r.reason || '', 300), job.id).run();
   if (status === 'submitted') await bumpUsage(env, 'applications', 1);
   if (status === 'needs_human') await addAction(env, { kind: 'needs_human', title: `${job.company} — ${job.title}: elle tamamlanabilir`, detail: `${r.reason}. Ön yazı ve cevaplar hazır. Panelde başvuruyu açıp "Canlı devral"a bas: ajan formu baştan doldurur ve robot doğrulaması için seni bekler (bağlantı Gmail'ine de gelir). Ya da bağlantıdan kendin gönderebilirsin.`, url: startUrl(job), job_id: job.id, app_id: appId, priority: 2, dedupe: 'nh_' + appId });
-  const handoffMailed = status === 'needs_human' && await env.DB.prepare("SELECT 1 FROM events WHERE type='alert' AND ref=?").bind('handoff_' + appId).first();
+  const handoffMailed = status === 'needs_human' && await env.DB.prepare("SELECT 1 FROM events WHERE type='alert' AND ref LIKE ? AND ts > ?").bind('handoff_' + appId + '%', now() - 3600000).first();
   if (status === 'needs_human' && !handoffMailed) {
     const st = await getSettings(env);
-    await alertUser(env, st, { key: 'nh_' + job.id, appId, url: startUrl(job), subject: `2 dakikalık iş: ${job.company} başvurusu seni bekliyor`,
-      text: `${job.company} — ${job.title}\nNeden durdu: ${r.reason}\n\nForm büyük ölçüde dolduruldu; ön yazı ve cevaplar panelde hazır. Panelden "Canlı devral"a basarsan ajan formu yeniden doldurur, sen sadece robot doğrulamasını yaparsın. Ya da bağlantıdan kendin gönderebilirsin.` });
+    await alertUser(env, st, { key: 'nh_' + appId, appId, url: startUrl(job), restart: true, subject: `2 dakikalık iş: ${job.company} başvurusu seni bekliyor`,
+      text: `${job.company} — ${job.title}\nNeden durdu: ${r.reason}\n\nForm büyük ölçüde dolduruldu; ön yazı ve cevaplar panelde hazır. Aşağıdaki "sonra şu bağlantıya bas" linkine bastığında ajan formu yeniden doldurur ve doğrulamada seni bekler; sen sadece doğrulamayı geçersin.` });
   }
   // öğrenme: bu site/ATS için not
   const scope = job.ats || hostOf(startUrl(job));
@@ -208,7 +215,7 @@ export class ApplyWorkflow extends WorkflowEntrypoint {
     const { appId, userActive = false } = event.payload || {};
     await step.do('prepare', { retries: { limit: 2, delay: '30 seconds', backoff: 'linear' }, timeout: '6 minutes' }, () => prepare(this.env, appId));
     // Gönderim tekrar denenmez (çift başvuru olmasın)
-    const res = await step.do('submit', { retries: { limit: 0, delay: '1 minute' }, timeout: '25 minutes' }, async () => {
+    const res = await step.do('submit', { retries: { limit: 0, delay: '1 minute' }, timeout: '55 minutes' }, async () => {
       try { return await submit(this.env, appId, { userActive }); }
       catch (e) { await log(this.env, 'apply', `Gönderim adımı çöktü: ${clip(e.stack || e.message, 800)}`, { ref: appId, level: 'error' }); return { status: 'failed', reason: e.message }; }
     });
@@ -264,7 +271,7 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
 
 // Takılı kalan başvuruları kurtar
 export async function recoverStuck(env) {
-  const stuck = await allRows(env, "SELECT id, job_id FROM applications WHERE status IN ('applying','prepared') AND updated_at < ?", now() - 40 * MIN);
+  const stuck = await allRows(env, "SELECT id, job_id FROM applications WHERE status IN ('applying','prepared') AND updated_at < ?", now() - 70 * MIN);
   for (const a of stuck) {
     // Kayıttaki son adımlara bak: gönderim/onay görüldüyse ASLA tekrar başvurma
     let sent = false;

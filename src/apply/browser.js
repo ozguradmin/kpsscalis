@@ -57,7 +57,7 @@ export const SNAPSHOT_JS = `(() => {
   document.querySelectorAll('iframe').forEach((f) => { const s = f.src || ''; if (/recaptcha|hcaptcha|turnstile|challenges\\.cloudflare|arkoselabs|funcaptcha/i.test(s)) { const r = f.getBoundingClientRect(); if (r.width > 60 && r.height > 60) out.captcha = true; } else if (s && vis(f)) out.iframes.push(s.slice(0, 300)); });
   const ts = document.querySelector('input[name="cf-turnstile-response"]');
   if (ts && !ts.value) out.captcha = true;
-  if (document.querySelector('.g-recaptcha:not([data-size=invisible]), .h-captcha:not([data-size=invisible]), .cf-turnstile, [id^=cf-chl-widget], iframe[title*="Cloudflare security"], iframe[title*="hCaptcha" i][src*="checkbox"]') || /verify you are human|i'm not a robot|robot değilim|security check/i.test(document.body.innerText.slice(0, 5000))) out.captcha = true;
+  if (document.querySelector('.g-recaptcha:not([data-size=invisible]), .h-captcha:not([data-size=invisible]), .cf-turnstile, [id^=cf-chl-widget], #amzn-captcha-verify-button, [class*=amzn-captcha], iframe[title*="Cloudflare security"], iframe[title*="hCaptcha" i][src*="checkbox"]') || /verify you are human|confirm you are (a )?human|i'm not a robot|robot değilim|security check|human verification/i.test(document.body.innerText.slice(0, 5000))) out.captcha = true;
   const main = document.querySelector('main, [role=main], form, #content, .content') || document.body;
   out.text = txt(main.innerText, 3500);
   out.fields = out.fields.slice(0, 90); out.buttons = out.buttons.slice(0, 40); out.links = out.links.slice(0, 25); out.errors = out.errors.slice(0, 10);

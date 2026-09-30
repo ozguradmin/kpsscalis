@@ -2,6 +2,7 @@
 import { now, uid, clip, htmlToText, hostOf, normKey, sleep, DAY, dayKey } from './lib/util.js';
 import { log, allRows, addAction, bumpUsage } from './lib/db.js';
 import { jev, llm } from './lib/llm.js';
+import { signLink } from './lib/auth.js';
 
 const LINK_RE = /https?:\/\/[^\s"'<>)\]]+/g;
 const isYear = (x) => /^(19|20)\d{2}$/.test(x);
@@ -156,7 +157,7 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
 }
 
 // Özgür'e anında bildirim (Gmail). Aynı olay için bir kez; günde en fazla 15.
-export async function alertUser(env, settings, { key, subject, text, url = null, appId = null }) {
+export async function alertUser(env, settings, { key, subject, text, url = null, appId = null, restart = false }) {
   const to = settings.alert_email;
   if (!to) return false;
   const dup = await env.DB.prepare("SELECT 1 FROM events WHERE type='alert' AND ref=? LIMIT 1").bind(key).first();
@@ -164,7 +165,8 @@ export async function alertUser(env, settings, { key, subject, text, url = null,
   const today = await env.DB.prepare("SELECT COUNT(*) n FROM events WHERE type='alert' AND ts>?").bind(now() - DAY).first();
   if ((today?.n || 0) >= 15) return false;
   const panel = settings.public_url || 'https://ozgur-is-ajani.ozgurglr256.workers.dev';
-  const body = `${text}\n\n${url ? `Bağlantı: ${url}\n` : ''}Panel: ${panel}/${appId ? `#/basvuru/${appId}` : ''}\n\n— İş ajanı (otomatik bildirim)`;
+  const again = restart && appId ? `\nŞimdi yapamıyorsan, sonra şu bağlantıya bas: ajan başvuruyu baştan doldurur ve robot doğrulamasında seni bekler (7 gün geçerli):\n${panel}/api/h/${encodeURIComponent(await signLink(env, { a: appId, exp: now() + 7 * DAY }))}\n` : '';
+  const body = `${text}\n\n${url ? `Canlı tarayıcı: ${url}\n` : ''}${again}\nPanel: ${panel}/${appId ? `#/basvuru/${appId}` : ''}\n\n— İş ajanı (otomatik bildirim)`;
   try {
     const res = await env.EMAIL.send({ to, from: { email: settings.from_email || 'destek@ozgurguler.tech', name: 'İş Ajanı' }, subject, text: body });
     await log(env, 'alert', `Bildirim gönderimi kabul edildi → ${to}: ${clip(subject, 100)}`, { ref: key, data: { messageId: res?.messageId, appId } });

@@ -96,7 +96,85 @@ const workableJob = (source, j) => job({ source, external_id: j.id, url: j.url, 
   description: htmlToText([j.description, j.requirementsSection, j.benefitsSection].join('\n')), tags: [j.department, j.employmentType],
   posted_at: j.created, lang: /^[a-z]{2}$/.test(j.language || '') ? j.language : undefined, remote_hint: 'remote' });
 
+
+// ---------- Y Combinator girişimleri + şirketlerin kendi siteleri ----------
+const YC_PAGE = (h) => { const m = String(h).match(/data-page="([^"]+)"/); if (!m) return null; try { return JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')); } catch (e) { return null; } };
+const HIRING_MAIL = /\b((?:jobs|careers|career|hiring|join|talent|recruiting|recruitment|work|hr|apply|kariyer|ik)@[a-z0-9.-]+\.[a-z]{2,})\b/i;
+const CAREER_LINK = /href="([^"]*(?:careers?|jobs|join-us|joinus|work-with-us|we-are-hiring|hiring|kariyer)[^"]*)"/i;
+
+// Şirketin kendi sitesinden kariyer sayfasını, ATS panosunu ve işe alım e-postasını bul
+export async function scanCompanySite(website) {
+  const out = { ats: [], email: null, careers: null };
+  if (!website) return out;
+  let base; try { base = new URL(/^https?:/.test(website) ? website : `https://${website}`); } catch (e) { return out; }
+  const pages = [base.href];
+  try {
+    const home = await fetchText(base.href, {}, 12000);
+    const cl = home.match(CAREER_LINK);
+    if (cl) { try { const u = new URL(cl[1], base); if (u.hostname.endsWith(base.hostname.replace(/^www\./, '')) || detectATS(u.href)) pages.push(u.href); } catch (e) { /* */ } }
+    for (const h of [home]) scanHtml(h);
+    if (pages[1]) { out.careers = pages[1]; if (!detectATS(pages[1])) scanHtml(await fetchText(pages[1], {}, 12000).catch(() => '')); }
+  } catch (e) { /* site açılmadı */ }
+  return out;
+  function scanHtml(h) {
+    for (const m of String(h).matchAll(/https?:\/\/[^\s"'<>]+/g)) { const a = detectATS(m[0]); if (a && !out.ats.some((x) => x.slug === a.slug && x.ats === a.ats)) out.ats.push(a); }
+    const e = String(h).match(HIRING_MAIL); if (e && !out.email) out.email = e[1].toLowerCase();
+  }
+}
+
 export const SOURCES = [
+  {
+    // YC'nin herkese açık girişim listesi: küçük, uzaktan çalışan, işe alım yapan şirketler. Her turda 20 şirket; ilanları + kendi siteleri
+    id: 'yc', label: 'Y Combinator girişimleri (küçük ekip, uzaktan)', cadence: 60, lang: 'en',
+    async fetch(env) {
+      let list = null;
+      const c = await env.R2.get('cache/yc_hiring.json');
+      if (c && Date.now() - new Date(c.uploaded).getTime() < 86400000) list = await c.json();
+      else {
+        const all = await fetchJSON('https://yc-oss.github.io/api/companies/hiring.json', {}, 45000);
+        list = all.filter((x) => x.status === 'Active' && (x.team_size || 0) <= 80 && (x.regions || []).some((r) => /remote/i.test(r)))
+          .map((x) => ({ slug: x.slug, name: x.name, website: x.website, one: x.one_liner, size: x.team_size, batch: x.batch, full: (x.regions || []).includes('Fully Remote'), regions: x.regions }))
+          .sort((a, b) => (b.full - a.full) || String(b.batch).localeCompare(String(a.batch)));
+        await env.R2.put('cache/yc_hiring.json', JSON.stringify(list), { httpMetadata: { contentType: 'application/json' } });
+      }
+      const row = await env.DB.prepare("SELECT value FROM settings WHERE key='yc_cursor'").first();
+      let cur = Number(row ? JSON.parse(row.value) : 0) || 0;
+      if (cur >= list.length) cur = 0;
+      const batch = list.slice(cur, cur + 20);
+      await env.DB.prepare("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('yc_cursor', ?1, ?2, 'yc') ON CONFLICT(key) DO UPDATE SET value=?1, updated_at=?2").bind(JSON.stringify(cur + batch.length), Date.now()).run();
+      const out = [];
+      for (let i = 0; i < batch.length; i += 5) {
+        await Promise.all(batch.slice(i, i + 5).map(async (co) => {
+          try {
+            const pg = YC_PAGE(await fetchText(`https://www.ycombinator.com/companies/${co.slug}/jobs`, {}, 15000));
+            const posts = (pg?.props?.jobPostings || []).filter((j) => {
+              const loc = j.location || '';
+              if (!/remote/i.test(loc) && !(co.full && !loc)) return false;
+              // "Remote (US; CA)" gibi ülke listeli ilanlarda Türkiye/Avrupa/dünya geçmiyorsa atla
+              const lim = loc.match(/Remote \(([^)]*)\)/i);
+              return !lim || /\b(TR|Turkey|Türkiye|EMEA|Europe|EU|Worldwide|Anywhere|Global)\b/i.test(lim[1]);
+            });
+            for (const j of posts.slice(0, 4)) {
+              const d = YC_PAGE(await fetchText(`https://www.ycombinator.com${j.url}`, {}, 15000).catch(() => ''));
+              const jj = d?.props?.job || j;
+              out.push(job({ source: 'yc', external_id: j.id, url: `https://www.ycombinator.com${j.url}`, apply_url: jj.applyUrl || j.applyUrl, company: co.name, title: j.title,
+                location: `${j.location || 'Remote'}${co.full ? ' · fully remote company' : ''}`,
+                description: `${co.name} (YC ${co.batch}, ${co.size || '?'} people): ${co.one || ''}\nRole: ${j.prettyRole || ''} ${j.roleSpecificType || ''} · ${j.type || ''} · min experience ${j.minExperience || '-'} · visa: ${j.visa || '-'}\n${jj.description || ''}`,
+                salary: j.salaryRange || null, tags: [j.role, j.roleSpecificType], remote_hint: 'remote' }));
+            }
+            // Şirketin kendi sitesi: ATS panosu (başka ilanlar) ya da işe alım e-postası (açık başvuru)
+            const site = await scanCompanySite(co.website);
+            for (const a of site.ats) await env.DB.prepare('INSERT OR IGNORE INTO boards (id, ats, slug, company, added_at, added_from) VALUES (?,?,?,?,?,?)').bind(`${a.ats}:${a.slug}`, a.ats, a.slug, co.name, Date.now(), 'yc-site').run();
+            if (!posts.length && !site.ats.length && site.email && co.full) {
+              out.push(job({ source: 'yc', external_id: `open:${co.slug}`, url: site.careers || co.website, apply_url: `mailto:${site.email}`, company: co.name, title: 'Open application (remote)',
+                location: 'Remote (fully remote company)', description: `${co.name} (YC ${co.batch}, ${co.size || '?'} people) is a fully remote startup: ${co.one || ''}\nNo specific opening is listed, but the company publishes a hiring address (${site.email}) on its website. An open application by email is possible.\nRegions: ${(co.regions || []).join(', ')}`, remote_hint: 'remote' }));
+            }
+          } catch (e) { /* bu şirket atlandı */ }
+        }));
+      }
+      return out;
+    },
+  },
   {
     // Workable'ın küresel araması: çoğu küçük/orta şirket; "Türkiye" konumlu uzaktan ilanlar doğrudan Türkiye'den işe alır
     id: 'workable_tr', label: 'Workable — Türkiye\'den uzaktan', cadence: 120, lang: 'en',

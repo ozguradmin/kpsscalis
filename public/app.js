@@ -132,7 +132,7 @@ function renderLogin() {
 const GROUPS = [
   ['Takip', [['#/', 'Genel'], ['#/basvurular', 'Başvurular'], ['#/yapilacaklar', 'Sana kalanlar'], ['#/posta', 'E-posta']]],
   ['Ajan', [['#/beyin', 'Beyin'], ['#/ilanlar', 'İlanlar'], ['#/kaynaklar', 'Kaynaklar'], ['#/kayitlar', 'Ekran kayıtları'], ['#/hafiza', 'Hafıza']]],
-  ['Sistem', [['#/modeller', 'Modeller ve maliyet'], ['#/gunluk', 'Günlük'], ['#/ayarlar', 'Ayarlar']]],
+  ['Sistem', [['#/hesaplar', 'Hesaplar ve girişler'], ['#/modeller', 'Modeller ve maliyet'], ['#/gunluk', 'Günlük'], ['#/ayarlar', 'Ayarlar']]],
 ];
 const TABS = [['#/', 'home', 'Genel'], ['#/basvurular', 'send', 'Başvurular'], ['#/beyin', 'brain', 'Beyin'], ['#/yapilacaklar', 'hand', 'Sana'], ['#/menu', 'more', 'Daha']];
 const badge = (h) => h === '#/yapilacaklar' && state.actions ? `<span class="count">${state.actions}</span>` : '';
@@ -427,11 +427,35 @@ async function viewActions() {
   const KIND = { interview: 'Mülakat', assessment: 'Sonraki adım', offer: 'Teklif', recruiter: 'İşveren mesajı', handoff: 'Robot doğrulaması', needs_human: 'Elle tamamla', manual: 'Senin işin' };
   const item = (r) => `<div class="item" style="${r.status === 'open' ? '' : 'opacity:.55'}"><div class="main"><div class="row between" style="align-items:flex-start"><div class="t">${esc(r.title)}</div><span class="chip ${r.priority === 1 ? 'bad' : ''}">${esc(KIND[r.kind] || r.kind)}</span></div>
       <div class="m" style="-webkit-line-clamp:5">${esc(r.detail || '')}</div>
-      <div class="row wrap" style="margin-top:10px">${r.url ? `<a class="btn sm pri" href="${esc(r.url)}" target="_blank" rel="noopener">Aç ↗</a>` : ''}${r.app_id ? `<a class="btn sm" href="#/basvuru/${r.app_id}">Başvuru</a>` : ''}${r.status === 'open' ? `<button class="btn sm" data-id="${r.id}">Yaptım</button>` : ''}<span class="tiny muted">${when(r.created_at)}</span></div></div></div>`;
+      <div class="row wrap" style="margin-top:10px">${r.url ? `<a class="btn sm pri" href="${esc(r.url)}" target="_blank" rel="noopener">Aç ↗</a>` : ''}${r.app_id && r.status === 'open' && ['needs_human', 'handoff'].includes(r.kind) ? `<button class="btn sm pri" data-ho="${r.app_id}">Yeniden başlat + canlı devral</button>` : ''}${r.app_id ? `<a class="btn sm" href="#/basvuru/${r.app_id}">Başvuru</a>` : ''}${r.status === 'open' ? `<button class="btn sm" data-id="${r.id}">Yaptım</button>` : ''}<span class="tiny muted">${when(r.created_at)}</span></div></div></div>`;
   setMain(`${head('Sana kalanlar', 'Sistem bunları beklemeden işine devam eder. Burada yalnızca senin yapabileceğin işler var: mülakat, robot doğrulaması, teklif. Yenileri Gmail\'ine de gelir.')}
     <section class="sheet flush"><div class="list">${open.length ? open.map(item).join('') : '<div class="empty">Şu an sana kalan bir iş yok.</div>'}</div></section>
     ${rows.length > open.length ? `<details style="margin-top:16px"><summary>Tamamlananlar (${rows.length - open.length})</summary><section class="sheet flush" style="margin-top:8px"><div class="list">${rows.filter((r) => r.status !== 'open').map(item).join('')}</div></section></details>` : ''}`);
   $$('[data-id]').forEach((b) => b.onclick = async () => { await post(`/actions/${b.dataset.id}/done`); viewActions(); });
+  $$('[data-ho]').forEach((b) => b.onclick = async () => { b.disabled = true; await post(`/applications/${b.dataset.ho}/retry`, { handoff: true }); toast('Başladı. Ajan formu doldurup robot doğrulamasında seni bekleyecek; canlı bağlantı Gmail\'ine ve buraya gelecek (2-4 dk).', 6000); setTimeout(viewActions, 1500); });
+}
+
+
+// ---------- Hesaplar ve girişler ----------
+async function viewAccounts() {
+  shell('#/hesaplar');
+  const d = await api('/accounts');
+  const QUICK = [['Google', 'https://accounts.google.com/'], ['LinkedIn', 'https://www.linkedin.com/login'], ['Y Combinator (Work at a Startup)', 'https://account.ycombinator.com/'], ['Himalayas', 'https://himalayas.app/login'], ['Torre', 'https://torre.ai/'], ['Wellfound', 'https://wellfound.com/login'], ['micro1', 'https://jobs.micro1.ai/']];
+  setMain(`${head('Hesaplar ve girişler', 'Bazı siteler başvuru için hesap ya da "Google ile giriş" istiyor. Buradan bir kez canlı tarayıcıda giriş yaparsın; oturum şifreli saklanır ve ajan sonraki başvurularda aynı oturumla devam eder.')}
+    <section class="sheet"><h2>Bir siteye giriş yap</h2>
+      <p class="small muted" style="margin:0 0 10px">Düğmeye bas: 1-2 dakika içinde canlı tarayıcı bağlantısı Gmail'ine ve "Sana kalanlar"a gelir. Aç, giriş yap, "Done"a bas. Oturum dakikada bir de kendiliğinden kaydedilir.</p>
+      <div class="row wrap">${QUICK.map(([l, u]) => `<button class="btn sm" data-login="${u}">${l}</button>`).join('')}</div>
+      <form id="lg" class="row" style="margin-top:12px"><input type="text" id="lu" placeholder="Başka bir site: https://…" inputmode="url" aria-label="Site adresi"><button class="btn pri">Aç</button></form>
+    </section>
+    <section class="sheet flush" style="margin-top:16px"><h2>Kayıtlı oturumlar (${d.sessions.length})</h2>
+      <div class="list">${d.sessions.length ? d.sessions.map((x) => `<div class="item"><div class="main"><div class="t">${esc(x.domain)}</div><div class="m">${x.count} çerez · ${esc(x.note || '')} · ${when(x.updated_at)}</div></div><div class="r"><button class="btn sm danger" data-del="${esc(x.domain)}">Sil</button></div></div>`).join('') : '<div class="empty">Henüz kayıtlı oturum yok.</div>'}</div></section>
+    <section class="sheet flush" style="margin-top:16px"><h2>Açılan hesaplar (${d.accounts.length})</h2>
+      <div class="list">${d.accounts.length ? d.accounts.map((x) => `<div class="item"><div class="main"><div class="t">${esc(x.site)}</div><div class="m">${esc(x.username || '')} · ${x.has_password ? 'şifre kasada (şifreli)' : 'şifresiz (e-posta kodu/bağlantısı)'} · ${esc(x.notes || '')}</div></div><div class="r"><span>${when(x.updated_at)}</span></div></div>`).join('') : '<div class="empty">Henüz hesap yok.</div>'}</div></section>
+    <details class="sheet" style="margin-top:16px"><summary>Google ile giriş nasıl çalışır?</summary><p class="small" style="margin:10px 0 0">destek@ozgurguler.tech bir Google hesabı değil. "Google ile giriş" isteyen siteler için en temizi, destek@ozgurguler.tech adresiyle bir Google hesabı açmak (Google, Gmail olmayan adresle hesap açmaya izin verir: accounts.google.com → Hesap oluştur → "Mevcut e-posta adresimi kullan"). Böylece tüm siteler aynı e-postayı görür ve gelen postaları ajan okuyabilir. Sonra yukarıdan "Google"a basıp bir kez giriş yaparsın. Google bazen başka bir cihazdan gelen oturumu yeniden doğrulama isteyebilir; o zaman bu sayfadan tekrar giriş yapman yeterli.</p></details>`);
+  const start = async (u) => { try { const r = await post('/sessions/login', { url: u }); toast(r.note || 'Başladı', 6000); } catch (e) { toast(e.message); } };
+  $$('[data-login]').forEach((b) => b.onclick = () => start(b.dataset.login));
+  $('#lg').onsubmit = (e) => { e.preventDefault(); const u = $('#lu').value.trim(); if (u) start(/^https?:/.test(u) ? u : 'https://' + u); };
+  $$('[data-del]').forEach((b) => b.onclick = async () => { await post(`/sessions/${encodeURIComponent(b.dataset.del)}/delete`); viewAccounts(); });
 }
 
 // ---------- Kaynaklar ----------
@@ -498,6 +522,9 @@ async function viewSettings() {
   const input = ([k, l, t, h]) => `<div><label class="f" for="s_${k}">${l}${h ? ` <span>— ${h}</span>` : ''}</label>${t === 'bool' ? `<select id="s_${k}" data-k="${k}" data-t="bool"><option value="true" ${s[k] ? 'selected' : ''}>Açık</option><option value="false" ${!s[k] ? 'selected' : ''}>Kapalı</option></select>` : `<input id="s_${k}" data-k="${k}" data-t="${t}" type="${t === 'num' ? 'number' : 'text'}" inputmode="${t === 'num' ? 'decimal' : 'text'}" value="${esc(s[k] ?? '')}">`}</div>`;
   setMain(`${head('Ayarlar', 'Değişiklikler anında kaydedilir. Beyin de bu ayarları sonuçlarına göre, belirli sınırlar içinde günceller.')}
     <section class="sheet"><div class="grid g2" style="gap:0 20px">${F.map(input).join('')}</div></section>
+    <section class="sheet" style="margin-top:16px"><h2>Başvurularda kullanılan CV</h2><p class="small muted" style="margin:0 0 10px">ozgurguler.tech'teki CV'lerin kopyası; 3 günde bir yenilenir. İlan dili Türkçeyse Türkçe, değilse İngilizce CV yüklenir.</p>
+      <div class="row wrap"><a class="btn sm pri" href="/api/cv/en" target="_blank" rel="noopener">İngilizce CV'yi aç</a><a class="btn sm" href="/api/cv/en?download=1">İndir</a><a class="btn sm pri" href="/api/cv/tr" target="_blank" rel="noopener">Türkçe CV'yi aç</a><a class="btn sm" href="/api/cv/tr?download=1">İndir</a></div>
+      <details style="margin-top:10px"><summary>Ajanın okuduğu CV metni (İngilizce)</summary><div class="pre small" id="cvt">Yükleniyor…</div></details></section>
     <div class="grid g2" style="margin-top:16px">
       <section class="sheet"><h2>Engelli şirketler ve alan adları</h2><label class="f" for="bc">Şirketler <span>(virgülle)</span></label><input id="bc" data-k="blocked_companies" data-t="arr" type="text" value="${esc((s.blocked_companies || []).join(', '))}"><label class="f" for="bd">Alan adları</label><input id="bd" data-k="blocked_domains" data-t="arr" type="text" value="${esc((s.blocked_domains || []).join(', '))}"></section>
       <section class="sheet"><h2>Öğrenilmiş kurallar</h2><p class="small muted" style="margin:0 0 8px">Beynin öz değerlendirmede eklediği kurallar.</p>${Object.entries(s.prompt_addenda || {}).map(([k, v]) => `<details><summary>${esc(k)}</summary><div class="pre small">${esc(v)}</div></details>`).join('') || '<p class="muted small" style="margin:0">Henüz yok.</p>'}
@@ -511,6 +538,7 @@ async function viewSettings() {
     if (t === 'bool') v = v === 'true'; else if (t === 'num') v = Number(v); else if (t === 'arr') v = v.split(',').map((x) => x.trim()).filter(Boolean);
     try { await post('/settings', { key: el.dataset.k, value: v }); toast('Kaydedildi'); } catch (e) { toast(e.message); }
   });
+  api('/cv/en?format=text').then((r) => { const el = $('#cvt'); if (el) el.textContent = r.text; }).catch(() => {});
   $('#af').onclick = async () => { const k = prompt('Anahtar (ör. notice_period):'); if (!k) return; const v = prompt('Değer:'); if (v == null) return; await post('/facts', { key: k, value: v }); viewSettings(); };
   $$('[data-run]').forEach((b) => b.onclick = async () => { b.disabled = true; try { const r = await post('/run/' + b.dataset.run); toast(typeof r === 'object' ? (r.summary || r.note || 'Tamam') : 'Tamam', 5000); } catch (e) { toast(e.message); } b.disabled = false; });
 }
@@ -542,6 +570,7 @@ async function router() {
       case 'yapilacaklar': return await viewActions();
       case 'kaynaklar': return await viewSources();
       case 'modeller': return await viewModels();
+      case 'hesaplar': return await viewAccounts();
       case 'gunluk': return await viewLog(params);
       case 'ayarlar': return await viewSettings();
       case 'menu': return viewMenu();

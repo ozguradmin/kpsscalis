@@ -111,24 +111,43 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
         continue;
       }
       if (d.status === 'captcha') {
-        // Panel açıksa ya da Türkiye saatiyle gündüzse (09-24) canlı bağlantıyı Gmail'e yollayıp bekle; gece beklemez
+        // Panel açıksa, "Canlı devral" istendiyse ya da Türkiye saatiyle gündüzse (09-24) bekle; gece beklemez
         const trHour = (new Date().getUTCHours() + 3) % 24;
-        const wait = (userActive || trHour >= 9) && settings.handoff_wait_minutes > 0 && handoffs < 1 ? settings.handoff_wait_minutes * 60000 : 0;
-        const h = await liveHandoff(page, { instructions: `Özgür, ${job.company} başvurusunda robot doğrulaması çıktı. Lütfen doğrulamayı tamamla ve "Done"a bas; gerisini ben yaparım.`, waitMs: wait }).catch(() => null);
+        const wait = (userActive || trHour >= 9) && settings.handoff_wait_minutes > 0 && handoffs < 2 ? settings.handoff_wait_minutes * 60000 : 0;
+        const before = await snapshot(page);
+        const h = await liveHandoff(page, { instructions: `Özgür, ${job.company} başvurusunda robot doğrulaması var. Doğrulamayı geç; geçtiğini görünce ben kendiliğinden devam ederim ("Done"a basman da olur).`, waitMs: wait }).catch(() => null);
         if (h?.url) {
-          await addAction(env, { kind: 'handoff', title: `${job.company}: robot doğrulaması (canlı devral)`, detail: wait ? `${Math.round(wait / 60000)} dk bekliyorum. Bağlantıyı açıp doğrulamayı yap, "Done"a bas.` : 'Canlı oturum açık; bağlantı 1 saat geçerli. İstersen panelden "Canlı devral" ile yeniden başlat.', url: h.url, app_id: app.id, job_id: job.id, priority: 1, ttlMs: 3600000, dedupe: 'handoff_' + app.id });
+          const min = Math.round(wait / 60000);
+          await addAction(env, { kind: 'handoff', title: `${job.company}: robot doğrulaması (canlı devral)`, detail: wait ? `${min} dk bekliyorum. Bağlantıyı aç, doğrulamayı geç; ajan kendiliğinden devam eder.` : 'Şu an beklemiyorum. Başvuruyu açıp "Canlı devral"a basarsan ajan baştan doldurup seni bekler.', url: wait ? h.url : null, app_id: app.id, job_id: job.id, priority: 1, ttlMs: wait + 120000, dedupe: 'handoff_' + app.id });
           await env.DB.prepare('UPDATE applications SET live_url=? WHERE id=?').bind(h.url, app.id).run();
-          if (wait && !userActive) await alertUser(env, settings, { key: 'handoff_' + app.id, appId: app.id, url: h.url, subject: `Robot doğrulaması: ${job.company} (${Math.round(wait / 60000)} dk bekliyorum)`,
-            text: `${job.company} — ${job.title} başvurusunda form dolduruldu ama site "robot değilim" doğrulaması istiyor. Bu doğrulamayı yapay zekâ geçemez.\n\nAşağıdaki bağlantıyı telefondan aç, doğrulamayı yap ve "Done"a bas; ajan kaldığı yerden gönderir. ${Math.round(wait / 60000)} dakika bekliyorum, sonra başvuru "Sana kalanlar"a düşer.` }).catch(() => {});
+          if (wait) await alertUser(env, settings, { key: `handoff_${app.id}_${now()}`, appId: app.id, url: h.url, restart: true, subject: `Robot doğrulaması: ${job.company} (${min} dk bekliyorum)`,
+            text: `${job.company} — ${job.title}\nForm dolduruldu; site "robot değilim" doğrulaması istiyor. Bunu yapay zekâ geçemez.\n\n"Canlı tarayıcı" bağlantısını aç ve doğrulamayı geç (kutucuk ya da bulmaca). Geçtiğin anda ajan kendiliğinden devam edip başvuruyu gönderir; "Done"a basman gerekmez. ${min} dakika bekliyorum.` }).catch(() => {});
         }
         if (h?.done) {
           handoffs++;
           await log(env, 'apply', `${job.company}: canlı devralma bekleniyor`, { ref: app.id });
-          const r = await h.done;
-          history.push(`(insan müdahalesi: ${r.success ? 'tamamlandı' : 'başarısız: ' + (r.reason || '')})`);
-          if (r.success) continue;
+          // Doğrulama geçilince "Done" beklemeden devam et; bu izleme tarayıcı oturumunu da canlı tutar
+          let stop = false;
+          const watch = (async () => {
+            let clear = 0;
+            while (!stop) {
+              await sleep(5000);
+              if (stop) return null;
+              const s3 = await snapshot(page);
+              if (before.captcha && !s3.error && !s3.captcha) { if (++clear >= 2) return { success: true, reason: 'doğrulama geçildi (otomatik algılandı)' }; } else clear = 0;
+            }
+            return null;
+          })();
+          const r = await Promise.race([h.done, watch.then((x) => x || h.done)]);
+          stop = true;
+          history.push(`(insan müdahalesi: ${r.success ? 'tamamlandı — ' + (r.reason || 'Done') : 'olmadı: ' + (r.reason || '')}; sayfaya yeniden bak ve kaldığın yerden devam et)`);
+          await rec.shot(page, r.success ? 'Robot doğrulaması geçildi' : 'Bekleme bitti').catch(() => {});
+          if (r.success) {
+            await env.DB.prepare("UPDATE actions SET status='done' WHERE id=?").bind('handoff_' + app.id).run().catch(() => {});
+            await ctx.saveSession?.(page).catch(() => {});
+            continue;
+          }
         }
-        // Canlı bağlantı bu oturumla birlikte kapanıyor; eski "canlı devral" işini kapat (yerine "elle tamamla" işi açılır)
         await env.DB.prepare("UPDATE actions SET status='done' WHERE id=?").bind('handoff_' + app.id).run().catch(() => {});
         return { status: 'needs_human', reason: 'CAPTCHA / robot doğrulaması', steps, answers };
       }

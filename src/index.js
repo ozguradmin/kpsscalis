@@ -1,11 +1,15 @@
 // Özgür İş Ajanı v2 — Cloudflare Worker giriş noktası: panel API'si + 10 dakikalık zamanlayıcı + başvuru iş akışı.
 import { migrate, getSettings, setSetting, log, allRows, oneRow, lease, release, usageToday, aiCostToday, browserHoursThisMonth } from './lib/db.js';
-import { login, readSession, logoutCookie } from './lib/auth.js';
+import { login, readSession, logoutCookie, verifyLink } from './lib/auth.js';
 import { WorkflowEntrypoint } from 'cloudflare:workers';
 import { json, now, DAY, HOUR, MIN, dayKey, safeJSON, clip } from './lib/util.js';
 import { discoverTick, seedBoards, runSource, pollBoards } from './discover.js';
 import { triageTick, reanalyze } from './triage.js';
-import { mailTick, sendMail, dailyDigest } from './mail.js';
+import { mailTick, sendMail, dailyDigest, alertUser } from './mail.js';
+import { liveLogin } from './sessions.js';
+import { openBrowser, liveHandoff } from './apply/browser.js';
+import { cvPdf } from './profile.js';
+import { CV_EN, CV_TR } from './cv-text.js';
 import { dispatch, recoverStuck, createApplication, ApplyWorkflow } from './apply/index.js';
 import { chat, dailyReview, stateSummary, validateSetting, runTool } from './brain.js';
 import { runModelEval } from './evals.js';
@@ -17,7 +21,13 @@ export { ApplyWorkflow };
 // Uzun süren işler (model yarışması, öz değerlendirme) için dayanıklı iş akışı: istek süresine bağlı kalmaz
 export class TaskWorkflow extends WorkflowEntrypoint {
   async run(event, step) {
-    const { task } = event.payload || {};
+    const { task, url } = event.payload || {};
+    if (task === 'login') {
+      return step.do('login', { retries: { limit: 0, delay: '1 minute' }, timeout: '40 minutes' }, async () => {
+        const settings = await getSettings(this.env);
+        return liveLogin(this.env, settings, { url, openBrowser, liveHandoff, alertUser });
+      });
+    }
     return step.do(task || 'task', { retries: { limit: 1, delay: '2 minutes' }, timeout: '20 minutes' }, async () => {
       if (task === 'eval') { const r = await runModelEval(this.env); return { chosen: r.chosen }; }
       if (task === 'review') { const r = await dailyReview(this.env); return { applied: r.applied }; }
@@ -124,6 +134,22 @@ function route(method, path, pattern) {
   return m ? m.slice(1).map(decodeURIComponent) : null;
 }
 
+// Başvuruyu baştan başlat; handoff=true ise robot doğrulamasında seni bekler ve canlı bağlantıyı e-postalar
+async function restartApp(env, appId, handoff) {
+  const a = await oneRow(env, 'SELECT id, job_id, status FROM applications WHERE id=?', appId);
+  if (!a) return { error: 'başvuru yok' };
+  if (['applying', 'prepared'].includes(a.status)) return { ok: true, running: true };
+  await env.DB.prepare("UPDATE applications SET status='queued', error=NULL, updated_at=? WHERE id=?").bind(now(), a.id).run();
+  await env.DB.prepare("UPDATE actions SET status='done' WHERE app_id=? AND status='open' AND kind IN ('needs_human','handoff')").bind(a.id).run();
+  const inst = await env.APPLY.create({ id: a.id + '-' + Date.now().toString(36), params: { appId: a.id, userActive: !!handoff } });
+  await env.DB.prepare('UPDATE applications SET workflow_id=? WHERE id=?').bind(inst.id, a.id).run();
+  await log(env, 'apply', handoff ? 'Yeniden başlatıldı (canlı devral: robot doğrulamasında seni bekleyecek)' : 'Yeniden başlatıldı', { ref: a.id });
+  return { ok: true, workflow: inst.id };
+}
+
+const escHtml = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const htmlPage = (title, body) => new Response(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{font:16px/1.5 -apple-system,system-ui,sans-serif;margin:0;background:#0d1320;color:#e9edf4;display:grid;place-items:center;min-height:100vh;padding:20px}main{max-width:420px}h1{font-size:24px}a,button{display:inline-block;background:#e9edf4;color:#0d1320;border:0;border-radius:10px;padding:12px 18px;font:600 16px system-ui;text-decoration:none;cursor:pointer}p{color:#c3cbd8}</style></head><body><main>${body}</main></body></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'x-robots-tag': 'noindex' } });
+
 async function api(request, env, ctx) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/^\/api/, '') || '/';
@@ -135,6 +161,17 @@ async function api(request, env, ctx) {
   if (path === '/login' && method === 'POST') {
     const r = await login(env, request);
     return r.ok ? json({ ok: true }, 200, { 'set-cookie': r.cookie }) : json({ ok: false, error: r.error }, r.status);
+  }
+  // E-postadaki tek tıklık bağlantı: başvuruyu baştan başlat ve canlı devral (GET sadece onay sayfası; e-posta tarayıcıları tetiklemesin diye işlem POST ile)
+  if (path.startsWith('/h/')) {
+    const p = await verifyLink(env, decodeURIComponent(path.slice(3)));
+    if (!p?.a) return htmlPage('Geçersiz bağlantı', '<h1>Bağlantı geçersiz ya da süresi dolmuş</h1><p>Panelden başvuruyu açıp "Canlı devral"a basabilirsin.</p>');
+    const a = await oneRow(env, 'SELECT a.id, a.status, j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.id=?', p.a);
+    if (!a) return htmlPage('Bulunamadı', '<h1>Başvuru bulunamadı</h1>');
+    const panel = `${url.origin}/#/basvuru/${a.id}`;
+    if (method !== 'POST') return htmlPage('Canlı devral', `<h1>${escHtml(a.company)}</h1><p>${escHtml(a.title)}</p><p>Ajan başvuruyu baştan dolduracak ve robot doğrulamasına gelince seni bekleyecek. Canlı tarayıcı bağlantısı 2-4 dakika içinde e-postana gelir; doğrulamayı geçince ajan kendiliğinden devam eder.</p><form method="post"><button>Başlat</button></form><p><a href="${panel}" style="background:none;color:#86a9ee;padding:0">Panelde aç</a></p>`);
+    const r = await restartApp(env, a.id, true);
+    return htmlPage('Başladı', `<h1>${r.running ? 'Zaten çalışıyor' : 'Başladı'}</h1><p>Canlı bağlantı e-postana ve paneldeki "Sana kalanlar"a gelecek. Bu sayfayı kapatabilirsin.</p><a href="${panel}">Panelde izle</a>`);
   }
   const session = await readSession(env, request);
   if (!session) return json({ error: 'giriş gerekli' }, 401);
@@ -205,12 +242,8 @@ async function api(request, env, ctx) {
     return json(a);
   }
   if ((m = route(method, path, ['POST', '/applications/:id/retry']))) {
-    const a = await oneRow(env, 'SELECT id, job_id FROM applications WHERE id=?', m[0]);
-    if (!a) return json({ error: 'yok' }, 404);
-    await env.DB.prepare("UPDATE applications SET status='queued', error=NULL, updated_at=? WHERE id=?").bind(now(), a.id).run();
-    const inst = await env.APPLY.create({ id: a.id + '-' + Date.now().toString(36), params: { appId: a.id, userActive: !!body.handoff } });
-    await env.DB.prepare('UPDATE applications SET workflow_id=? WHERE id=?').bind(inst.id, a.id).run();
-    return json({ ok: true, workflow: inst.id });
+    const r = await restartApp(env, m[0], !!body.handoff);
+    return r.error ? json(r, 404) : json(r);
   }
   if ((m = route(method, path, ['POST', '/applications/:id/status']))) {
     const allowed = ['submitted', 'confirmed', 'interview', 'next_step', 'offer', 'rejected', 'cancelled'];
@@ -266,6 +299,28 @@ async function api(request, env, ctx) {
     const msg = String(body.message || '').trim();
     if (!msg) return json({ error: 'boş mesaj' }, 400);
     try { return json(await chat(env, msg, hooks(env, ctx), body.thread || 'main')); } catch (e) { return json({ error: 'Beyin cevap veremedi: ' + e.message }, 500); }
+  }
+  if ((m = route(method, path, ['GET', '/accounts']))) {
+    const accounts = await allRows(env, 'SELECT site, login_url, username, status, created_at, updated_at, notes, (secret IS NOT NULL) has_password FROM accounts ORDER BY updated_at DESC');
+    const sessions = await allRows(env, 'SELECT domain, count, updated_at, note FROM sessions ORDER BY updated_at DESC');
+    return json({ accounts, sessions });
+  }
+  if ((m = route(method, path, ['POST', '/sessions/login']))) {
+    let u; try { u = new URL(String(body.url || '')); } catch (e) { return json({ error: 'geçersiz adres' }, 400); }
+    if (!/^https?:$/.test(u.protocol)) return json({ error: 'geçersiz adres' }, 400);
+    const inst = await env.TASKS.create({ id: `login-${Date.now().toString(36)}`, params: { task: 'login', url: u.href } });
+    await log(env, 'account', `Canlı giriş başlatıldı: ${u.hostname}`, { data: { id: inst.id } });
+    return json({ ok: true, note: 'Tarayıcı açılıyor. 1-2 dakika içinde canlı bağlantı Gmail\'ine ve "Sana kalanlar"a gelecek.' });
+  }
+  if ((m = route(method, path, ['POST', '/sessions/:domain/delete']))) {
+    await env.DB.prepare('DELETE FROM sessions WHERE domain=?').bind(decodeURIComponent(m[0])).run();
+    return json({ ok: true });
+  }
+  if ((m = route(method, path, ['GET', '/cv/:lang']))) {
+    const lang = m[0] === 'tr' ? 'tr' : 'en';
+    if (url.searchParams.get('format') === 'text') return json({ lang, text: lang === 'tr' ? CV_TR : CV_EN });
+    const pdf = await cvPdf(env, lang);
+    return new Response(pdf, { headers: { 'content-type': 'application/pdf', 'content-disposition': `${url.searchParams.get('download') ? 'attachment' : 'inline'}; filename="${lang === 'tr' ? 'Ozgur_Guler_CV.pdf' : 'Ozgur_Guler_CV_English.pdf'}"`, 'cache-control': 'private, max-age=300' } });
   }
   if ((m = route(method, path, ['GET', '/settings']))) {
     const s = await getSettings(env);

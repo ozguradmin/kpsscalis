@@ -44,6 +44,17 @@ async function sign(env, payload) {
   return `${body}.${sig}`;
 }
 
+// E-postadaki tek tıklık bağlantılar için imza (ör. "başvuruyu yeniden başlat ve canlı devral")
+export async function signLink(env, payload) { return sign(env, payload); }
+export async function verifyLink(env, token) {
+  const [body, sig] = String(token || '').split('.');
+  if (!body || !sig) return null;
+  const key = await sessionKey(env);
+  const un = (x) => Uint8Array.from(atob(x.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((x.length + 3) % 4)), (c) => c.charCodeAt(0));
+  if (!(await crypto.subtle.verify('HMAC', key, un(sig), enc.encode(body)))) return null;
+  try { const p = JSON.parse(new TextDecoder().decode(un(body))); return p.exp && p.exp < now() ? null : p; } catch (e) { return null; }
+}
+
 export async function readSession(env, request) {
   const cookie = request.headers.get('cookie') || '';
   const m = cookie.match(new RegExp(`${COOKIE}=([^;]+)`));
