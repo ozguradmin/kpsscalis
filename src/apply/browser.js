@@ -26,7 +26,9 @@ export const SNAPSHOT_JS = `(() => {
     const type = (el.getAttribute('type') || el.tagName).toLowerCase();
     if (['hidden', 'submit', 'button', 'image', 'reset'].includes(type)) return;
     const isFile = type === 'file';
-    if (!isFile && !vis(el)) return;
+    // Özel tasarımlı radyo/onay kutularında gerçek input gizlidir; etiketi görünüyorsa alanı yine de listele
+    const lbl = (type === 'radio' || type === 'checkbox') ? (el.closest('label') || (el.id && document.querySelector('label[for="' + CSS.escape(el.id) + '"]'))) : null;
+    if (!isFile && !vis(el) && !(lbl && vis(lbl))) return;
     const f = { id: tag(el), kind: el.getAttribute('role') === 'combobox' && el.tagName !== 'SELECT' ? 'combobox' : el.tagName === 'SELECT' ? 'select' : el.tagName === 'TEXTAREA' ? 'textarea' : el.isContentEditable && el.tagName !== 'INPUT' ? 'richtext' : type, label: labelOf(el), required: el.required || el.getAttribute('aria-required') === 'true' || /\\*\\s*$/.test(labelOf(el)) };
     if (el.name) f.name = el.name.slice(0, 60);
     if (el.tagName === 'SELECT') f.options = [...el.options].map((o) => txt(o.text, 80)).filter(Boolean).slice(0, 60);
@@ -310,7 +312,11 @@ export async function act(page, a, ctx) {
       const want = op !== 'uncheck';
       if (checked !== want) { await handle.evaluate((el) => el.scrollIntoView({ block: 'center' })); await handle.click().catch(async () => { await handle.evaluate((el) => el.click()); }); }
       const after = await handle.evaluate((el) => el.checked);
-      if (after !== want) await handle.evaluate((el) => { const l = el.closest('label') || document.querySelector(`label[for="${el.id}"]`); if (l) l.click(); });
+      if (after !== want) await handle.evaluate((el) => { const l = el.closest('label') || (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)); if (l) { l.scrollIntoView({ block: 'center' }); l.click(); } });
+      if ((await handle.evaluate((el) => el.checked)) !== want) {
+        // Son çare: React/Vue durumunu da güncelleyecek şekilde değeri ayarla ve olayları tetikle
+        await handle.evaluate((el, want) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked').set; set.call(el, want); el.dispatchEvent(new MouseEvent('click', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, want);
+      }
       return `${op} ${a.id}: ${await handle.evaluate((el) => el.checked)}`;
     }
     if (op === 'upload') {
