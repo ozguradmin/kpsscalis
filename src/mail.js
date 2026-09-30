@@ -195,6 +195,22 @@ export async function sendMail(env, settings, { to, subject, text, attachments =
 
 const STATUS_TR = { queued: 'sırada', prepared: 'hazırlandı', applying: 'başvuruyor', submitted: 'gönderildi', confirmed: 'gönderildi, şirketten otomatik "alındı" e-postası geldi', next_step: 'SONRAKİ ADIM istendi', interview: 'MÜLAKAT', offer: 'TEKLİF', rejected: 'olumsuz', needs_human: 'sana kaldı', not_eligible: 'uygun değil', closed: 'ilan kapalı', blocked: 'engel', failed: 'başarısız', cancelled: 'iptal' };
 
+// E-postayla yapılan başvurularda 8 gün ses çıkmazsa tek, kısa ve kibar bir hatırlatma (başvuru başına en fazla bir kez)
+export async function followUps(env, settings) {
+  const rows = await allRows(env, `SELECT a.id, a.answers, a.submitted_at, j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id
+    WHERE a.method='email' AND a.status='submitted' AND a.submitted_at < ? AND a.submitted_at > ? AND NOT EXISTS (SELECT 1 FROM events e WHERE e.type='followup' AND e.ref=a.id) LIMIT 3`, now() - 8 * DAY, now() - 30 * DAY);
+  let sent = 0;
+  for (const r of rows) {
+    const ans = (() => { try { return JSON.parse(r.answers || '{}'); } catch (e) { return {}; } })();
+    if (!ans.email_to) continue;
+    const text = `Hello,\n\nI wanted to briefly follow up on my application for ${r.title} at ${r.company}, sent on ${new Date(r.submitted_at).toISOString().slice(0, 10)}. I remain very interested and I am happy to share anything else that would help, such as code samples or a short written task.\n\nThank you for your time,\nÖzgür Güler\nozgurguler.tech`;
+    await sendMail(env, settings, { to: ans.email_to, subject: /^re:/i.test(ans.subject || '') ? ans.subject : `Re: ${ans.subject || 'Application — Özgür Güler'}`, text, appId: r.id });
+    await log(env, 'followup', `${r.company}: 8 gün yanıt gelmediği için kısa hatırlatma gönderildi (kabul edildi)`, { ref: r.id });
+    sent++;
+  }
+  return { sent };
+}
+
 // Günlük özet (sabah)
 export async function dailyDigest(env, settings) {
   const since = now() - DAY;

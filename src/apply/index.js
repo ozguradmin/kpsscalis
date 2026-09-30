@@ -21,8 +21,15 @@ async function setApp(env, id, f) {
 }
 
 // ATS'ye göre doğrudan başvuru formunun adresi
+// İlan metnindeki en iyi başvuru bağlantısı (HN gibi forum ilanlarında ilan sayfasının kendisi başvuru yeri değil)
+function linkFromText(job) {
+  const links = [...String(job.description || '').matchAll(/https?:\/\/[^\s)"'<>\]]+/g)].map((m) => m[0].replace(/[.,;:]+$/, '')).filter((u) => !/news\.ycombinator\.com|twitter\.com|x\.com\/|linkedin\.com\/company|github\.com\/[^/]+\/?$/.test(u));
+  return links.find((u) => detectATS(u)) || links.find((u) => /career|jobs|apply|join|hiring|work-with|typeform|forms\.gle|notion\.site/i.test(u)) || links[0] || null;
+}
+
 export function startUrl(job) {
-  const u = job.apply_url || job.url;
+  let u = job.apply_url || job.url;
+  if (/news\.ycombinator\.com/.test(u)) u = linkFromText(job) || u;
   const a = detectATS(u);
   if (!a) return u;
   try {
@@ -53,7 +60,11 @@ export async function prepare(env, appId) {
   if (app.letter) return { ok: true };
   const a = safeJSON(job.analysis, {}) || {};
   const letter = await coverLetter(env, settings, job);
+  // Forum ilanlarında (HN) başvuru bağlantısı yoksa ilandaki e-posta adresine başvur
+  if (job.source === 'hn' && !a.apply_email && !linkFromText(job)) { const e = String(job.description || '').match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i); if (e) { a.apply_email = e[0]; a.apply_method = 'email'; } }
+  if (/^mailto:/i.test(job.apply_url || '') && !a.apply_email) { a.apply_email = job.apply_url.slice(7).split('?')[0]; a.apply_method = 'email'; }
   const method = a.apply_method === 'email' && a.apply_email && /@/.test(a.apply_email) ? 'email' : 'browser';
+  if (method === 'email') await env.DB.prepare('UPDATE jobs SET analysis=? WHERE id=?').bind(JSON.stringify(a), job.id).run();
   await setApp(env, appId, { letter: letter.text, method, status: 'prepared', error: letter.warnings.length ? `ön yazı uyarısı: ${letter.warnings.join('; ')}` : null });
   return { ok: true, method };
 }
@@ -150,7 +161,7 @@ export async function submit(env, appId, { userActive = false } = {}) {
 
 async function submitByEmail(env, settings, app, job, analysis) {
   const to = analysis.apply_email;
-  const subject = `Application: ${job.title} — Özgür Güler`;
+  const subject = /open application/i.test(job.title) ? `Open application: remote full-stack / AI product developer — Özgür Güler` : `Application: ${job.title} — Özgür Güler`;
   const text = `${app.letter}\n\n—\nÖzgür Güler\n${CORE.email} · ${CORE.phone}\nPortfolio: ${CORE.portfolio}\nGitHub: ${CORE.github}\nLinkedIn: ${CORE.linkedin}\nCV (PDF): ${CORE.cv_url_en}`;
   try {
     const res = await sendMail(env, settings, { to, subject, text, appId: app.id, attachments: [{ content: await cvBase64(env, 'en'), filename: 'Ozgur_Guler_CV_English.pdf', type: 'application/pdf', disposition: 'attachment' }] });

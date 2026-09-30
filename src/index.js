@@ -5,7 +5,7 @@ import { WorkflowEntrypoint } from 'cloudflare:workers';
 import { json, now, DAY, HOUR, MIN, dayKey, safeJSON, clip } from './lib/util.js';
 import { discoverTick, seedBoards, runSource, pollBoards } from './discover.js';
 import { triageTick, reanalyze } from './triage.js';
-import { mailTick, sendMail, dailyDigest, alertUser } from './mail.js';
+import { mailTick, sendMail, dailyDigest, alertUser, followUps } from './mail.js';
 import { liveLogin } from './sessions.js';
 import { openBrowser, liveHandoff } from './apply/browser.js';
 import { cvPdf } from './profile.js';
@@ -67,6 +67,7 @@ async function tick(env, ctx, { force = null } = {}) {
     const today = dayKey();
     if (trHour >= 5 && settings.last_review_day !== today) { await setSetting(env, 'last_review_day', today); await step('review', () => startTask(env, 'review')); }
     if (trHour >= 8 && settings.digest_email && settings.last_digest_day !== today) { await setSetting(env, 'last_digest_day', today); await step('digest', () => dailyDigest(env, settings)); }
+    if (trHour >= 10 && trHour < 18 && settings.last_followup_day !== today) { await setSetting(env, 'last_followup_day', today); await step('followup', () => followUps(env, settings)); }
     const week = `${new Date().getUTCFullYear()}-w${Math.floor((now() / DAY + 3) / 7)}`;
     if (trHour >= 4 && settings.last_eval_week !== week) { await setSetting(env, 'last_eval_week', week); await step('eval', () => startTask(env, 'eval')); }
   } finally {
