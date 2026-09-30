@@ -1,12 +1,12 @@
 // Özgür İş Ajanı v2 — Cloudflare Worker giriş noktası: panel API'si + 10 dakikalık zamanlayıcı + başvuru iş akışı.
 import { migrate, getSettings, setSetting, log, allRows, oneRow, lease, release, usageToday, aiCostToday, browserHoursThisMonth } from './lib/db.js';
-import { login, readSession, logoutCookie, verifyLink } from './lib/auth.js';
+import { login, readSession, logoutCookie, verifyLink, seal, unseal } from './lib/auth.js';
 import { WorkflowEntrypoint } from 'cloudflare:workers';
 import { json, now, DAY, HOUR, MIN, dayKey, safeJSON, clip } from './lib/util.js';
 import { discoverTick, seedBoards, runSource, pollBoards } from './discover.js';
 import { triageTick, reanalyze } from './triage.js';
 import { mailTick, sendMail, dailyDigest, alertUser, followUps } from './mail.js';
-import { liveLogin } from './sessions.js';
+import { liveLogin, regDomain } from './sessions.js';
 import { openBrowser, liveHandoff } from './apply/browser.js';
 import { cvPdf } from './profile.js';
 import { CV_EN, CV_TR } from './cv-text.js';
@@ -305,6 +305,29 @@ async function api(request, env, ctx) {
     const accounts = await allRows(env, 'SELECT site, login_url, username, status, created_at, updated_at, notes, (secret IS NOT NULL) has_password FROM accounts ORDER BY updated_at DESC');
     const sessions = await allRows(env, 'SELECT domain, count, updated_at, note FROM sessions ORDER BY updated_at DESC');
     return json({ accounts, sessions });
+  }
+  if ((m = route(method, path, ['POST', '/accounts']))) {
+    const site = String(body.site || '').trim().toLowerCase();
+    if (!site || !body.username) return json({ error: 'site ve kullanıcı adı gerekli' }, 400);
+    await env.DB.prepare('INSERT INTO accounts (site, login_url, username, secret, status, created_at, updated_at, notes) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(site) DO UPDATE SET login_url=excluded.login_url, username=excluded.username, secret=COALESCE(excluded.secret, accounts.secret), status=excluded.status, updated_at=excluded.updated_at, notes=excluded.notes')
+      .bind(site, body.login_url || null, String(body.username), body.password ? await seal(env, String(body.password)) : null, 'active', now(), now(), body.notes || null).run();
+    await log(env, 'account', `${site} hesabı kaydedildi`);
+    return json({ ok: true });
+  }
+  if ((m = route(method, path, ['GET', '/accounts/:site/password']))) {
+    const r = await oneRow(env, 'SELECT secret FROM accounts WHERE site=?', m[0]);
+    if (!r?.secret) return json({ error: 'şifre yok' }, 404);
+    return json({ password: await unseal(env, r.secret) });
+  }
+  if ((m = route(method, path, ['POST', '/sessions/import']))) {
+    const by = new Map();
+    for (const c of Array.isArray(body.cookies) ? body.cookies : []) {
+      const d = regDomain(c.domain); if (!d) continue;
+      if (!by.has(d)) by.set(d, []);
+      by.get(d).push({ name: c.name, value: c.value, domain: c.domain, path: c.path || '/', expires: c.expires, httpOnly: !!c.httpOnly, secure: !!c.secure, sameSite: c.sameSite });
+    }
+    for (const [d, list] of by) await env.DB.prepare('INSERT INTO sessions (domain, cookies, count, updated_at, note) VALUES (?,?,?,?,?) ON CONFLICT(domain) DO UPDATE SET cookies=excluded.cookies, count=excluded.count, updated_at=excluded.updated_at, note=excluded.note').bind(d, await seal(env, JSON.stringify(list)), list.length, now(), String(body.note || 'içe aktarıldı')).run();
+    return json({ ok: true, domains: [...by.keys()] });
   }
   if ((m = route(method, path, ['POST', '/sessions/login']))) {
     let u; try { u = new URL(String(body.url || '')); } catch (e) { return json({ error: 'geçersiz adres' }, 400); }
