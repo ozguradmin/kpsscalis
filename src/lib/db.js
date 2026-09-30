@@ -40,6 +40,7 @@ export const DEFAULTS = {
   models: {},                    // görev -> model (boşsa llm.js varsayılanı)
   prompt_addenda: {},            // beynin öğrendiği ek kurallar: {triage, analysis, letter, agent, answers}
   max_agent_steps: 28,
+  max_per_company_30d: 2,     // aynı şirkete 30 günde en fazla kaç başvuru
   triage_batch: 60,
   jev_enabled: true,
 };

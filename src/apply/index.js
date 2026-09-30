@@ -218,9 +218,15 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
   for (const j of candidates) {
     if (started >= Math.min(max, left)) break;
     if (blockedHosts.has(hostOf(j.apply_url || j.url))) continue;
-    // Aynı şirkete 30 gün içinde ikinci başvuru yapma
-    const dup = await env.DB.prepare("SELECT COUNT(*) n FROM applications a JOIN jobs k ON k.id=a.job_id WHERE lower(k.company)=lower(?) AND a.created_at > ? AND a.status IN ('submitted','confirmed','interview','next_step','applying')").bind(j.company || '', now() - 30 * DAY).first();
-    if ((dup?.n || 0) > 0) { await env.DB.prepare("UPDATE jobs SET status='review', reason='Aynı şirkete son 30 günde başvuruldu' WHERE id=?").bind(j.id).run(); continue; }
+    // Aynı şirkete 30 günde en fazla N başvuru (posta kutusundaki önceki başvuru e-postaları da sayılır)
+    const perCo = settings.max_per_company_30d ?? 2;
+    const mine = await env.DB.prepare("SELECT COUNT(*) n FROM applications a JOIN jobs k ON k.id=a.job_id WHERE lower(k.company)=lower(?) AND a.created_at > ? AND a.status IN ('submitted','confirmed','interview','next_step','applying','prepared','queued')").bind(j.company || '', now() - 30 * DAY).first();
+    let prior = 0;
+    if ((j.company || '').length > 2) {
+      const r = await env.MAILDB.prepare("SELECT COUNT(DISTINCT substr(received_at,1,10)) n FROM messages WHERE direction='inbound' AND received_at > ? AND (subject LIKE ? OR from_name LIKE ?) AND (subject LIKE '%appl%' OR subject LIKE '%başvuru%' OR subject LIKE '%security code%')").bind(new Date(now() - 30 * DAY).toISOString(), `%${j.company}%`, `%${j.company}%`).first().catch(() => null);
+      prior = r?.n || 0;
+    }
+    if ((mine?.n || 0) + prior >= perCo) { await env.DB.prepare("UPDATE jobs SET status='review', reason=? WHERE id=?").bind(`Bu şirkete son 30 günde ${(mine?.n || 0) + prior} başvuru var (sınır ${perCo})`, j.id).run(); continue; }
     const appId = await createApplication(env, j.id);
     try {
       const inst = await env.APPLY.create({ id: appId + '-' + Date.now().toString(36), params: { appId, userActive } });

@@ -32,7 +32,7 @@ const SAFE_SETTINGS = {
   paused: 'bool', auto_apply: 'bool', daily_apply_limit: [1, 25], min_fit_apply: [40, 95], min_fit_review: [20, 90], daily_ai_budget_usd: [0.5, 20],
   daily_browser_minutes: [5, 60], monthly_browser_hours: [5, 30], recording_days: [1, 7], handoff_wait_minutes: [0, 30], auto_reply_mail: 'bool', digest_email: 'bool',
   prefer_async_roles: 'bool', source_weights: 'obj', role_weights: 'obj', blocked_companies: 'arr', blocked_domains: 'arr', models: 'obj', prompt_addenda: 'obj',
-  max_agent_steps: [10, 45], sources_disabled: 'arr', jev_enabled: 'bool', notify_email: 'str', public_url: 'str',
+  max_agent_steps: [10, 45], max_per_company_30d: [1, 6], sources_disabled: 'arr', jev_enabled: 'bool', notify_email: 'str', public_url: 'str',
 };
 
 export function validateSetting(key, value) {
