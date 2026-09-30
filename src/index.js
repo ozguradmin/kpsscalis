@@ -1,6 +1,7 @@
 // Özgür İş Ajanı v2 — Cloudflare Worker giriş noktası: panel API'si + 10 dakikalık zamanlayıcı + başvuru iş akışı.
 import { migrate, getSettings, setSetting, log, allRows, oneRow, lease, release, usageToday, aiCostToday, browserHoursThisMonth } from './lib/db.js';
 import { login, readSession, logoutCookie } from './lib/auth.js';
+import { WorkflowEntrypoint } from 'cloudflare:workers';
 import { json, now, DAY, HOUR, MIN, dayKey, safeJSON, clip } from './lib/util.js';
 import { discoverTick, seedBoards, runSource, pollBoards } from './discover.js';
 import { triageTick, reanalyze } from './triage.js';
@@ -12,6 +13,24 @@ import { SOURCES } from './sources/index.js';
 import { DEFAULT_MODELS } from './lib/llm.js';
 
 export { ApplyWorkflow };
+
+// Uzun süren işler (model yarışması, öz değerlendirme) için dayanıklı iş akışı: istek süresine bağlı kalmaz
+export class TaskWorkflow extends WorkflowEntrypoint {
+  async run(event, step) {
+    const { task } = event.payload || {};
+    return step.do(task || 'task', { retries: { limit: 1, delay: '2 minutes' }, timeout: '20 minutes' }, async () => {
+      if (task === 'eval') { const r = await runModelEval(this.env); return { chosen: r.chosen }; }
+      if (task === 'review') { const r = await dailyReview(this.env); return { applied: r.applied }; }
+      return { error: 'bilinmeyen iş' };
+    });
+  }
+}
+
+async function startTask(env, task) {
+  const inst = await env.TASKS.create({ id: `${task}-${Date.now().toString(36)}`, params: { task } });
+  await log(env, 'tick', `Arka plan işi başladı: ${task}`, { data: { id: inst.id } });
+  return { ok: true, id: inst.id, note: task === 'eval' ? 'Model yarışması arka planda başladı (5-10 dk). Sonuç Modeller sayfasında.' : 'Öz değerlendirme arka planda başladı; sonucu Beyin sohbetinde görünecek.' };
+}
 
 // ---------- zamanlanmış işler ----------
 async function tick(env, ctx, { force = null } = {}) {
@@ -36,10 +55,10 @@ async function tick(env, ctx, { force = null } = {}) {
     // Günlük işler (Türkiye saatiyle)
     const trHour = new Date(now() + 3 * HOUR).getUTCHours();
     const today = dayKey();
-    if (trHour >= 5 && settings.last_review_day !== today) { await setSetting(env, 'last_review_day', today); await step('review', () => dailyReview(env)); }
+    if (trHour >= 5 && settings.last_review_day !== today) { await setSetting(env, 'last_review_day', today); await step('review', () => startTask(env, 'review')); }
     if (trHour >= 8 && settings.digest_email && settings.last_digest_day !== today) { await setSetting(env, 'last_digest_day', today); await step('digest', () => dailyDigest(env, settings)); }
     const week = `${new Date().getUTCFullYear()}-w${Math.floor((now() / DAY + 3) / 7)}`;
-    if (trHour >= 4 && settings.last_eval_week !== week) { await setSetting(env, 'last_eval_week', week); ctx?.waitUntil ? ctx.waitUntil(runModelEval(env).catch((e) => log(env, 'eval', e.message, { level: 'error' }))) : await step('eval', () => runModelEval(env)); }
+    if (trHour >= 4 && settings.last_eval_week !== week) { await setSetting(env, 'last_eval_week', week); await step('eval', () => startTask(env, 'eval')); }
   } finally {
     await release(env, 'tick');
   }
@@ -85,8 +104,8 @@ async function runTask(env, ctx, task) {
     case 'discover': return discoverTick(env, settings, { maxSources: 4, maxBoards: 20 });
     case 'triage': return triageTick(env, settings);
     case 'mail': return mailTick(env, settings, { limit: 50 });
-    case 'review': return dailyReview(env);
-    case 'eval': ctx.waitUntil(runModelEval(env)); return { ok: true, note: 'Model yarışması arka planda başladı (birkaç dakika).' };
+    case 'review': return startTask(env, 'review');
+    case 'eval': return startTask(env, 'eval');
     case 'digest': await dailyDigest(env, settings); return { ok: true };
     case 'dispatch': return dispatch(env, settings, { max: 1, userActive: true });
     case 'tick': return tick(env, ctx);

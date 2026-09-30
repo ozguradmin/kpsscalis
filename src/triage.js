@@ -135,7 +135,7 @@ async function analysisStage(env, settings, jobs) {
 }
 
 // Bir cron turunda: önce kurallar, sonra Jev, sonra LLM'ler. Yeni ve umut vadeden ilanlar önce.
-export async function triageTick(env, settings, { n0 = 400, n1 = 60, n2 = 24, n3 = 8 } = {}) {
+export async function triageTick(env, settings, { n0 = 400, n1 = 120, n2 = 30, n3 = 10 } = {}) {
   const stats = {};
   // 0) kural
   const fresh = await allRows(env, "SELECT id, source, title, company, location, description, posted_at, apply_url, url FROM jobs WHERE status='new' AND stage=0 ORDER BY discovered_at DESC LIMIT ?", n0);
