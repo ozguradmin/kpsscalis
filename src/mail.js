@@ -3,6 +3,7 @@ import { now, uid, clip, htmlToText, hostOf, normKey, sleep, DAY, dayKey } from 
 import { log, allRows, addAction, bumpUsage } from './lib/db.js';
 import { jev, llm } from './lib/llm.js';
 
+const LINK_RE = /https?:\/\/[^\s"'<>)\]]+/g;
 const isYear = (x) => /^(19|20)\d{2}$/.test(x);
 const codeLike = (x) => /^[A-Za-z0-9]{4,10}$/.test(x) && /\d/.test(x) && !isYear(x) && !/^\d{7,}$/.test(x);
 

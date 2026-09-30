@@ -2,6 +2,7 @@
 import { chatCore, costOf } from './llm-core.js';
 import { TRIAGE, FORM, LETTER_JOB, PROFILE_BRIEF } from './eval-dataset.js';
 import { TRIAGE_SYS } from './triage.js';
+import { validLetter } from './apply/materials.js';
 import { getSettings, setSetting, log } from './lib/db.js';
 import { DEFAULT_MODELS } from './lib/llm.js';
 import { now, uid } from './lib/util.js';
@@ -44,8 +45,10 @@ async function evalOne(env, model) {
     r.tools = o.toolCalls[0]?.name === 'get_stats' ? (o.toolCalls[0]?.args?.period === 'week' ? 1 : 0.6) : 0; r.cost += o.cost;
   } catch (e) { /* 0 */ }
   try {
-    const o = await chat({ maxTokens: 700, temperature: 0.5, messages: [{ role: 'system', content: 'Write a short, specific, human-sounding cover letter (120-180 words, English) for the candidate. Use ONLY facts from the profile; never invent employers, years, metrics or skills. No placeholders. Plain text.' }, { role: 'user', content: `PROFILE:\n${PROFILE_BRIEF}\n\nJOB: ${LETTER_JOB.title} at ${LETTER_JOB.company}\n${LETTER_JOB.text}` }] });
-    r.letter = o.content; r.cost += o.cost;
+    // Üretimdeki gibi JSON içinde istenir; düşünce sızdıran ya da biçimi bozuk çıktı 0 puan alır
+    const o = await chat({ json: true, maxTokens: 1400, temperature: 0.45, messages: [{ role: 'system', content: 'Write a short, specific, human-sounding cover letter (120-180 words, English) for the candidate. Use ONLY facts from the profile; never invent employers, years, metrics or skills. No placeholders. Return ONLY JSON {"letter":"..."}' }, { role: 'user', content: `PROFILE:\n${PROFILE_BRIEF}\n\nJOB: ${LETTER_JOB.title} at ${LETTER_JOB.company}\n${LETTER_JOB.text}` }] });
+    const t = String(o.json?.letter || '');
+    r.letter = validLetter(t) ? t : ''; r.cost += o.cost;
   } catch (e) { /* boş */ }
   return r;
 }
@@ -69,12 +72,13 @@ export async function runModelEval(env, { apply = true } = {}) {
   }
   for (const r of results) { r.letterScore = await judge(env, r.letter); r.p50 = r.ms.sort((a, b) => a - b)[Math.floor(r.ms.length / 2)] || 0; delete r.ms; r.letter = r.letter.slice(0, 600); }
   // Görev bazında seçim: kalite önce; fark küçükse ucuz ve hızlı olan
-  const pick = (score, minQ) => results.filter((r) => score(r) >= minQ).sort((a, b) => (score(b) - score(a)) * 10 - (b.cost - a.cost) * 20 - (b.p50 - a.p50) / 20000)[0]?.model;
+  // Güvenlik: derin analiz ve form cevapları sadece güvenilir (derin denenmiş) modeller arasından seçilir
+  const pick = (score, minQ, allow = null) => results.filter((r) => score(r) >= minQ && (!allow || allow.includes(r.model))).sort((a, b) => (score(b) - score(a)) * 10 - (b.cost - a.cost) * 20 - (b.p50 - a.p50) / 20000)[0]?.model;
   const chosen = {
     triage: pick((r) => r.triage, 0.85),
-    answers: pick((r) => r.form * 0.7 + r.triage * 0.3, 0.85),
+    answers: pick((r) => r.form * 0.7 + r.triage * 0.3, 0.85, DEFAULT_MODELS.answers),
     letter: pick((r) => r.letterScore, 0.8),
-    analysis: pick((r) => r.triage * 0.6 + r.form * 0.4, 0.85),
+    analysis: pick((r) => r.triage * 0.6 + r.form * 0.4, 0.85, DEFAULT_MODELS.analysis),
   };
   const id = uid('eval_');
   await env.DB.prepare('INSERT INTO model_evals (id, ts, source, results, chosen) VALUES (?,?,?,?,?)').bind(id, now(), 'weekly', JSON.stringify(results), JSON.stringify(chosen)).run();

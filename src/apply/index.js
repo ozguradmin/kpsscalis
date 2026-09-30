@@ -122,14 +122,23 @@ export async function submit(env, appId, { userActive = false } = {}) {
     } catch (e) { /* kanıt alınamadı */ }
   } catch (e) {
     result = { status: 'failed', reason: 'Tarayıcı hatası: ' + clip(e.message, 300), steps: 0, answers: {} };
-  } finally {
-    await rec.finish().catch(() => {});
-    try { await browser?.close(); } catch (e) { /* kapalı */ }
-    const ms = now() - t0;
-    await bumpUsage(env, 'browser_ms', ms);
-    await env.DB.prepare('UPDATE applications SET browser_ms=browser_ms+? WHERE id=?').bind(ms, appId).run();
+    await log(env, 'apply', `Tarayıcı hatası: ${clip(e.stack || e.message, 800)}`, { ref: appId, level: 'error' });
   }
-  return finalize(env, settings, appId, job, result, rec.id);
+  const ms = now() - t0;
+  // Sonucu HEMEN yaz (tarayıcı kapatma/temizlik takılsa bile kayıt kaybolmasın)
+  let fin;
+  try {
+    await env.DB.prepare('UPDATE applications SET browser_ms=browser_ms+? WHERE id=?').bind(ms, appId).run();
+    fin = await finalize(env, settings, appId, job, result, rec.id);
+  } catch (e) {
+    await log(env, 'apply', `Sonuç yazılamadı: ${clip(e.stack || e.message, 800)}`, { ref: appId, level: 'error' });
+    await env.DB.prepare('UPDATE applications SET status=?, error=?, updated_at=? WHERE id=?').bind(result.status === 'submitted' ? 'submitted' : 'failed', clip(result.reason || e.message, 400), now(), appId).run();
+    fin = { status: result.status, reason: result.reason };
+  }
+  await bumpUsage(env, 'browser_ms', ms).catch(() => {});
+  await rec.finish().catch(() => {});
+  try { await Promise.race([browser?.close(), new Promise((r) => setTimeout(r, 5000))]); } catch (e) { /* kapalı */ }
+  return fin;
 }
 
 async function submitByEmail(env, settings, app, job, analysis) {
@@ -193,7 +202,10 @@ export class ApplyWorkflow extends WorkflowEntrypoint {
     const { appId, userActive = false } = event.payload || {};
     await step.do('prepare', { retries: { limit: 2, delay: '30 seconds', backoff: 'linear' }, timeout: '6 minutes' }, () => prepare(this.env, appId));
     // Gönderim tekrar denenmez (çift başvuru olmasın)
-    const res = await step.do('submit', { retries: { limit: 0, delay: '1 minute' }, timeout: '25 minutes' }, () => submit(this.env, appId, { userActive }));
+    const res = await step.do('submit', { retries: { limit: 0, delay: '1 minute' }, timeout: '25 minutes' }, async () => {
+      try { return await submit(this.env, appId, { userActive }); }
+      catch (e) { await log(this.env, 'apply', `Gönderim adımı çöktü: ${clip(e.stack || e.message, 800)}`, { ref: appId, level: 'error' }); return { status: 'failed', reason: e.message }; }
+    });
     if (res.status === 'submitted') {
       await step.sleep('mail-wait', '5 minutes');
       await step.do('confirm', { retries: { limit: 2, delay: '1 minute' }, timeout: '2 minutes' }, () => confirmByMail(this.env, appId));
@@ -241,8 +253,27 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
 
 // Takılı kalan başvuruları kurtar
 export async function recoverStuck(env) {
-  await env.DB.prepare("UPDATE applications SET status='failed', error='Zaman aşımı (iş akışı yanıt vermedi)' WHERE status IN ('applying','prepared') AND updated_at < ?").bind(now() - 45 * MIN).run();
-  await env.DB.prepare("UPDATE jobs SET status=CASE WHEN (SELECT COUNT(*) FROM applications a WHERE a.job_id=jobs.id AND a.status='failed') >= 2 THEN 'apply_failed' ELSE 'approved' END WHERE status='queued' AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.job_id=jobs.id AND a.status IN ('queued','prepared','applying'))").run();
+  const stuck = await allRows(env, "SELECT id, job_id FROM applications WHERE status IN ('applying','prepared') AND updated_at < ?", now() - 40 * MIN);
+  for (const a of stuck) {
+    // Kayıttaki son adımlara bak: gönderim/onay görüldüyse ASLA tekrar başvurma
+    let sent = false;
+    const rec = await env.DB.prepare('SELECT id FROM recordings WHERE app_id=? ORDER BY created_at DESC LIMIT 1').bind(a.id).first();
+    if (rec) {
+      const tl = await env.R2.get(`rec/${rec.id}/timeline.json`);
+      const txt = tl ? await tl.text() : '';
+      sent = /onay ekranı|Gönderim sonrası|submitted|Thank you/i.test(txt);
+    }
+    if (sent) {
+      await env.DB.prepare("UPDATE applications SET status='submitted', submitted_at=COALESCE(submitted_at, updated_at), error='Kayıttan kurtarıldı: onay ekranı görülmüştü', updated_at=? WHERE id=?").bind(now(), a.id).run();
+      await env.DB.prepare("UPDATE jobs SET status='applied' WHERE id=?").bind(a.job_id).run();
+      await bumpUsage(env, 'applications', 1);
+      await log(env, 'apply', 'Takılı başvuru kayıttan kurtarıldı: gönderilmiş', { ref: a.id });
+    } else {
+      await env.DB.prepare("UPDATE applications SET status='failed', error='Zaman aşımı (iş akışı yanıt vermedi)', updated_at=? WHERE id=?").bind(now(), a.id).run();
+      await log(env, 'apply', 'Takılı başvuru başarısız sayıldı', { ref: a.id, level: 'warn' });
+    }
+  }
+  await env.DB.prepare("UPDATE jobs SET status=CASE WHEN (SELECT COUNT(*) FROM applications a WHERE a.job_id=jobs.id AND a.status='failed') >= 2 THEN 'apply_failed' ELSE 'approved' END WHERE status='queued' AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.job_id=jobs.id AND a.status IN ('queued','prepared','applying','submitted','confirmed'))").run();
 }
 
 export { getJob, getApp };
