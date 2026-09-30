@@ -55,6 +55,27 @@ const CATS = {
   other: 'Anything else',
 };
 
+// E-postadaki ana eylem bağlantısı (kayıt ol, profili tamamla, başvuruyu bitir…)
+export function pickCTA(text, html) {
+  const links = [...String(html || '').matchAll(/<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)].map((m) => ({ url: m[1].replace(/&amp;/g, '&'), label: htmlToText(m[2], 120) }));
+  for (const u of String(text || '').match(LINK_RE) || []) links.push({ url: u, label: '' });
+  const bad = /unsubscribe|privacy|terms|preferences|help|support|facebook|twitter|linkedin\.com\/company|instagram|youtube|mailto:/i;
+  const good = /sign ?up|register|join|create|complete|finish|continue|get started|upload|profile|login|log in|apply|onboard|start|activate|verify/i;
+  const scored = links.filter((l) => /^https?:/.test(l.url) && !bad.test(l.url) && !bad.test(l.label)).map((l) => ({ ...l, s: (good.test(l.label) ? 2 : 0) + (good.test(l.url) ? 1 : 0) }));
+  scored.sort((a, b) => b.s - a.s);
+  return scored[0]?.s > 0 ? scored[0].url : null;
+}
+
+async function createFollowup(env, { mailId, url, app, subject, body }) {
+  const id = uid('j_');
+  const res = await env.DB.prepare(`INSERT OR IGNORE INTO jobs (id, source, external_id, url, apply_url, company, title, location, description, discovered_at, last_seen_at, dedupe, status, stage, fit, priority, reason, analysis, lang)
+    VALUES (?, 'followup', ?, ?, ?, ?, ?, 'Remote', ?, ?, ?, ?, 'approved', 4, 90, 900, ?, ?, 'en')`)
+    .bind(id, mailId, url, url, app.company, clip(`Takip: ${subject}`, 200), clip(body, 6000), now(), now(), 'followup:' + mailId,
+      'Şirketin e-postası kayıt/profil/CV adımı istiyor; ajan tamamlayacak',
+      JSON.stringify({ apply_method: 'job_board_account', needs_account: true, followup: true, pitch: `Complete the next step requested by ${app.company} after applying to "${app.title}": ${clip(subject, 150)}`, decision: 'apply' })).run();
+  if (res.meta.changes) await log(env, 'mail', `${app.company}: e-postadaki sonraki adım (kayıt/profil) ajana görev olarak verildi`, { ref: app.id, data: { url } });
+}
+
 // Yeni gelen e-postaları işle
 export async function mailTick(env, settings, { limit = 25 } = {}) {
   const last = await env.DB.prepare("SELECT value FROM settings WHERE key='mail_cursor'").first();
@@ -67,25 +88,42 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
   for (const m of results) {
     if (String(m.from_address || '').toLowerCase() === own) { await env.DB.prepare("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('mail_cursor', ?1, ?2, 'mail') ON CONFLICT(key) DO UPDATE SET value=?1, updated_at=?2").bind(JSON.stringify(m.received_at), now()).run(); continue; }
     const body = clip(m.text_body || htmlToText(m.html_body), 4000);
-    let category = 'other', conf = 0;
-    try {
-      const a = await jev(env, { from: `${m.from_name || ''} <${m.from_address}>`, subject: m.subject, body: clip(body, 2500) }, { cat: { type: 'choice', instructions: 'What kind of email is this, for a job seeker who applies to jobs automatically?', criteria: CATS } });
-      category = a.cat.choice; conf = a.cat.confidence;
-    } catch (e) {
-      try {
-        const o = await llm(env, settings, { task: 'mail', json: true, maxTokens: 120, messages: [{ role: 'system', content: `Classify the email. Return JSON {"cat":"${Object.keys(CATS).join('|')}"}` }, { role: 'user', content: `From: ${m.from_address}\nSubject: ${m.subject}\n\n${clip(body, 2000)}` }] });
-        category = o.json?.cat || 'other';
-      } catch (e2) { /* sınıflandırılamadı */ }
-    }
-    // Başvuruya bağla: gönderen alan adı / şirket adı / ATS adı eşleşmesi
+    // 1) Başvuruya bağla: sadece başvurudan SONRA gelen e-postalar; şirket adı ya da şirketin kendi alan adı (ATS alan adları ortak olduğu için sayılmaz)
+    const recvT = Date.parse(m.received_at) || now();
     const dom = (m.from_address || '').split('@')[1] || '';
     const hay = normKey(`${m.from_name} ${m.subject} ${body.slice(0, 1500)} ${dom}`);
-    let app = apps.find((a) => { const c = normKey(a.company); return c.length > 2 && hay.includes(c); })
-      || apps.find((a) => { const h = hostOf(a.apply_url || a.url).split('.').slice(-2, -1)[0]; return h && h.length > 3 && dom.includes(h); });
+    const eligible = apps.filter((a) => (a.created_at || 0) - 5 * 60000 <= recvT);
+    const ATS_HOSTS = /greenhouse|lever|ashby|workable|recruitee|personio|teamtailor|breezy|smartrecruiters|himalayas|getonbrd|remoteok|djinni|jobicy|pstmrk|sendgrid|mailgun/i;
+    const app = eligible.find((a) => { const c = normKey(a.company); return c.length > 2 && hay.includes(c); })
+      || eligible.find((a) => { const h = hostOf(a.apply_url || a.url).split('.').slice(-2, -1)[0]; return h && h.length > 3 && !ATS_HOSTS.test(h) && dom.includes(h); });
+    // 2) Sınıflandır (başvuru bağlamıyla) + takip eylemi türü
+    let category = 'other', conf = 0, action = 'none';
+    try {
+      const a = await jev(env, { from: `${m.from_name || ''} <${m.from_address}>`, subject: m.subject, body: clip(body, 2500), related_application: app ? { company: app.company, title: app.title, status: app.status } : null }, {
+        cat: { type: 'choice', instructions: 'What kind of email is this, for a job seeker who applies to jobs automatically? If `related_application` is present the email comes from a company he applied to, so it is rarely a newsletter.', criteria: CATS },
+        action: { type: 'choice', instructions: 'What does the sender want the candidate to do next?', criteria: {
+          signup_or_profile: 'Create/activate an account, complete a profile, upload a resume, fill an online form or questionnaire about skills/availability',
+          test_or_interview: 'Take a test/assessment, record a video, do an AI or live interview',
+          schedule_or_reply: 'Reply by email, schedule a call or meeting, answer questions',
+          none: 'Nothing required (information, confirmation, marketing, rejection)' } },
+      });
+      category = a.cat.choice; conf = a.cat.confidence; action = a.action.choice;
+      if (app && category === 'newsletter') category = 'other';
+    } catch (e) {
+      try {
+        const o = await llm(env, settings, { task: 'mail', json: true, maxTokens: 160, messages: [{ role: 'system', content: `Classify the email for a job seeker. Return JSON {"cat":"${Object.keys(CATS).join('|')}","action":"signup_or_profile|test_or_interview|schedule_or_reply|none"}` }, { role: 'user', content: `From: ${m.from_address}\nSubject: ${m.subject}\nRelated application: ${app ? app.company : 'none'}\n\n${clip(body, 2000)}` }] });
+        category = o.json?.cat || 'other'; action = o.json?.action || 'none';
+      } catch (e2) { /* sınıflandırılamadı */ }
+    }
+    // 3) Takip görevi: kayıt/profil/CV adımını ajan kendisi tamamlasın
+    if (action === 'signup_or_profile' && app && category !== 'verification' && category !== 'rejection') {
+      const url = pickCTA(m.text_body, m.html_body);
+      if (url) await createFollowup(env, { mailId: m.id, url, app, subject: m.subject, body });
+    }
     const code = category === 'verification' ? extractCode(`${m.subject}\n${m.text_body || ''}`, m.html_body) : null;
     const link = category === 'verification' ? extractVerifyLink(m.text_body, m.html_body) : null;
     let summary = null, draft = null;
-    if (['interview', 'assessment', 'recruiter', 'offer', 'rejection'].includes(category)) {
+    if (['interview', 'assessment', 'recruiter', 'offer', 'rejection'].includes(category) || action !== 'none') {
       try {
         const o = await llm(env, settings, { task: 'mail', json: true, maxTokens: 700, messages: [
           { role: 'system', content: 'You help a job seeker (Özgür Güler, Türkiye, remote-only, English intermediate, prefers written communication). Return JSON {"summary_tr":"1-2 sentences in Turkish: what they want and deadline","needs_human":true|false,"reply_en":"a short polite reply in the same language as the email (or English), only if a reply is useful; else null"}. Never promise things the candidate did not state; do not invent availability times.' },
@@ -103,7 +141,7 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
         await log(env, 'mail', `${app.company}: ${category} → başvuru durumu "${next}"`, { ref: app.id });
       }
     }
-    if (['interview', 'assessment', 'offer', 'recruiter'].includes(category)) {
+    if (['interview', 'assessment', 'offer', 'recruiter'].includes(category) && action !== 'signup_or_profile') {
       await addAction(env, { kind: category, title: `${app ? app.company + ': ' : ''}${clip(m.subject, 120)}`, detail: summary || clip(body, 400), app_id: app?.id || null, priority: category === 'offer' || category === 'interview' ? 1 : 2, dedupe: 'mail_' + m.id });
       if (settings.auto_reply_mail && draft && category === 'recruiter') await sendMail(env, settings, { to: m.from_address, subject: /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`, text: draft, appId: app?.id });
     }

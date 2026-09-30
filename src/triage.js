@@ -21,6 +21,7 @@ function stage0(j, settings) {
   // ATS panoları sadece açık ilanları listeler; oradaki eski tarih 'hâlâ açık' demektir
   if (j.posted_at && now() - j.posted_at > 45 * DAY && !String(j.source || '').startsWith('ats:')) return 'ilan 45 günden eski';
   if (SCAM.test(text)) return 'dolandırıcılık belirtisi';
+  if (/remoteok\.com/i.test(j.apply_url || '')) return 'RemoteOK başvurusu ücretli üyelik istiyor';
   if (EXEC.test(j.title) && !/ai trainer|evaluat|annotat/i.test(j.title)) return 'üst düzey yönetici pozisyonu';
   if (IRRELEVANT.test(j.title) && !KEEP.test(j.title)) return 'alan dışı pozisyon';
   const loc = `${j.location || ''} ${clip(j.description, 1200)}`;
