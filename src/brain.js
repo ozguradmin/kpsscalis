@@ -1,6 +1,6 @@
 // Beyin: panelden sohbet (araç kullanan ajan), günlük öz değerlendirme ve kendini ayarlama.
 import { llm } from './lib/llm.js';
-import { getSettings, setSetting, log, allRows, oneRow, DEFAULTS } from './lib/db.js';
+import { getSettings, setSetting, log, allRows, oneRow, DEFAULTS, lease } from './lib/db.js';
 import { now, uid, clip, DAY, dayKey, trTime, safeJSON } from './lib/util.js';
 import { SOURCES } from './sources/index.js';
 
@@ -193,6 +193,7 @@ export async function chat(env, message, hooks, thread = 'main') {
 
 // ---------- günlük öz değerlendirme: kendini geliştirme ----------
 export async function dailyReview(env) {
+  if (!(await lease(env, 'review', 15 * 60000))) return { skipped: 'zaten çalışıyor' };
   const settings = await getSettings(env);
   const d7 = now() - 7 * DAY;
   const data = {
@@ -206,7 +207,7 @@ export async function dailyReview(env) {
     current: { daily_apply_limit: settings.daily_apply_limit, min_fit_apply: settings.min_fit_apply, min_fit_review: settings.min_fit_review, source_weights: settings.source_weights, role_weights: settings.role_weights, prompt_addenda: settings.prompt_addenda, blocked_domains: settings.blocked_domains },
     memories: await allRows(env, 'SELECT kind, text FROM memory WHERE active=1 ORDER BY created_at DESC LIMIT 30'),
   };
-  const o = await llm(env, settings, { task: 'review', json: true, thinking: true, maxTokens: 6000, temperature: 0.2, messages: [
+  const o = await llm(env, settings, { task: 'review', json: true, thinking: false, maxTokens: 3500, temperature: 0.2, validate: (j) => typeof j?.summary_tr === 'string' && j.summary_tr.length > 20, messages: [
     { role: 'system', content: `You are the self-improvement module of an autonomous job-application agent working for Özgür Güler (Türkiye, remote only). Analyze the last 7 days and improve the system. Goals in order: (1) more confirmed applications and interviews for jobs he can really get, (2) fewer wasted attempts (failed/blocked/needs_human), (3) cost efficiency. Never loosen honesty. Return ONLY JSON:
 {"summary_tr":"3-5 sentences in Turkish for Özgür","lessons":[{"text":"Turkish, concrete","kind":"lesson|rule|insight"}],
 "settings":[{"key":"daily_apply_limit|min_fit_apply|min_fit_review|max_agent_steps|handoff_wait_minutes","value":number,"why":"..."}],
@@ -238,7 +239,11 @@ Only change things the data supports; keep each prompt_addenda under 700 chars, 
     for (const k of ['triage', 'analysis', 'letter', 'agent']) if (typeof r.prompt_addenda[k] === 'string' && r.prompt_addenda[k].trim()) pa[k] = clip(r.prompt_addenda[k], 900);
     await setSetting(env, 'prompt_addenda', pa, 'self-review'); applied.push('prompt_addenda');
   }
-  for (const l of (r.lessons || []).slice(0, 8)) await env.DB.prepare('INSERT INTO memory (id, created_at, kind, text, source) VALUES (?,?,?,?,?)').bind(uid('mem_'), now(), l.kind || 'lesson', clip(l.text, 800), 'self-review').run();
+  for (const l of (r.lessons || []).slice(0, 8)) {
+    const text = clip(l.text, 800);
+    const dup = await oneRow(env, 'SELECT id FROM memory WHERE text=? LIMIT 1', text);
+    if (!dup) await env.DB.prepare('INSERT INTO memory (id, created_at, kind, text, source) VALUES (?,?,?,?,?)').bind(uid('mem_'), now(), l.kind || 'lesson', text, 'self-review').run();
+  }
   // hafıza şişmesin: eski kendi-değerlendirme derslerini pasifleştir
   await env.DB.prepare("UPDATE memory SET active=0 WHERE source='self-review' AND id NOT IN (SELECT id FROM memory WHERE source='self-review' ORDER BY created_at DESC LIMIT 40)").run();
   await log(env, 'brain', `Günlük öz değerlendirme: ${clip(r.summary_tr || '', 600)}`, { data: { applied, model: o.model } });

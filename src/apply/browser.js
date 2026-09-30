@@ -80,6 +80,7 @@ export class Recorder {
       await this.env.R2.put(key, buf, { httpMetadata: { contentType: 'image/jpeg' }, customMetadata: { label: clip(label, 200), ts: String(now()) } });
       this.timeline.push({ seq, ts: now(), label: clip(label, 300), url: clip(page.url(), 300) });
       await this.env.DB.prepare('UPDATE recordings SET frames=? WHERE id=?').bind(seq, this.id).run();
+      await this.env.R2.put(`rec/${this.id}/timeline.json`, JSON.stringify(this.timeline), { httpMetadata: { contentType: 'application/json' } }).catch(() => {});
       return key;
     } catch (e) { return null; }
   }

@@ -48,6 +48,7 @@ export async function llm(env, settings, opts) {
       const out = await chatCore(runner, { ...opts, model });
       await record(env, model, task, out.usage, out.cost);
       if ((opts.json || opts.schema) && out.json == null) { lastErr = new Error(`JSON çözülemedi (${model}): ${out.content.slice(0, 160)}`); continue; }
+      if (opts.validate && !opts.validate(out.json ?? out.content)) { lastErr = new Error(`Çıktı doğrulanamadı (${model}): ${out.content.slice(0, 160)}`); continue; }
       if (!opts.json && !opts.schema && !opts.tools && !out.content.trim()) { lastErr = new Error(`Boş cevap (${model})`); continue; }
       return out;
     } catch (e) {

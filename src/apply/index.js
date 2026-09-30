@@ -225,11 +225,15 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
   if (left <= 0) return { started: 0, why: 'günlük başvuru sınırı doldu' };
   if (usage.browser_ms / 60000 >= settings.daily_browser_minutes) return { started: 0, why: 'günlük tarayıcı süresi doldu' };
   const blockedHosts = new Set((settings.blocked_domains || []).map(String));
+  // Öğrenilmiş: robot doğrulaması yüzünden hiç başarılamayan siteler, sen panelde değilken denenmez (tarayıcı süresi boşa gitmesin)
+  const hardScopes = new Set((await allRows(env, 'SELECT scope FROM recipes WHERE failures >= 3 AND successes = 0')).map((r) => r.scope));
   const candidates = await allRows(env, `SELECT id, apply_url, url, company FROM jobs WHERE status='approved' ORDER BY priority DESC, discovered_at DESC LIMIT 20`);
   let started = 0;
   for (const j of candidates) {
     if (started >= Math.min(max, left)) break;
     if (blockedHosts.has(hostOf(j.apply_url || j.url))) continue;
+    const scope = detectATS(j.apply_url || j.url)?.ats || hostOf(startUrl(j));
+    if (!userActive && hardScopes.has(scope)) { await env.DB.prepare("UPDATE jobs SET status='review', reason=? WHERE id=?").bind(`${scope} sitesinde otomatik başvuru robot doğrulamasına takılıyor; panelden "Hemen başvur" ile canlı devralabilirsin`, j.id).run(); continue; }
     // Aynı şirkete 30 günde en fazla N başvuru (posta kutusundaki önceki başvuru e-postaları da sayılır)
     const perCo = settings.max_per_company_30d ?? 2;
     const mine = await env.DB.prepare("SELECT COUNT(*) n FROM applications a JOIN jobs k ON k.id=a.job_id WHERE lower(k.company)=lower(?) AND a.created_at > ? AND a.status IN ('submitted','confirmed','interview','next_step','applying','prepared','queued')").bind(j.company || '', now() - 30 * DAY).first();
