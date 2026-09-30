@@ -310,7 +310,22 @@ export async function act(page, a, ctx) {
       if (!handle) return `${op} ${a.id}: öğe yok`;
       const checked = await handle.evaluate((el) => el.checked);
       const want = op !== 'uncheck';
-      if (checked !== want) { await handle.evaluate((el) => el.scrollIntoView({ block: 'center' })); await handle.click().catch(async () => { await handle.evaluate((el) => el.click()); }); }
+      if (checked !== want) {
+        // Önce gerçek kullanıcı gibi: görünür etikete fareyle tıkla (React/Ashby gibi formlar durumu ancak böyle günceller)
+        const lab = await handle.evaluateHandle((el) => el.closest('label') || (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) || null);
+        const labEl = lab.asElement();
+        let done = false;
+        if (labEl) {
+          await labEl.evaluate((l) => l.scrollIntoView({ block: 'center' }));
+          const box = await labEl.boundingBox();
+          if (box && box.width > 2 && box.height > 2) { await page.mouse.click(box.x + Math.min(12, box.width / 2), box.y + box.height / 2); done = true; await sleep(200); }
+        }
+        if (!done || (await handle.evaluate((el) => el.checked)) !== want) {
+          const box = await handle.boundingBox();
+          if (box && box.width > 2 && box.height > 2) await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+          else await handle.evaluate((el) => el.scrollIntoView({ block: 'center' })).then(() => handle.click()).catch(async () => { await handle.evaluate((el) => el.click()); });
+        }
+      }
       const after = await handle.evaluate((el) => el.checked);
       if (after !== want) await handle.evaluate((el) => { const l = el.closest('label') || (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)); if (l) { l.scrollIntoView({ block: 'center' }); l.click(); } });
       if ((await handle.evaluate((el) => el.checked)) !== want) {
