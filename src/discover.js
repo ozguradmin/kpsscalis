@@ -82,7 +82,7 @@ export async function runSource(env, src) {
   const t0 = now();
   const st = (await sourceState(env))[src.id] || {};
   try {
-    const jobs = (await src.fetch()).filter((j) => j.title && j.url);
+    const jobs = (await src.fetch(env)).filter((j) => j.title && j.url);
     const { added, seen } = await saveJobs(env, jobs);
     const boards = await learnBoards(env, jobs, src.id);
     Object.assign(st, { last: t0, ok: true, seen, added, boards, err: null, ms: now() - t0, total_added: (st.total_added || 0) + added, fails: 0 });

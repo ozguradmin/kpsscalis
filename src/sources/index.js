@@ -47,7 +47,7 @@ function job(o) {
 const TORRE_ROLES = ['full stack developer', 'frontend developer', 'react developer', 'mobile developer', 'ai trainer', 'qa tester', 'content creator', 'social media manager'];
 const WORKABLE_Q = ['', 'developer', 'react', 'frontend', 'AI trainer', 'content', 'social media', 'Turkish', 'türkçe', 'desarrollador', 'desenvolvedor', 'entwickler', 'développeur', 'sviluppatore', 'programista'];
 
-async function workableSearch(params, pages = 3) {
+async function workableDirect(params, pages) {
   const out = [];
   let token = '';
   for (let p = 0; p < pages; p++) {
@@ -59,6 +59,38 @@ async function workableSearch(params, pages = 3) {
   }
   return out;
 }
+// Workable, Cloudflare Workers'tan gelen doğrudan istekleri reddediyor; o zaman tek tarayıcı oturumunda sitenin kendi sayfasından ararız
+async function workableSearchAll(env, searches) {
+  const res = [];
+  let directOk = true;
+  for (const [params, pages] of searches) {
+    if (!directOk) break;
+    try { res.push(...(await workableDirect(params, pages))); } catch (e) { directOk = false; }
+  }
+  if (directOk || !env?.BROWSER) return res;
+  const { default: puppeteer } = await import('@cloudflare/puppeteer');
+  const browser = await puppeteer.launch(env.BROWSER);
+  try {
+    const page = await browser.newPage();
+    await page.goto('https://jobs.workable.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    return await page.evaluate(async (searches) => {
+      const out = [];
+      for (const [params, pages] of searches) {
+        let token = '';
+        for (let p = 0; p < pages; p++) {
+          const qs = new URLSearchParams({ workplace: 'remote', ...params, ...(token ? { pageToken: token } : {}) });
+          const r = await fetch('/api/v1/jobs?' + qs);
+          if (!r.ok) break;
+          const d = await r.json();
+          out.push(...(d.jobs || []));
+          token = d.nextPageToken;
+          if (!token) break;
+        }
+      }
+      return out;
+    }, searches);
+  } finally { await browser.close().catch(() => {}); }
+}
 const workableJob = (source, j) => job({ source, external_id: j.id, url: j.url, company: j.company?.title, title: j.title,
   location: [...(j.locations || []).filter((l) => l !== 'TELECOMMUTE'), 'remote'].join(' · '),
   description: htmlToText([j.description, j.requirementsSection, j.benefitsSection].join('\n')), tags: [j.department, j.employmentType],
@@ -68,14 +100,13 @@ export const SOURCES = [
   {
     // Workable'ın küresel araması: çoğu küçük/orta şirket; "Türkiye" konumlu uzaktan ilanlar doğrudan Türkiye'den işe alır
     id: 'workable_tr', label: 'Workable — Türkiye\'den uzaktan', cadence: 120, lang: 'en',
-    async fetch() {
+    async fetch(env) {
       const seen = new Set(), out = [];
-      for (const q of ['', 'developer', 'yazılım', 'content', 'AI']) {
-        for (const j of await workableSearch({ location: 'Turkey', ...(q ? { query: q } : {}) }, q ? 1 : 7).catch(() => [])) {
-          if (seen.has(j.id)) continue;
-          seen.add(j.id);
-          out.push({ ...workableJob('workable_tr', j), location: `${(j.locations || []).filter((l) => l !== 'TELECOMMUTE').join(' · ')} · remote (Türkiye'den)` });
-        }
+      const jobs = await workableSearchAll(env, [[{ location: 'Turkey' }, 7], ...['developer', 'yazılım', 'content', 'AI'].map((q) => [{ location: 'Turkey', query: q }, 1])]);
+      for (const j of jobs) {
+        if (seen.has(j.id)) continue;
+        seen.add(j.id);
+        out.push({ ...workableJob('workable_tr', j), location: `${(j.locations || []).filter((l) => l !== 'TELECOMMUTE').join(' · ')} · remote (Türkiye'den)` });
       }
       if (!out.length) throw new Error('Workable yanıt vermedi');
       return out;
@@ -83,14 +114,12 @@ export const SOURCES = [
   },
   {
     id: 'workable', label: 'Workable küresel (çok dilli, küçük şirketler)', cadence: 240, lang: 'en',
-    async fetch() {
+    async fetch(env) {
       const seen = new Set(), out = [];
-      for (const q of WORKABLE_Q.filter(Boolean)) {
-        for (const j of await workableSearch({ query: q }, 1).catch(() => [])) {
-          if (seen.has(j.id) || Date.now() - Date.parse(j.created) > 21 * 86400000) continue;
-          seen.add(j.id);
-          out.push(workableJob('workable', j));
-        }
+      for (const j of await workableSearchAll(env, WORKABLE_Q.filter(Boolean).map((q) => [{ query: q }, 1]))) {
+        if (seen.has(j.id) || Date.now() - Date.parse(j.created) > 21 * 86400000) continue;
+        seen.add(j.id);
+        out.push(workableJob('workable', j));
       }
       return out;
     },
