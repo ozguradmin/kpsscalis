@@ -69,7 +69,11 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
     const sig = await sha256(`${s.url}|${(s.fields || []).map((f) => `${f.label}=${f.value || f.checked || ''}`).join(';')}|${(s.errors || []).join(';')}|${clip(s.text, 400)}`);
     if (sig === lastSig) { stall++; } else { stall = 0; lastSig = sig; }
     if (stall >= 2 && model === 'agent') { model = 'agent_hard'; rec.note('Takıldı, daha güçlü modele geçildi'); }
-    if (stall >= 5) return { status: 'failed', reason: 'Sayfa ilerlemiyor (takıldı)', steps, answers };
+    if (stall >= 4) {
+      // Aynı hata tekrarlanıyorsa büyük ihtimalle görünmeyen bir doğrulama ya da site sorunu var: sana bırak
+      const err = (s.errors || []).join(' | ');
+      return err ? { status: 'needs_human', reason: `Site aynı hatayı veriyor: ${clip(err, 200)} (muhtemelen robot doğrulaması)`, steps, answers } : { status: 'failed', reason: 'Sayfa ilerlemiyor (takıldı)', steps, answers };
+    }
     if (SUCCESS_RE.test(`${s.title} ${s.text}`) && steps > 1) { await rec.shot(page, 'Başvuru onay ekranı'); return { status: 'submitted', reason: 'Onay metni görüldü', steps, answers }; }
     if (steps === 1 && CLOSED_RE.test(`${s.title} ${clip(s.text, 600)}`)) return { status: 'closed', reason: 'İlan kapanmış', steps, answers };
     const msgs = [

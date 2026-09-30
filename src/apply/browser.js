@@ -55,7 +55,9 @@ export const SNAPSHOT_JS = `(() => {
   });
   document.querySelectorAll('[role=alert], .error, .errors, [class*=error], [class*=Error], [class*=invalid]').forEach((el) => { if (vis(el)) { const t = txt(el.innerText, 200); if (t && !out.errors.includes(t)) out.errors.push(t); } });
   document.querySelectorAll('iframe').forEach((f) => { const s = f.src || ''; if (/recaptcha|hcaptcha|turnstile|challenges\\.cloudflare|arkoselabs|funcaptcha/i.test(s)) { const r = f.getBoundingClientRect(); if (r.width > 60 && r.height > 60) out.captcha = true; } else if (s && vis(f)) out.iframes.push(s.slice(0, 300)); });
-  if (document.querySelector('.g-recaptcha:not([data-size=invisible]), .h-captcha:not([data-size=invisible]), .cf-turnstile') || /verify you are human|i'm not a robot|robot değilim|security check/i.test(document.body.innerText.slice(0, 5000))) out.captcha = true;
+  const ts = document.querySelector('input[name="cf-turnstile-response"]');
+  if (ts && !ts.value) out.captcha = true;
+  if (document.querySelector('.g-recaptcha:not([data-size=invisible]), .h-captcha:not([data-size=invisible]), .cf-turnstile, [id^=cf-chl-widget], iframe[title*="Cloudflare security"], iframe[title*="hCaptcha" i][src*="checkbox"]') || /verify you are human|i'm not a robot|robot değilim|security check/i.test(document.body.innerText.slice(0, 5000))) out.captcha = true;
   const main = document.querySelector('main, [role=main], form, #content, .content') || document.body;
   out.text = txt(main.innerText, 3500);
   out.fields = out.fields.slice(0, 90); out.buttons = out.buttons.slice(0, 40); out.links = out.links.slice(0, 25); out.errors = out.errors.slice(0, 10);
