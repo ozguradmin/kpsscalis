@@ -1,11 +1,9 @@
 name: Canlı log (wrangler tail)
 
+# Çalıştırmak için: git push origin HEAD:is-ajani-log --force
 on:
-  workflow_dispatch:
-    inputs:
-      minutes:
-        description: Kaç dakika dinlensin
-        default: "10"
+  push:
+    branches: [is-ajani-log]
 
 jobs:
   tail:
@@ -20,7 +18,7 @@ jobs:
       - name: Dinle
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: timeout ${{ github.event.inputs.minutes }}m npx wrangler tail ozgur-is-ajani --format json > tail.jsonl 2> tail.err || true
+        run: timeout 12m npx wrangler tail ozgur-is-ajani --format json > tail.jsonl 2> tail.err || true
       - name: Özet
         run: |
           echo "--- stderr ---"; tail -n 20 tail.err || true
