@@ -1,0 +1,24 @@
+name: Eski ajanın zamanlayıcısını kapat
+
+# Eski sistemi (ozgur-job-agent) durdurur: cron tetikleyicilerini kaldırır. Geri almak için ESKI_CRON değerini yazıp aynı dalı tekrar push et.
+# Çalıştırmak için: git push origin HEAD:is-ajani-ops --force
+on:
+  push:
+    branches: [is-ajani-ops]
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    env:
+      CF: https://api.cloudflare.com/client/v4/accounts/3c39c225b3a27de7822833feb24b65b1/workers/scripts/ozgur-job-agent/schedules
+      TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ESKI_CRON: ''
+    steps:
+      - name: Mevcut zamanlayıcılar (geri almak için kaydı)
+        run: curl -s -H "Authorization: Bearer $TOKEN" "$CF"
+      - name: Kaldır (ya da ESKI_CRON doluysa geri yükle)
+        run: |
+          if [ -n "$ESKI_CRON" ]; then BODY="[{\"cron\":\"$ESKI_CRON\"}]"; else BODY='[]'; fi
+          curl -s -X PUT -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' -d "$BODY" "$CF"
+      - name: Sonuç
+        run: curl -s -H "Authorization: Bearer $TOKEN" "$CF"
