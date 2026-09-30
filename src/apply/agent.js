@@ -119,6 +119,8 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
           history.push(`(insan müdahalesi: ${r.success ? 'tamamlandı' : 'başarısız: ' + (r.reason || '')})`);
           if (r.success) continue;
         }
+        // Canlı bağlantı bu oturumla birlikte kapanıyor; eski "canlı devral" işini kapat (yerine "elle tamamla" işi açılır)
+        await env.DB.prepare("UPDATE actions SET status='done' WHERE id=?").bind('handoff_' + app.id).run().catch(() => {});
         return { status: 'needs_human', reason: 'CAPTCHA / robot doğrulaması', steps, answers };
       }
       return { status: d.status === 'not_eligible' ? 'not_eligible' : d.status, reason: d.reason || d.thought, steps, answers };

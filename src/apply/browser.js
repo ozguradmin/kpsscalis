@@ -191,14 +191,73 @@ const NATIVE_SELECT_JS = (id, want) => `(() => {
   return el.options[i].text;
 })()`;
 
+// Bayraklı telefon alanları (intl-tel-input, react-phone-input-2, react-phone-number-input, MUI tel…): ülke açılır listesini aç
+const PHONE_TOGGLE_JS = (id) => `(() => {
+  const el = document.querySelector('[data-agent-id="${id}"]');
+  if (!el) return 'yok';
+  const hint = (el.type === 'tel') || /phone|telefon|mobile|tel\\b/i.test([el.name, el.id, el.placeholder, el.getAttribute('aria-label'), el.autocomplete].join(' '));
+  if (!hint) return 'telefon değil';
+  const box = el.parentElement?.closest('.iti, .react-tel-input, .PhoneInput, [class*=phone i], [class*=Phone], [class*=tel-input]') || el.parentElement?.parentElement || el.parentElement;
+  const sel = box?.querySelector('select');
+  if (sel && [...sel.options].some((o) => /^(TR|tr)$/.test(o.value) || /turkey|türkiye/i.test(o.text))) {
+    const o = [...sel.options].find((o) => /^(TR|tr)$/.test(o.value) || /turkey|türkiye/i.test(o.text));
+    sel.value = o.value; sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true }));
+    return 'native';
+  }
+  const btn = box?.querySelector('.iti__selected-country, .iti__selected-flag, .iti__flag-container button, .selected-flag, .flag-dropdown, button[aria-haspopup], [role=combobox], button[class*=flag i], button[class*=country i], div[class*=flag i][tabindex]');
+  if (!btn || btn === el) return 'bayrak yok';
+  btn.scrollIntoView({ block: 'center' });
+  btn.click();
+  return 'açıldı';
+})()`;
+const PHONE_PICK_TR_JS = `(() => {
+  const vis = (o) => { const r = o.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(o).visibility !== 'hidden'; };
+  const direct = [...document.querySelectorAll('[data-country-code="tr"], [data-country-code="TR"], li[data-dial-code="90"], [data-value="TR"], [data-value="tr"], [data-iso2="tr"]')].filter(vis);
+  const cands = direct.length ? direct : [...document.querySelectorAll('li, [role=option], [class*=country i] div, [class*=option]')].filter((o) => vis(o) && /^\\W*(turkey|türkiye|turkiye)\\b|\\b(turkey|türkiye)\\s*\\(?\\+?90\\)?/i.test(o.innerText.trim()));
+  if (!cands.length) return 'Türkiye seçeneği yok';
+  cands[0].scrollIntoView({ block: 'center' });
+  cands[0].click();
+  return 'ok';
+})()`;
+async function setPhoneTurkey(page, id) {
+  const t = await page.evaluate(PHONE_TOGGLE_JS(id)).catch(() => 'hata');
+  if (t === 'native') return 'ülke: Türkiye';
+  if (t !== 'açıldı') return null;
+  await new Promise((r) => setTimeout(r, 350));
+  let p = await page.evaluate(PHONE_PICK_TR_JS).catch(() => 'hata');
+  if (p !== 'ok') {
+    // Arama kutulu listeler: "Turk" yaz
+    const search = await page.$('input[type=search], .iti__search-input, .search-box, [role=listbox] input, [class*=search i] input');
+    if (search) { await search.type('Turk', { delay: 20 }).catch(() => {}); await new Promise((r) => setTimeout(r, 300)); p = await page.evaluate(PHONE_PICK_TR_JS).catch(() => 'hata'); }
+  }
+  if (p !== 'ok') await page.keyboard.press('Escape').catch(() => {});
+  return p === 'ok' ? 'ülke: Türkiye' : `ülke seçilemedi (${p})`;
+}
+
 // Tek eylemi uygular; sonucu kısa metin olarak döndürür
 export async function act(page, a, ctx) {
   const { op } = a;
   try {
     if (op === 'fill' || op === 'type') {
-      const v = String(a.value ?? '');
+      let v = String(a.value ?? '');
       const handle = await page.$(sel(a.id));
       if (!handle) return `fill ${a.id}: öğe yok`;
+      // Türk numarası + bayraklı alan: önce ülkeyi Türkiye yap, sonra alanın beklediği biçimde yaz
+      if (/^\s*(\+?90|0)?\s*5\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}\s*$/.test(v)) {
+        const c = await setPhoneTurkey(page, a.id);
+        if (c) {
+          const digits = v.replace(/\D/g, '').replace(/^90/, '').replace(/^0/, '');
+          const cur = await page.$eval(sel(a.id), (el) => el.value || '').catch(() => '');
+          await handle.click({ clickCount: 3 }).catch(() => {});
+          await page.keyboard.press('Backspace').catch(() => {});
+          // Alan alan kodunu kendisi yazıyorsa (+90 önekli) sadece ulusal numarayı yaz
+          const pre = await page.$eval(sel(a.id), (el) => el.value || '').catch(() => '');
+          await handle.type(/\+?90/.test(pre) || /\+?90/.test(cur) ? digits : `+90${digits}`, { delay: 15 });
+          const fin = await page.$eval(sel(a.id), (el) => el.value || '').catch(() => '');
+          if (!fin.replace(/\D/g, '').includes(digits)) { await handle.click({ clickCount: 3 }).catch(() => {}); await page.keyboard.press('Backspace').catch(() => {}); await handle.type(digits, { delay: 15 }); }
+          return `fill ${a.id}: telefon (${c}) → ${await page.$eval(sel(a.id), (el) => el.value || '').catch(() => '?')}`;
+        }
+      }
       const r = await page.evaluate(SET_VALUE_JS(a.id, v));
       // Bazı alanlar gerçek tuş olayı ister (otomatik tamamlama, telefon maskesi)
       if (a.keys || v.length < 60) {

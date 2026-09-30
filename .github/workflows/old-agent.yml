@@ -15,10 +15,12 @@ jobs:
       ESKI_CRON: ''
     steps:
       - name: Mevcut zamanlayıcılar (geri almak için kaydı)
-        run: curl -s -H "Authorization: Bearer $TOKEN" "$CF"
+        run: |
+          curl -s -H "Authorization: Bearer $TOKEN" "$CF"
       - name: Kaldır (ya da ESKI_CRON doluysa geri yükle)
         run: |
           if [ -n "$ESKI_CRON" ]; then BODY="[{\"cron\":\"$ESKI_CRON\"}]"; else BODY='[]'; fi
           curl -s -X PUT -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' -d "$BODY" "$CF"
       - name: Sonuç
-        run: curl -s -H "Authorization: Bearer $TOKEN" "$CF"
+        run: |
+          curl -s -H "Authorization: Bearer $TOKEN" "$CF"

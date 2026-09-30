@@ -165,7 +165,7 @@ async function finalize(env, settings, appId, job, r, recId) {
   }
   await env.DB.prepare('UPDATE jobs SET status=?, reason=CASE WHEN ? IS NOT NULL THEN ? ELSE reason END WHERE id=?').bind(jobStatus, status !== 'submitted' ? r.reason : null, clip(r.reason || '', 300), job.id).run();
   if (status === 'submitted') await bumpUsage(env, 'applications', 1);
-  if (status === 'needs_human') await addAction(env, { kind: 'needs_human', title: `${job.company} — ${job.title}: elle tamamlanabilir`, detail: `${r.reason}. Ön yazı ve cevaplar hazır; panelden "Canlı devral" ile yeniden başlatabilir ya da bağlantıdan kendin gönderebilirsin.`, url: startUrl(job), job_id: job.id, app_id: appId, priority: 2, dedupe: 'nh_' + appId });
+  if (status === 'needs_human') await addAction(env, { kind: 'needs_human', title: `${job.company} — ${job.title}: elle tamamlanabilir`, detail: `${r.reason}. Ön yazı ve cevaplar hazır. Panelde başvuruyu açıp "Canlı devral"a bas: ajan formu baştan doldurur ve robot doğrulaması için seni bekler (bağlantı Gmail'ine de gelir). Ya da bağlantıdan kendin gönderebilirsin.`, url: startUrl(job), job_id: job.id, app_id: appId, priority: 2, dedupe: 'nh_' + appId });
   const handoffMailed = status === 'needs_human' && await env.DB.prepare("SELECT 1 FROM events WHERE type='alert' AND ref=?").bind('handoff_' + appId).first();
   if (status === 'needs_human' && !handoffMailed) {
     const st = await getSettings(env);
