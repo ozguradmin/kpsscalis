@@ -1,5 +1,5 @@
 // Tarayıcı ajanı: sayfayı gözler, modele sorar, eylemleri uygular; başvuru gönderilene ya da engel çıkana kadar döner.
-import { llm } from '../lib/llm.js';
+import { llm, jev } from '../lib/llm.js';
 import { act, snapshot, liveHandoff } from './browser.js';
 import { HONESTY_RULES, CORE } from '../profile.js';
 import { clip, now, sleep, hostOf, sha256 } from '../lib/util.js';
@@ -97,8 +97,17 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
         // Modelin iddiasını doğrula: sayfada onay var mı?
         const s2 = await snapshot(page);
         await rec.shot(page, 'Gönderim sonrası');
-        if (SUCCESS_RE.test(`${s2.title} ${s2.text}`) || !(s2.fields || []).some((f) => f.required && !f.value && f.kind !== 'file')) return { status: 'submitted', reason: d.reason || d.thought, steps, answers };
-        history.push('(submitted dedin ama sayfada onay yok ve boş zorunlu alanlar var; devam et)');
+        if (SUCCESS_RE.test(`${s2.title} ${s2.text}`)) return { status: 'submitted', reason: d.reason || d.thought, steps, answers };
+        // Kalıp tutmadıysa Jev hakemlik yapar (browser-use/jev-ultrafast'taki "hedefe ulaşıldı mı" yargısı gibi)
+        let conf = null;
+        try {
+          const j = await jev(env, { page_title: s2.title, url: s2.url, page_text: clip(s2.text, 3000), empty_required_fields: (s2.fields || []).filter((f) => f.required && !f.value).map((f) => f.label).slice(0, 12) }, {
+            submitted: { type: 'noul', instructions: 'Does this page show that a job application was successfully submitted/received (a confirmation or thank-you state), rather than a form still waiting to be completed or an error?' } });
+          conf = j.submitted.noul;
+        } catch (e) { /* Jev yoksa eski kurala düş */ }
+        const emptyReq = (s2.fields || []).some((f) => f.required && !f.value && f.kind !== 'file');
+        if (conf != null ? conf >= 0.6 || (conf >= 0.3 && !emptyReq) : !emptyReq) { rec.note(`Gönderim doğrulandı (Jev ${conf ?? '-'})`); return { status: 'submitted', reason: d.reason || d.thought, steps, answers }; }
+        history.push(`(submitted dedin ama sayfa onay göstermiyor${conf != null ? ` (Jev ${conf.toFixed(2)})` : ''}${emptyReq ? ', boş zorunlu alanlar var' : ''}; hata mesajlarına bak ve devam et)`);
         continue;
       }
       if (d.status === 'captcha') {

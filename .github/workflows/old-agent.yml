@@ -1,6 +1,8 @@
 name: Eski ajanın zamanlayıcısını kapat
 
-# Eski sistemi (ozgur-job-agent) durdurur: cron tetikleyicilerini kaldırır. Geri almak için ESKI_CRON değerini yazıp aynı dalı tekrar push et.
+# Eski sistemi (ozgur-job-agent) durdurur: cron tetikleyicilerini kaldırır.
+# 30 Eylül 2026'da kaldırılanlar: '*/15 * * * *', '0 4 * * *', '0 10 * * *', '0 16 * * *', '30 18 * * *'.
+# Geri almak için ESKI_CRON'a virgülle bu değerleri yazıp aynı dalı tekrar push et.
 # Çalıştırmak için: git push origin HEAD:is-ajani-ops --force
 on:
   push:
@@ -19,7 +21,7 @@ jobs:
           curl -s -H "Authorization: Bearer $TOKEN" "$CF"
       - name: Kaldır (ya da ESKI_CRON doluysa geri yükle)
         run: |
-          if [ -n "$ESKI_CRON" ]; then BODY="[{\"cron\":\"$ESKI_CRON\"}]"; else BODY='[]'; fi
+          if [ -n "$ESKI_CRON" ]; then BODY=$(python3 -c "import json,os;print(json.dumps([{'cron':c.strip()} for c in os.environ['ESKI_CRON'].split(',')]))"); else BODY='[]'; fi
           curl -s -X PUT -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' -d "$BODY" "$CF"
       - name: Sonuç
         run: |
