@@ -130,7 +130,8 @@ export async function submit(env, appId, { userActive = false } = {}) {
     await rec.shot(o.page, 'Başvuru sayfası açıldı');
     result = await runAgent(env, settings, { page: o.page, job, app: { ...app, id: appId }, letter: app.letter, rec, ctx, account, maxSteps: settings.max_agent_steps, userActive });
     // Başarılı başvurudan sonra bu sitenin oturumunu sakla (hesap açıldıysa bir dahaki sefere giriş gerekmesin)
-    if (result.status === 'submitted') await saveSessions(env, o.page, { only: [regDomainOf(o.page.url())], note: `${job.company} başvurusu` }).catch(() => {});
+    // (hesap açma adımlarında giriş çerezi başka alan adında olabilir: ör. account.ycombinator.com → workatastartup.com)
+    if (result.status === 'submitted') await saveSessions(env, o.page, { note: `${job.company}${job.source === 'followup' ? ' hesabı' : ' başvurusu'}` }).catch(() => {});
     // kalıcı kanıt: son ekran
     try {
       const shot = await o.page.screenshot({ type: 'jpeg', quality: 70, fullPage: true });
