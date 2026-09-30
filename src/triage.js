@@ -20,7 +20,8 @@ function stage0(j, settings) {
   if ((settings.blocked_companies || []).some((c) => c && String(j.company || '').toLowerCase().includes(String(c).toLowerCase()))) return 'engelli şirket';
   if ((settings.blocked_domains || []).some((d) => d && hostOf(j.apply_url || j.url).endsWith(d))) return 'engelli alan adı';
   // ATS panoları sadece açık ilanları listeler; oradaki eski tarih 'hâlâ açık' demektir
-  if (j.posted_at && now() - j.posted_at > 45 * DAY && !String(j.source || '').startsWith('ats:')) return 'ilan 45 günden eski';
+  // Workable araması da sadece yayındaki ilanları döndürür
+  if (j.posted_at && now() - j.posted_at > 45 * DAY && !/^(ats:|workable)/.test(String(j.source || ''))) return 'ilan 45 günden eski';
   if (SCAM.test(text)) return 'dolandırıcılık belirtisi';
   if (/remoteok\.com/i.test(j.apply_url || '')) return 'RemoteOK başvurusu ücretli üyelik istiyor';
   if (EXEC.test(j.title) && !/ai trainer|evaluat|annotat/i.test(j.title)) return 'üst düzey yönetici pozisyonu';
