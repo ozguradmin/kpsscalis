@@ -23,12 +23,4 @@ jobs:
         run: |
           echo "--- stderr ---"; tail -n 20 tail.err || true
           echo "--- olay sayısı: $(wc -l < tail.jsonl)"
-          node -e '
-            const fs=require("fs"); const lines=fs.readFileSync("tail.jsonl","utf8").split("\n").filter(Boolean);
-            for (const l of lines) { let e; try { e=JSON.parse(l); } catch { continue; }
-              const ev = e.event || {}; const kind = ev.request ? (ev.request.method+" "+ev.request.url) : (ev.cron || (ev.workflowName ? "workflow "+ev.workflowName : JSON.stringify(ev).slice(0,120)));
-              const bad = e.outcome !== "ok" || (e.exceptions||[]).length || (e.logs||[]).some(x=>x.level==="error");
-              console.log(`[${e.outcome}] ${e.scriptName||""} ${kind} cpu=${e.cpuTime??""} wall=${e.wallTime??""}`);
-              for (const x of e.exceptions||[]) console.log("   EXC", x.name, x.message);
-              for (const x of (e.logs||[])) if (bad || x.level!=="log") console.log("   ", x.level, JSON.stringify(x.message).slice(0,400));
-            }'
+          node test/tail-summary.cjs tail.jsonl
