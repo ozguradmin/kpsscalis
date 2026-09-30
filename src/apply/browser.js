@@ -98,6 +98,8 @@ export async function openBrowser(env, { recording = true } = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 900 });
   await page.setExtraHTTPHeaders({ 'accept-language': 'en-US,en;q=0.9,tr;q=0.8' });
+  // Yeni sekme/pencere açan başvuru düğmeleri aynı sekmede açılsın (ajan tek sekmeyi izler)
+  await page.evaluateOnNewDocument(`(() => { const o = window.open; window.open = function (u) { if (u && typeof u === 'string' && !/^javascript:/i.test(u)) { location.href = u; return window; } return o.apply(this, arguments); }; document.addEventListener('click', (e) => { const a = e.target && e.target.closest && e.target.closest('a[target]'); if (a) a.removeAttribute('target'); }, true); })()`).catch(() => {});
   let sessionId = null;
   try { sessionId = browser.sessionId(); } catch (e) { /* eski sürüm */ }
   return { browser, page, sessionId };
@@ -262,7 +264,7 @@ export async function act(page, a, ctx) {
     if (op === 'click') {
       const handle = await page.$(sel(a.id));
       if (!handle) return `click ${a.id}: öğe yok`;
-      await handle.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+      await handle.evaluate((el) => { el.scrollIntoView({ block: 'center' }); const a = el.closest('a'); if (a) a.removeAttribute('target'); const f = el.closest('form'); if (f) f.removeAttribute('target'); });
       const nav = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => null);
       await handle.click().catch(async () => { await handle.evaluate((el) => el.click()); });
       await Promise.race([nav, sleep(3500)]);
