@@ -401,7 +401,7 @@ export const SOURCES = [
           description: htmlToText(j.description), salary: j.minSalary ? `${j.minSalary}-${j.maxSalary} ${j.currency || ''}/${j.salaryPeriod || ''}` : null,
           tags: [...(j.categories || []), j.employmentType, j.seniority, `himalayas:${j.companySlug || ''}`], posted_at: j.pubDate, remote_hint: 'remote' }));
       }
-      if (env) await probeCompanyBoards(env, [...new Map(out.map((o) => [o.company, (o.tags || '').match(/himalayas:([a-z0-9-]+)/)?.[1] || ''])).entries()], 'himalayas-tr').catch(() => {});
+      if (env) await probeCompanyBoards(env, [...new Map(out.map((o) => [o.company, (o.tags || '').match(/himalayas:([a-z0-9-]+)/)?.[1] || ''])).entries()], 'himalayas-tr', 20).catch(() => {});
       return out;
     },
   },
