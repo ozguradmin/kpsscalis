@@ -1,5 +1,5 @@
 // E-posta: ozgurguler-mail D1'inden gelen kutusunu okur, sınıflandırır, başvurulara bağlar; doğrulama kodu/bağlantısı bulur; e-posta gönderir.
-import { now, uid, clip, htmlToText, hostOf, normKey, sleep, DAY, dayKey } from './lib/util.js';
+import { now, uid, clip, htmlToText, hostOf, normKey, sleep, DAY, MIN, dayKey } from './lib/util.js';
 import { log, allRows, addAction, bumpUsage } from './lib/db.js';
 import { jev, llm } from './lib/llm.js';
 import { signLink } from './lib/auth.js';
@@ -134,6 +134,12 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
     }
     await env.DB.prepare('INSERT OR REPLACE INTO mail (id, received_at, from_addr, subject, category, app_id, code, link, summary, draft, handled, processed_at) VALUES (?,?,?,?,?,?,?,?,?,?,0,?)')
       .bind(m.id, m.received_at, m.from_address, clip(m.subject, 300), category, app?.id || null, code, link, summary, draft, now()).run();
+    // Doğrulama kodu geldi ama onu bekleyen bir ajan yoksa: Özgür elle bir şey yapıyordur (ör. Meridial kaydı) → kodu Gmail'ine ilet
+    if (category === 'verification' && (code || link) && recvT > now() - 30 * MIN) {
+      const busy = await env.DB.prepare("SELECT 1 FROM applications WHERE status IN ('applying','prepared') AND updated_at > ?").bind(now() - 20 * MIN).first();
+      if (!busy) await alertUser(env, settings, { key: 'code_' + m.id, subject: `Doğrulama ${code ? 'kodu: ' + code : 'bağlantısı'} (${m.from_name || dom})`,
+        text: `${m.from_name || ''} <${m.from_address}> az önce destek@ozgurguler.tech adresine bir doğrulama ${code ? 'kodu' : 'bağlantısı'} gönderdi.\n${code ? `\nKOD: ${code}\n` : ''}${link ? `\nBağlantı: ${link}\n` : ''}\nKonu: ${m.subject}` });
+    }
     if (app) {
       const next = { confirmation: 'confirmed', rejection: 'rejected', interview: 'interview', assessment: 'next_step', offer: 'offer' }[category];
       const rank = { submitted: 1, confirmed: 2, next_step: 3, interview: 4, offer: 5, rejected: 6 };
