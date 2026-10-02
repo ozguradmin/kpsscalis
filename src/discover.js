@@ -24,7 +24,11 @@ export async function saveJobs(env, jobs) {
       const ats = detectATS(j.apply_url) || detectATS(j.url);
       return env.DB.prepare(`INSERT INTO jobs (id, source, external_id, url, apply_url, ats, company, title, location, lang, description, salary, tags, posted_at, discovered_at, last_seen_at, dedupe, status, stage)
         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?15,?16,'new',0)
-        ON CONFLICT(dedupe) DO UPDATE SET last_seen_at=?15`)
+        ON CONFLICT(dedupe) DO UPDATE SET last_seen_at=?15,
+          url=CASE WHEN jobs.apply_url LIKE '%himalayas.app%' AND ?6 IS NOT NULL THEN ?4 ELSE jobs.url END,
+          apply_url=CASE WHEN jobs.apply_url LIKE '%himalayas.app%' AND ?6 IS NOT NULL THEN ?5 ELSE jobs.apply_url END,
+          ats=CASE WHEN jobs.apply_url LIKE '%himalayas.app%' AND ?6 IS NOT NULL THEN ?6 ELSE jobs.ats END,
+          status=CASE WHEN jobs.apply_url LIKE '%himalayas.app%' AND ?6 IS NOT NULL AND jobs.status='review' AND jobs.reason LIKE '%himalayas.app sitesinde%' THEN 'approved' ELSE jobs.status END`)
         .bind(uid('j_'), j.source, j.external_id, j.url, j.apply_url, ats ? ats.ats : null, j.company, j.title, j.location, j.lang, j.description, j.salary, j.tags, j.posted_at, t, k);
     });
     const res = await env.DB.batch(stmts);

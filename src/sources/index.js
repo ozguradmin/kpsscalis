@@ -122,6 +122,39 @@ export async function scanCompanySite(website) {
   }
 }
 
+// Şirket adından ATS panosunu tahmin et: greenhouse/lever/ashby/workable/recruitee slug denemeleri (her şirket bir kez denenir)
+export async function probeCompanyBoards(env, companies, from, max = 12) {
+  const key = 'cache/ats_probe.json';
+  const obj = await env.R2.get(key);
+  const tried = obj ? await obj.json() : {};
+  let n = 0, found = 0;
+  for (const [name, hint] of companies) {
+    if (n >= max) break;
+    const base = String(name || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\b(inc|llc|ltd|gmbh|corp|co|sa|s\.a|bv|ag|limited|technologies|technology)\b\.?/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!base || tried[base] || FAMOUS.test(name)) continue;
+    n++;
+    const slugs = [...new Set([hint, base.replace(/ /g, ''), base.replace(/ /g, '-')].filter(Boolean))].slice(0, 3);
+    let hit = null;
+    for (const slug of slugs) {
+      const checks = [
+        ['greenhouse', `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs`, (d) => Array.isArray(d.jobs)],
+        ['lever', `https://api.lever.co/v0/postings/${slug}?mode=json&limit=1`, (d) => Array.isArray(d)],
+        ['ashby', `https://api.ashbyhq.com/posting-api/job-board/${slug}`, (d) => Array.isArray(d.jobs)],
+        ['workable', `https://apply.workable.com/api/v1/widget/accounts/${slug}`, (d) => Array.isArray(d.jobs)],
+        ['recruitee', `https://${slug}.recruitee.com/api/offers/`, (d) => Array.isArray(d.offers)],
+      ];
+      for (const [ats, u, ok] of checks) {
+        try { const d = await fetchJSON(u, {}, 8000); if (ok(d)) { hit = { ats, slug }; break; } } catch (e) { /* yok */ }
+      }
+      if (hit) break;
+    }
+    tried[base] = hit ? `${hit.ats}:${hit.slug}` : '-';
+    if (hit) { found++; await env.DB.prepare('INSERT OR IGNORE INTO boards (id, ats, slug, company, added_at, added_from) VALUES (?,?,?,?,?,?)').bind(`${hit.ats}:${hit.slug}`, hit.ats, hit.slug, name, Date.now(), from).run(); }
+  }
+  await env.R2.put(key, JSON.stringify(tried), { httpMetadata: { contentType: 'application/json' } });
+  return { probed: n, found };
+}
+
 export const SOURCES = [
   {
     // YC'nin herkese açık girişim listesi: küçük, uzaktan çalışan, işe alım yapan şirketler. Her turda 20 şirket; ilanları + kendi siteleri
@@ -338,27 +371,37 @@ export const SOURCES = [
     },
   },
   {
-    id: 'himalayas', label: 'Himalayas', cadence: 180, lang: 'en',
-    async fetch() {
-      const out = [];
-      let cursor = '';
-      for (let i = 0; i < 3; i++) {
-        const d = await fetchJSON(`https://himalayas.app/jobs/api?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
-        for (const j of d.jobs || []) {
-          out.push(job({ source: 'himalayas', external_id: j.guid, url: j.applicationLink || j.guid, company: j.companyName, title: j.title,
-            location: (j.locationRestrictions || []).length ? `Remote: ${(j.locationRestrictions || []).join(', ')}` : 'Remote (worldwide)', description: htmlToText(j.description),
-            salary: j.minSalary ? `${j.minSalary}-${j.maxSalary} ${j.currency || ''}/${j.salaryPeriod || ''}` : null, tags: [...(j.categories || []), j.employmentType], posted_at: j.pubDate, remote_hint: 'remote' }));
+    // Himalayas araması "Türkiye'den başvurulabilir" filtresiyle: bölge kısıtlı ilanlar baştan gelmez.
+    // İlanı açan şirketin kendi başvuru sistemi (Greenhouse/Lever/Ashby/Workable/Recruitee) bulunursa pano olarak eklenir; ajan Himalayas girişine takılmadan oradan başvurur.
+    id: 'himalayas', label: 'Himalayas — Türkiye\'ye açık ilanlar', cadence: 120, lang: 'en',
+    async fetch(env) {
+      const seen = new Map();
+      const QS = ['developer', 'frontend', 'react', 'full stack', 'javascript', 'typescript', 'mobile', 'AI trainer', 'AI', 'content', 'social media', 'qa', 'turkish', 'support', ''];
+      for (const q of QS) {
+        for (let off = 0; off < (q ? 40 : 100); off += 20) {
+          const d = await fetchJSON(`https://himalayas.app/jobs/api/search?country=Turkey&limit=20&offset=${off}${q ? `&q=${encodeURIComponent(q)}` : ''}`).catch(() => null);
+          const list = d?.jobs || [];
+          for (const j of list) if (!seen.has(j.guid)) seen.set(j.guid, j);
+          if (list.length < 20) break;
         }
-        cursor = d.nextCursor;
-        if (!cursor) break;
       }
+      const out = [];
+      for (const j of seen.values()) {
+        if (j.pubDate && Date.now() - j.pubDate * 1000 > 40 * 86400000) continue;
+        const lr = j.locationRestrictions || [];
+        out.push(job({ source: 'himalayas', external_id: j.guid, url: j.applicationLink || j.guid, company: j.companyName, title: j.title,
+          location: lr.length ? `Remote — Türkiye dahil ${lr.length} ülke${lr.length <= 6 ? ': ' + lr.join(', ') : ''}` : 'Remote (worldwide, Türkiye dahil)',
+          description: htmlToText(j.description), salary: j.minSalary ? `${j.minSalary}-${j.maxSalary} ${j.currency || ''}/${j.salaryPeriod || ''}` : null,
+          tags: [...(j.categories || []), j.employmentType, j.seniority, `himalayas:${j.companySlug || ''}`], posted_at: j.pubDate, remote_hint: 'remote' }));
+      }
+      if (env) await probeCompanyBoards(env, [...new Map(out.map((o) => [o.company, (o.tags || '').match(/himalayas:([a-z0-9-]+)/)?.[1] || ''])).entries()], 'himalayas-tr').catch(() => {});
       return out;
     },
   },
   {
     id: 'jobicy', label: 'Jobicy', cadence: 240, lang: 'en',
     async fetch() {
-      const d = await fetchJSON('https://jobicy.com/api/v2/remote-jobs?count=100');
+      const d = await fetchJSON('https://jobicy.com/api/v2/remote-jobs?count=100&geo=turkiye');
       return (d.jobs || []).map((j) => job({ source: 'jobicy', external_id: j.id, url: j.url, company: j.companyName, title: j.jobTitle, location: `Remote: ${j.jobGeo}`, description: htmlToText(j.jobDescription), tags: [...(j.jobIndustry || []), ...(j.jobType || []), j.jobLevel], posted_at: j.pubDate, remote_hint: 'remote', salary: j.annualSalaryMin ? `${j.annualSalaryMin}-${j.annualSalaryMax} ${j.salaryCurrency}` : null }));
     },
   },
