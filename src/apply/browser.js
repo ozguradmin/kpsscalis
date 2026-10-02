@@ -53,7 +53,10 @@ export const SNAPSHOT_JS = `(() => {
   document.querySelectorAll('a[href]').forEach((el) => {
     if (!vis(el)) return;
     const t = txt(el.innerText, 60);
-    if (/apply|başvur|bewerb|postul|candidat|inscri|sign ?up|register|log ?in|sign ?in|continue|next|submit|отклик|откликнуться|подать|кандид|aplicar/i.test(t + ' ' + el.href)) out.links.push({ id: tag(el), text: t, href: el.href.slice(0, 200) });
+    if ((el.getAttribute('href') || '').startsWith('#') || (el.hash && el.href.split('#')[0] === location.href.split('#')[0])) return; // sayfa içi çapa
+    // Başvuru formu / e-posta bağlantıları (Google Forms, Typeform, Tally, mailto…) en başa: metin "this form" bile olsa ajan görsün
+    if (/docs\\.google\\.com\\/forms|forms\\.gle|typeform\\.com|tally\\.so|jotform|airtable\\.com\\/(app|shr)|forms\\.office|hsforms|^mailto:/i.test(el.href)) out.links.unshift({ id: tag(el), text: t || 'form', href: el.href.slice(0, 200) });
+    else if (/apply|başvur|bewerb|postul|candidat|inscri|sign ?up|register|log ?in|sign ?in|continue|next|submit|career|jobs?\\b|hiring|отклик|откликнуться|подать|кандид|aplicar/i.test(t + ' ' + el.href)) out.links.push({ id: tag(el), text: t, href: el.href.slice(0, 200) });
   });
   document.querySelectorAll('[role=alert], .error, .errors, [class*=error], [class*=Error], [class*=invalid]').forEach((el) => { if (vis(el)) { const t = txt(el.innerText, 200); if (t && !out.errors.includes(t)) out.errors.push(t); } });
   document.querySelectorAll('iframe').forEach((f) => { const s = f.src || ''; if (/recaptcha|hcaptcha|turnstile|challenges\\.cloudflare|arkoselabs|funcaptcha/i.test(s)) { const r = f.getBoundingClientRect(); if (r.width > 60 && r.height > 60) out.captcha = true; } else if (s && vis(f)) out.iframes.push(s.slice(0, 300)); });

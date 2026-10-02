@@ -148,6 +148,18 @@ export async function submit(env, appId, { userActive = false } = {}) {
     await log(env, 'apply', `Tarayıcı hatası: ${clip(e.stack || e.message, 800)}`, { ref: appId, level: 'error' });
   }
   const ms = now() - t0;
+  // Sayfa sadece e-posta ile başvuru istiyor: tarayıcıyı kapat, ön yazı + CV'yi e-postayla gönder
+  const mailTo = result.status === 'email' && /^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(String(result.email || '').replace(/^mailto:/i, '').split('?')[0]) ? String(result.email).replace(/^mailto:/i, '').split('?')[0] : null;
+  if (result.status === 'email' && !mailTo) result = { ...result, status: 'failed', reason: 'E-posta ile başvuru dendi ama geçerli adres yok' };
+  if (mailTo && env.DRY_RUN) result = { ...result, status: 'dry_run', reason: 'E-postayla başvurulacaktı → ' + mailTo };
+  else if (mailTo) {
+    await env.DB.prepare('UPDATE applications SET browser_ms=browser_ms+? WHERE id=?').bind(ms, appId).run().catch(() => {});
+    await bumpUsage(env, 'browser_ms', ms).catch(() => {});
+    rec.note(`Sayfa e-postayla başvuru istiyor → ${mailTo}`);
+    await rec.finish().catch(() => {});
+    try { await Promise.race([browser?.close(), new Promise((r) => setTimeout(r, 5000))]); } catch (e) { /* kapalı */ }
+    return submitByEmail(env, settings, { ...app, id: appId }, job, { apply_email: mailTo });
+  }
   // Sonucu HEMEN yaz (tarayıcı kapatma/temizlik takılsa bile kayıt kaybolmasın)
   let fin;
   try {

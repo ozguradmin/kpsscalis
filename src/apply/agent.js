@@ -10,7 +10,7 @@ const SUCCESS_RE = /(thank(s| you) for (your )?(applying|application|submitting|
 const CLOSED_RE = /(no longer (accepting|available)|position (has been )?(filled|closed)|job (is )?(closed|expired|not found)|this job has expired|ilan yayından kaldırıldı|page not found|404)/i;
 
 const AGENT_SYS = `You are an expert web agent that completes and submits a job application in a real browser for the candidate below. You see a numbered snapshot of the page (fields/buttons/links with ids). Reply with ONLY JSON:
-{"thought":"one short sentence","status":"continue|submitted|captcha|blocked|closed|not_eligible","reason":"short, only if status is not continue","actions":[ ... up to 12 actions ... ]}
+{"thought":"one short sentence","status":"continue|submitted|captcha|blocked|closed|not_eligible|email","reason":"short, only if status is not continue","email":"only with status email: the address to send the application to","actions":[ ... up to 12 actions ... ]}
 Action ops:
 - {"op":"fill","id":"e12_ab3","value":"text"} (text, email, tel, number, textarea, richtext; add "enter":true to press Enter after)
 - {"op":"select","id":"...","value":"visible option text"} (native select or searchable combobox/autocomplete)
@@ -34,6 +34,7 @@ Rules:
 8c. If ANALYSIS has \"followup\": true, this is not a new application but the next step an employer asked for (e.g. create a marketplace account, complete the profile, upload the resume). Complete it fully (sign up with the candidate email, upload cv_en, fill profile fields truthfully) and return \"submitted\" when the profile/step is saved. Tests, video recordings and interviews are for the candidate himself: return \"blocked\" with reason if the next step is one.
 8d. Questions that test knowledge of the company's own product/game/domain (e.g. "Up to how many players can play X?", "What is our main feature?") are not about the candidate: answer them correctly from the job text, the page, or well-known public knowledge (you may open the company's site in the same tab only if the form state is safe; prefer answering directly). Never leave such a required field empty.
 8e. If this page is not an application form but a job post that links elsewhere (an "Apply" link, a careers page, a form link), follow the link with goto/click instead of stopping.
+8h. If the only way to apply is by email (a mailto link or "send your CV to x@y" and no form), return status "email" with that address in "email"; the system then emails the cover letter and CV itself. If both a form link and an email exist, use the form.
 8f. Y Combinator Work at a Startup (workatastartup.com/jobs/N): the candidate is already logged in. Click "Apply", put the cover letter (plain text, no greeting placeholders) into the message box, click "Send". When the button then reads "Applied", the application is done: return status "submitted". If you see a login form instead, return status "blocked" with reason "YC oturumu düştü" (never type a password there).
 8g. A cookie/consent banner or dark backdrop can cover buttons; if a click does nothing, look for "Decline all"/"Accept all" and click it first.
 9. Never invent facts about the candidate. Never make up usernames, profile URLs or accounts (e.g. a game/community profile link): leave such optional fields empty, and for required ones write "N/A" or use only links listed in the profile. Never state you are an AI. Prefer few, correct actions per step; after page-changing clicks you will get a fresh snapshot.
@@ -156,7 +157,7 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
         await env.DB.prepare("UPDATE actions SET status='done' WHERE id=?").bind('handoff_' + app.id).run().catch(() => {});
         return { status: 'needs_human', reason: 'CAPTCHA / robot doğrulaması', steps, answers };
       }
-      return { status: d.status === 'not_eligible' ? 'not_eligible' : d.status, reason: d.reason || d.thought, steps, answers };
+      return { status: d.status === 'not_eligible' ? 'not_eligible' : d.status, reason: d.reason || d.thought, steps, answers, email: d.email || null };
     }
     const actions = Array.isArray(d.actions) ? d.actions.slice(0, 12) : [];
     if (!actions.length) { history.push('(eylem yok)'); continue; }
