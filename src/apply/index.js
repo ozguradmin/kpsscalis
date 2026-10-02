@@ -252,8 +252,8 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
   if (usage.browser_ms / 60000 >= settings.daily_browser_minutes) return { started: 0, why: 'günlük tarayıcı süresi doldu' };
   const blockedHosts = new Set((settings.blocked_domains || []).map(String));
   // Öğrenilmiş: robot doğrulaması yüzünden hiç başarılamayan siteler, sen panelde değilken denenmez (tarayıcı süresi boşa gitmesin)
-  const hardScopes = new Set((await allRows(env, 'SELECT scope FROM recipes WHERE failures >= 3 AND successes = 0')).map((r) => r.scope));
-  const candidates = await allRows(env, `SELECT id, apply_url, url, company, source FROM jobs WHERE status='approved' ORDER BY priority DESC, discovered_at DESC LIMIT 20`);
+  const hardScopes = new Set((await allRows(env, 'SELECT scope FROM recipes WHERE failures >= 3 AND successes = 0 AND (notes LIKE '%robot%' OR notes LIKE '%CAPTCHA%' OR notes LIKE '%captcha%')')).map((r) => r.scope));
+  const candidates = await allRows(env, `SELECT id, apply_url, url, company, source, substr(description, -1500) description FROM jobs WHERE status='approved' ORDER BY priority DESC, discovered_at DESC LIMIT 20`);
   let started = 0;
   for (const j of candidates) {
     if (started >= Math.min(max, left)) break;
