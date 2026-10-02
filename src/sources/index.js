@@ -123,6 +123,13 @@ export async function scanCompanySite(website) {
 }
 
 // Şirket adından ATS panosunu tahmin et: greenhouse/lever/ashby/workable/recruitee slug denemeleri (her şirket bir kez denenir)
+// YC başvuru bağlantısı (account.ycombinator.com/authenticate?…signup_job_id=N) yerine doğrudan Work at a Startup ilan sayfası:
+// kayıtlı WaaS oturumuyla "Apply" → kısa mesaj kutusu. Giriş sayfası Browser Run'ı bot sayıp reddediyor.
+export function waasUrl(u) {
+  const m = String(u || '').match(/signup_job_id(?:%3D|=)(\d+)/i);
+  return m ? `https://www.workatastartup.com/jobs/${m[1]}` : u;
+}
+
 export async function probeCompanyBoards(env, companies, from, max = 12) {
   const key = 'cache/ats_probe.json';
   const obj = await env.R2.get(key);
@@ -190,7 +197,7 @@ export const SOURCES = [
             for (const j of posts.slice(0, 4)) {
               const d = YC_PAGE(await fetchText(`https://www.ycombinator.com${j.url}`, {}, 15000).catch(() => ''));
               const jj = d?.props?.job || j;
-              out.push(job({ source: 'yc', external_id: j.id, url: `https://www.ycombinator.com${j.url}`, apply_url: jj.applyUrl || j.applyUrl, company: co.name, title: j.title,
+              out.push(job({ source: 'yc', external_id: j.id, url: `https://www.ycombinator.com${j.url}`, apply_url: waasUrl(jj.applyUrl || j.applyUrl), company: co.name, title: j.title,
                 location: `${j.location || 'Remote'}${co.full ? ' · fully remote company' : ''}`,
                 description: `${co.name} (YC ${co.batch}, ${co.size || '?'} people): ${co.one || ''}\nRole: ${j.prettyRole || ''} ${j.roleSpecificType || ''} · ${j.type || ''} · min experience ${j.minExperience || '-'} · visa: ${j.visa || '-'}\n${jj.description || ''}`,
                 salary: j.salaryRange || null, tags: [j.role, j.roleSpecificType], remote_hint: 'remote' }));

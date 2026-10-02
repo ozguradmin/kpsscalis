@@ -34,6 +34,8 @@ Rules:
 8c. If ANALYSIS has \"followup\": true, this is not a new application but the next step an employer asked for (e.g. create a marketplace account, complete the profile, upload the resume). Complete it fully (sign up with the candidate email, upload cv_en, fill profile fields truthfully) and return \"submitted\" when the profile/step is saved. Tests, video recordings and interviews are for the candidate himself: return \"blocked\" with reason if the next step is one.
 8d. Questions that test knowledge of the company's own product/game/domain (e.g. "Up to how many players can play X?", "What is our main feature?") are not about the candidate: answer them correctly from the job text, the page, or well-known public knowledge (you may open the company's site in the same tab only if the form state is safe; prefer answering directly). Never leave such a required field empty.
 8e. If this page is not an application form but a job post that links elsewhere (an "Apply" link, a careers page, a form link), follow the link with goto/click instead of stopping.
+8f. Y Combinator Work at a Startup (workatastartup.com/jobs/N): the candidate is already logged in. Click "Apply", put the cover letter (plain text, no greeting placeholders) into the message box, click "Send". When the button then reads "Applied", the application is done: return status "submitted". If you see a login form instead, return status "blocked" with reason "YC oturumu düştü" (never type a password there).
+8g. A cookie/consent banner or dark backdrop can cover buttons; if a click does nothing, look for "Decline all"/"Accept all" and click it first.
 9. Never invent facts about the candidate. Never make up usernames, profile URLs or accounts (e.g. a game/community profile link): leave such optional fields empty, and for required ones write "N/A" or use only links listed in the profile. Never state you are an AI. Prefer few, correct actions per step; after page-changing clicks you will get a fresh snapshot.
 ${HONESTY_RULES}`;
 
@@ -93,7 +95,8 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
       continue;
     }
     const d = o.json || {};
-    rec.note(`Adım ${steps}: ${clip(d.thought || '', 300)}`, { status: d.status, actions: d.actions });
+    const pwIds = new Set((s.fields || []).filter((f) => f.type === 'password' || /pass ?word|şifre|parola|passwort|contraseña/i.test(f.label || '')).map((f) => f.id));
+    rec.note(`Adım ${steps}: ${clip(d.thought || '', 300)}`, { status: d.status, actions: (d.actions || []).map((a) => (pwIds.has(a.id) && a.value ? { ...a, value: '••••' } : a)) });
     if (d.status && d.status !== 'continue') {
       if (d.status === 'submitted') {
         // Modelin iddiasını doğrula: sayfada onay var mı?
@@ -181,7 +184,8 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
       history.push(`${a.op} ${a.id || ''} ${shown} → ${res}`);
       if ((a.op === 'fill' || a.op === 'select') && a.value && !/password/i.test(res)) {
         const f = (s.fields || []).find((x) => x.id === a.id);
-        if (f?.label) answers[clip(f.label, 160)] = clip(String(a.value).replace(ctx.lastPassword || '§§', '••••'), 1200);
+        const secret = f?.type === 'password' || /pass ?word|şifre|parola|passwort|contraseña|mot de passe/i.test(f?.label || '');
+        if (f?.label) answers[clip(f.label, 160)] = secret ? '••••' : clip(String(a.value).replace(ctx.lastPassword || '§§', '••••'), 1200);
       }
       if (a.op === 'click' || a.op === 'goto' || a.op === 'email_link') break; // sayfa değişmiş olabilir: yeniden gözle
     }

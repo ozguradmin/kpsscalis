@@ -107,7 +107,27 @@ export async function openBrowser(env, { recording = true } = {}) {
   return { browser, page, sessionId };
 }
 
+// Çerez/izin bandını kapat (Workable vb. bant arka planı Gönder düğmesinin üstünü örtüp tıklamayı yutuyor)
+const CONSENT_JS = `(() => {
+  const vis = (e) => { const r = e.getBoundingClientRect(); const s = getComputedStyle(e); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
+  const direct = document.querySelector('#onetrust-reject-all-handler, #onetrust-accept-btn-handler, #CybotCookiebotDialogBodyButtonDecline, [data-ui="cookie-consent-decline"], [data-ui="cookie-consent-accept"], .cc-deny, .cc-dismiss');
+  if (direct && vis(direct)) { direct.click(); return 'kapatıldı'; }
+  const RX = /^(decline all|reject all|reject|decline|deny|only necessary|necessary only|accept all|accept|allow all|i agree|agree|got it|ok|tümünü reddet|reddet|kabul et|tümünü kabul et)$/i;
+  const boxes = [...document.querySelectorAll('[id*="cookie" i], [class*="cookie" i], [id*="consent" i], [class*="consent" i], [data-ui*="cookie" i], [aria-label*="cookie" i], [role="dialog"], [class*="gdpr" i]')].filter(vis);
+  for (const box of boxes) {
+    if (!/cookie|çerez|consent|gdpr/i.test(box.innerText || '')) continue;
+    const btns = [...box.querySelectorAll('button, a[role="button"], [role="button"]')].filter((b) => vis(b) && RX.test((b.innerText || b.getAttribute('aria-label') || '').trim()));
+    const pick = btns.find((b) => /decline|reject|deny|necessary|reddet/i.test(b.innerText)) || btns[0];
+    if (pick) { pick.click(); return 'kapatıldı'; }
+  }
+  return '';
+})()`;
+export async function dismissConsent(page) {
+  try { const r = await page.evaluate(CONSENT_JS); if (r) await sleep(500); return r; } catch (e) { return ''; }
+}
+
 export async function snapshot(page) {
+  await dismissConsent(page);
   try { return await page.evaluate(SNAPSHOT_JS); } catch (e) { return { url: page.url(), error: String(e.message), fields: [], buttons: [], links: [], errors: [], text: '' }; }
 }
 
@@ -345,11 +365,17 @@ export async function act(page, a, ctx) {
       const handle = await page.$(sel(a.id));
       if (!handle) return `click ${a.id}: öğe yok`;
       await handle.evaluate((el) => { el.scrollIntoView({ block: 'center' }); const a = el.closest('a'); if (a) a.removeAttribute('target'); const f = el.closest('form'); if (f) f.removeAttribute('target'); });
+      // Öğenin üstünü başka bir katman (çerez bandı, modal arka planı, sabit alt çubuk) örtüyor mu?
+      const covered = async () => handle.evaluate((el) => { const r = el.getBoundingClientRect(); const t = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return t && !el.contains(t) && !t.contains(el) ? `${t.tagName.toLowerCase()}${t.id ? '#' + t.id : ''}${typeof t.className === 'string' && t.className ? '.' + t.className.split(' ')[0] : ''}` : ''; }).catch(() => '');
+      let cov = await covered();
+      if (cov) { await dismissConsent(page); await handle.evaluate((el) => el.scrollIntoView({ block: 'center' })).catch(() => {}); cov = await covered(); }
       const nav = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => null);
-      await handle.click().catch(async () => { await handle.evaluate((el) => el.click()); });
+      // Örtülüyse fare tıklaması katmana gider; DOM üzerinden tıkla
+      if (cov) await handle.evaluate((el) => el.click());
+      else await handle.click().catch(async () => { await handle.evaluate((el) => el.click()); });
       await Promise.race([nav, sleep(3500)]);
       await settle(page);
-      return `click ${a.id}: ok → ${clip(page.url(), 120)}`;
+      return `click ${a.id}: ok${cov ? ` (üstü ${cov} ile örtülüydü; doğrudan tıklandı)` : ''} → ${clip(page.url(), 120)}`;
     }
     if (op === 'press') { await page.keyboard.press(a.key || 'Enter'); await settle(page); return `press ${a.key}`; }
     if (op === 'goto') { await page.goto(a.url, { waitUntil: 'domcontentloaded', timeout: 30000 }); await settle(page); return `goto ${clip(a.url, 100)}`; }
