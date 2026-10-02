@@ -23,7 +23,11 @@ async function setApp(env, id, f) {
 // ATS'ye göre doğrudan başvuru formunun adresi
 // İlan metnindeki en iyi başvuru bağlantısı (HN gibi forum ilanlarında ilan sayfasının kendisi başvuru yeri değil)
 function linkFromText(job) {
-  const links = [...String(job.description || '').matchAll(/https?:\/\/[^\s)"'<>\]]+/g)].map((m) => m[0].replace(/[.,;:]+$/, '')).filter((u) => !/news\.ycombinator\.com|twitter\.com|x\.com\/|linkedin\.com\/company|github\.com\/[^/]+\/?$/.test(u));
+  // HN metnindeki bağlantılar "…/2026-09-prod..." gibi kırpılmış olabilir: kırpılmışları at, "Links:" satırındaki tam adresleri öne al
+  const text = String(job.description || '');
+  const full = text.includes('\nLinks: ') ? text.slice(text.lastIndexOf('\nLinks: ')) : '';
+  const links = [...`${full}\n${text}`.matchAll(/https?:\/\/[^\s)"'<>\]]+/g)].filter((m) => !/(\.\.\.|…)$/.test(m[0]) && m.input[m.index + m[0].length] !== '…')
+    .map((m) => m[0].replace(/[.,;:]+$/, '')).filter((u) => !/news\.ycombinator\.com|twitter\.com|x\.com\/|linkedin\.com\/company|github\.com\/[^/]+\/?$/.test(u));
   return links.find((u) => detectATS(u)) || links.find((u) => /career|jobs|apply|join|hiring|work-with|typeform|forms\.gle|notion\.site/i.test(u)) || links[0] || null;
 }
 
