@@ -133,6 +133,15 @@ export async function submit(env, appId, { userActive = false } = {}) {
     try { await o.page.waitForNetworkIdle({ idleTime: 600, timeout: 6000 }); } catch (e) { /* devam */ }
     await rec.shot(o.page, 'Başvuru sayfası açıldı');
     result = await runAgent(env, settings, { page: o.page, job, app: { ...app, id: appId }, letter: app.letter, rec, ctx, account, maxSteps: settings.max_agent_steps, userActive });
+    // Form engelliyse (Google girişi vb.) ilan sayfasında işe alım adresi var mı? Varsa e-postayla başvur
+    if (result.status === 'blocked' && !/oturum|login|giriş/i.test(result.reason || '')) {
+      try {
+        await o.page.goto(startUrl(job), { waitUntil: 'domcontentloaded', timeout: 30000 });
+        const mails = await o.page.evaluate(() => [...document.querySelectorAll('a[href^="mailto:"]')].map((a) => a.href.slice(7).split('?')[0]));
+        const hire = mails.find((m) => /^(jobs?|careers?|hiring|apply|talent|recruit\w*|work|join|hr|people)@/i.test(m));
+        if (hire) { rec.note(`Form engelli; ilan sayfasındaki işe alım adresi bulundu → ${hire}`); result = { ...result, status: 'email', email: hire }; }
+      } catch (e) { /* olmadı: blocked kalsın */ }
+    }
     // Başarılı başvurudan sonra bu sitenin oturumunu sakla (hesap açıldıysa bir dahaki sefere giriş gerekmesin)
     // (hesap açma adımlarında giriş çerezi başka alan adında olabilir: ör. account.ycombinator.com → workatastartup.com)
     if (result.status === 'submitted') await saveSessions(env, o.page, { note: `${job.company}${job.source === 'followup' ? ' hesabı' : ' başvurusu'}` }).catch(() => {});
