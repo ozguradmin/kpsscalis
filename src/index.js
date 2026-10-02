@@ -94,6 +94,8 @@ async function cleanup(env, settings) {
   await env.DB.prepare("UPDATE actions SET status='expired' WHERE status='open' AND expires_at IS NOT NULL AND expires_at < ?").bind(now()).run();
   // Çok eski ve hiç işlenmemiş ilanları temizle (kuyruk şişmesin)
   await env.DB.prepare("UPDATE jobs SET status='expired', reason='işlenmeden eskidi' WHERE status='new' AND discovered_at < ?").bind(now() - 20 * DAY).run();
+  // Elenmiş ilanların uzun metnini kısalt (kayıt kalır ki aynı ilan tekrar değerlendirilmesin; veritabanı şişmesin)
+  await env.DB.prepare("UPDATE jobs SET description=substr(description,1,400) WHERE id IN (SELECT id FROM jobs WHERE status IN ('rejected','expired') AND discovered_at < ? AND length(description) > 600 LIMIT 3000)").bind(now() - 3 * DAY).run();
   return { recordings_deleted: old.length };
 }
 
