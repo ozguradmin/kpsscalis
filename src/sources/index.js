@@ -23,6 +23,10 @@ export function detectLang(text) {
   return best[1] >= 3 ? best[0] : 'en';
 }
 
+function decodeEntities(t) {
+  return String(t || '').replace(/&amp;/g, '&').replace(/&#39;|&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ');
+}
+
 function job(o) {
   const description = clip(o.description || '', MAXDESC);
   return {
@@ -208,6 +212,60 @@ export const SOURCES = [
             if (!posts.length && !site.ats.length && site.email && co.full) {
               out.push(job({ source: 'yc', external_id: `open:${co.slug}`, url: site.careers || co.website, apply_url: `mailto:${site.email}`, company: co.name, title: 'Open application (remote)',
                 location: 'Remote (fully remote company)', description: `${co.name} (YC ${co.batch}, ${co.size || '?'} people) is a fully remote startup: ${co.one || ''}\nNo specific opening is listed, but the company publishes a hiring address (${site.email}) on its website. An open application by email is possible.\nRegions: ${(co.regions || []).join(', ')}`, remote_hint: 'remote' }));
+            }
+          } catch (e) { /* bu şirket atlandı */ }
+        }));
+      }
+      return out;
+    },
+  },
+  {
+    // Remote In Tech: topluluğun tuttuğu ~900 "uzaktan çalışan teknoloji şirketi" listesi (bölge bilgisiyle).
+    // Her turda 15 şirket: profil + kendi sitesi taranır → ATS panosu bulunursa panoya eklenir (ilanlar oradan gelir),
+    // pano yoksa ve "dünya geneli" işe alıyorsa + işe alım adresi varsa tek seferlik açık başvuru ilanı üretilir.
+    id: 'remote_cos', label: 'Remote In Tech şirket listesi (uzaktan çalışan küçük şirketler)', cadence: 90, lang: 'en',
+    async fetch(env) {
+      let list = null;
+      const c = await env.R2.get('cache/remoteintech.json');
+      if (c && Date.now() - new Date(c.uploaded).getTime() < 7 * 86400000) list = await c.json();
+      else {
+        const h = await fetchText('https://remoteintech.company/companies/', {}, 30000);
+        list = [...h.matchAll(/data-region="([^"]*)" data-name="[^"]*" class="company-item">[\s\S]*?href="\/companies\/([a-z0-9-]+)\/">([^<]+)<\/a>[\s\S]*?class="company-card__website"><a href="([^"]+)"/g)]
+          .map((m) => ({ region: m[1], slug: m[2], name: decodeEntities(m[3]).trim(), website: m[4] }))
+          .filter((x) => /^(worldwide|europe|other)$/.test(x.region) && !FAMOUS.test(`${x.name} ${x.slug}`));
+        await env.R2.put('cache/remoteintech.json', JSON.stringify(list), { httpMetadata: { contentType: 'application/json' } });
+      }
+      const row = await env.DB.prepare("SELECT value FROM settings WHERE key='ric_cursor'").first();
+      let cur = Number(row ? JSON.parse(row.value) : 0) || 0;
+      if (cur >= list.length) cur = 0;
+      const batch = list.slice(cur, cur + 15);
+      await env.DB.prepare("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('ric_cursor', ?1, ?2, 'remote_cos') ON CONFLICT(key) DO UPDATE SET value=?1, updated_at=?2").bind(JSON.stringify(cur + batch.length), Date.now()).run();
+      const out = [];
+      for (let i = 0; i < batch.length; i += 5) {
+        await Promise.all(batch.slice(i, i + 5).map(async (co) => {
+          try {
+            const ph = await fetchText(`https://remoteintech.company/companies/${co.slug}/`, {}, 12000).catch(() => '');
+            const main = ph.slice(Math.max(0, ph.indexOf('<main')));
+            const text = decodeEntities(main.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, '\n')).replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim();
+            const sec = (name) => (text.match(new RegExp(`${name}\\n([\\s\\S]*?)\\n(?:Company blurb|Company size|Remote status|Region|Office locations|How to apply|Tech Stack|Company technologies|← Back)`)) || [])[1]?.trim() || '';
+            const blurb = clip(sec('Company blurb'), 700), size = clip(sec('Company size'), 120), region = clip(sec('Region'), 200), how = clip(sec('How to apply'), 400);
+            // Büyük şirketleri atla (binlerce başvuru alırlar)
+            const n = Number((size.match(/(\d[\d,]*)\s*(?:\+|-|–|to|employees|people|team|members)/i) || [])[1]?.replace(/,/g, ''));
+            if (n && n > 400) return;
+            const links = [...main.matchAll(/href="(https?:\/\/[^"]+)"/g)].map((m) => m[1]).filter((u) => !/remoteintech|github\.com\/remoteintech|11ty|dougaitken/.test(u));
+            const ats = [];
+            for (const u of [...links, co.website]) { const a = detectATS(u); if (a && !ats.some((x) => x.ats === a.ats && x.slug === a.slug)) ats.push(a); }
+            let email = (`${how}\n${main}`.match(HIRING_MAIL) || [])[1]?.toLowerCase() || null;
+            let careers = links.find((u) => CAREER_LINK.test(`href="${u}"`)) || null;
+            if (!ats.length) {
+              const site = await scanCompanySite(careers || co.website);
+              ats.push(...site.ats); email = email || site.email; careers = careers || site.careers;
+            }
+            for (const a of ats) await env.DB.prepare('INSERT OR IGNORE INTO boards (id, ats, slug, company, added_at, added_from) VALUES (?,?,?,?,?,?)').bind(`${a.ats}:${a.slug}`, a.ats, a.slug, co.name, Date.now(), 'remoteintech').run();
+            if (!ats.length && email && co.region === 'worldwide') {
+              out.push(job({ source: 'remote_cos', external_id: `open:${co.slug}`, url: careers || co.website, apply_url: `mailto:${email}`, company: co.name, title: 'Open application (remote)',
+                location: 'Remote (worldwide hiring)', remote_hint: 'remote',
+                description: `${co.name} is listed as a remote-friendly company that hires worldwide.\n${blurb}\nCompany size: ${size || '?'}\nRegion: ${region || 'worldwide'}\nHow to apply: ${how || '-'}\nNo specific opening was found, but the company publishes a hiring address (${email}). An open application by email is possible.` }));
             }
           } catch (e) { /* bu şirket atlandı */ }
         }));

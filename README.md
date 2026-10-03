@@ -31,3 +31,9 @@ CF_TOKEN=... TYPESAFE_KEY=... node --import ./test/register.mjs test/pipeline.mj
 CF_TOKEN=... node --import ./test/register.mjs test/apply-dry.mjs <başvuru-url> "<başlık>" "<şirket>"      # formu doldur, GÖNDERME
 CF_TOKEN=... node eval/run.mjs                                                                             # model karşılaştırması
 ```
+
+
+## Şirket listesi ve şirket başına kurallar
+- **Remote In Tech** (remoteintech.company): ~600 uzaktan çalışan teknoloji şirketi. Her 90 dakikada 15 şirketin profili ve kendi sitesi taranır; işe alım sistemi (Greenhouse/Lever/Ashby/Workable…) bulunursa panoya eklenir, yoksa ve şirket dünya genelinden işe alıyorsa tek seferlik açık başvuru e-postası hazırlanır.
+- Reddeden şirkete 6 ay boyunca tekrar başvurulmaz. Açık başvuru şirket başına 6 ayda en fazla bir kez ve o şirkete başka başvuru yoksa gönderilir. Aynı şirkete 30 günde en fazla 2 başvuru.
+- Günlük özet (08:00 TR, Gmail): son 24 saatin başvuruları, gelen e-postalar ve özetleri, son 7 günün toplamı, sana kalan işler.

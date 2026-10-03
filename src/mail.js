@@ -226,9 +226,14 @@ export async function dailyDigest(env, settings) {
   const apps = await allRows(env, "SELECT a.status, j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.updated_at>? ORDER BY a.updated_at DESC LIMIT 30", since);
   const acts = await allRows(env, "SELECT title, detail FROM actions WHERE status='open' ORDER BY priority, created_at DESC LIMIT 10");
   const cost = await q('SELECT COALESCE(SUM(cost),0) c FROM ai_usage WHERE day=?', dayKey(since));
+  const mails = await allRows(env, "SELECT m.from_addr, m.subject, m.category, m.summary, j.company FROM mail m LEFT JOIN applications a ON a.id=m.app_id LEFT JOIN jobs j ON j.id=a.job_id WHERE m.processed_at>? AND m.category NOT IN ('newsletter') ORDER BY m.received_at DESC LIMIT 20", since);
+  const week = await q("SELECT SUM(a.status IN ('submitted','confirmed','next_step','interview','offer','rejected')) sent, SUM(a.status IN ('interview','offer','next_step')) good, SUM(a.status='rejected') rej FROM applications a JOIN jobs j ON j.id=a.job_id WHERE j.source!='followup' AND a.submitted_at>?", now() - 7 * DAY);
+  const CAT = { verification: 'doğrulama kodu', confirmation: 'başvuru alındı', rejection: 'olumsuz', interview: 'MÜLAKAT', assessment: 'SONRAKİ ADIM / test', survey: 'anket', recruiter: 'İŞVERENDEN MESAJ', offer: 'TEKLİF', reminder: 'hatırlatma', other: 'diğer' };
   const lines = [
     `Son 24 saat: ${found.n || 0} yeni ilan tarandı, ${approved.n || 0} tanesi uygun bulundu.`,
-    '', 'Başvurular:', ...(apps.length ? apps.map((a) => `- ${a.company} — ${a.title}: ${STATUS_TR[a.status] || a.status}`) : ['- (yok)']),
+    `Son 7 gün: ${week.sent || 0} başvuru gönderildi · ${week.good || 0} olumlu dönüş (mülakat/sonraki adım/teklif) · ${week.rej || 0} olumsuz.`,
+    '', 'Başvurular (son 24 saat):', ...(apps.length ? apps.map((a) => `- ${a.company} — ${a.title}: ${STATUS_TR[a.status] || a.status}`) : ['- (yok)']),
+    '', 'Gelen e-postalar (son 24 saat, reklamlar hariç):', ...(mails.length ? mails.map((m) => `- [${CAT[m.category] || m.category}] ${m.company ? m.company + ' — ' : ''}${clip(m.subject, 90)}${m.summary ? `\n    ${clip(m.summary, 220)}` : ''}`) : ['- (yok)']),
     '', 'Senin bakman gerekebilecekler:', ...(acts.length ? acts.map((a) => `- ${a.title}${a.detail ? ` — ${clip(a.detail, 160)}` : ''}`) : ['- (yok)']),
     '', `Dünkü yapay zekâ maliyeti: ${Number(cost.c || 0).toFixed(2)} $ (Cloudflare kredisinden).`,
     '', 'Panel: ' + (settings.public_url || ''),

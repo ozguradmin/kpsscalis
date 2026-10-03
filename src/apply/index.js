@@ -294,6 +294,13 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
       const r = await env.MAILDB.prepare("SELECT COUNT(DISTINCT substr(received_at,1,10)) n FROM messages WHERE direction='inbound' AND received_at > ? AND (subject LIKE ? OR from_name LIKE ?) AND (subject LIKE '%appl%' OR subject LIKE '%başvuru%' OR subject LIKE '%security code%')").bind(new Date(now() - 30 * DAY).toISOString(), `%${j.company}%`, `%${j.company}%`).first().catch(() => null);
       prior = r?.n || 0;
     }
+    // Reddeden şirkete 6 ay boyunca tekrar başvurma; açık başvuru (ilansız e-posta) şirket başına 6 ayda en fazla bir kez ve o şirkete başka başvuru yoksa
+    if (j.source !== 'followup' && (j.company || '').length > 1) {
+      const since = now() - 180 * DAY;
+      const h = await env.DB.prepare("SELECT SUM(a.status='rejected') rej, SUM(a.status IN ('submitted','confirmed','next_step','interview','offer','rejected')) sent FROM applications a JOIN jobs k ON k.id=a.job_id WHERE lower(k.company)=lower(?) AND a.created_at > ?").bind(j.company, since).first();
+      if ((h?.rej || 0) > 0) { await env.DB.prepare("UPDATE jobs SET status='rejected', reason=? WHERE id=?").bind('Bu şirket son 6 ayda başvurunu reddetti; tekrar başvurulmuyor', j.id).run(); continue; }
+      if (/^open application/i.test(j.title || '') && (h?.sent || 0) > 0) { await env.DB.prepare("UPDATE jobs SET status='rejected', reason=? WHERE id=?").bind('Bu şirkete son 6 ayda zaten başvuruldu; açık başvuru gönderilmiyor', j.id).run(); continue; }
+    }
     if ((mine?.n || 0) + prior >= perCo) { await env.DB.prepare("UPDATE jobs SET status='review', reason=? WHERE id=?").bind(`Bu şirkete son 30 günde ${(mine?.n || 0) + prior} başvuru var (sınır ${perCo})`, j.id).run(); continue; }
     const appId = await createApplication(env, j.id);
     try {
