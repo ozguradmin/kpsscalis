@@ -1,6 +1,6 @@
 // Tarayıcı ajanı: sayfayı gözler, modele sorar, eylemleri uygular; başvuru gönderilene ya da engel çıkana kadar döner.
 import { llm, jev } from '../lib/llm.js';
-import { act, snapshot, liveHandoff } from './browser.js';
+import { act, snapshot, liveHandoff, withTimeout } from './browser.js';
 import { HONESTY_RULES, CORE } from '../profile.js';
 import { clip, now, sleep, hostOf, sha256 } from '../lib/util.js';
 import { log, addAction } from '../lib/db.js';
@@ -72,8 +72,11 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
   const answers = {};
   const profile = ctx.profile;
   const intro = `CANDIDATE PROFILE:\n${profile}\n\nJOB: ${job.title} at ${job.company}\nJob URL: ${job.url}\nApply URL: ${job.apply_url || job.url}\nANALYSIS: ${clip(JSON.stringify(ctx.analysis || {}), 1500)}\n\nCOVER LETTER (paste into cover letter text fields):\n${letter}\n\nACCOUNT: ${account ? `existing account on ${account.site}: username/email ${account.username}, password "{{ACCOUNT_PASSWORD}}"` : 'none yet'}${ctx.recipes?.length ? `\n\nNOTES FROM PREVIOUS APPLICATIONS ON THIS SITE:\n${ctx.recipes.map((r) => `- ${r.scope}: ${clip(r.notes, 600)}`).join('\n')}` : ''}${settings.prompt_addenda?.agent ? `\n\nLEARNED RULES:\n${settings.prompt_addenda.agent}` : ''}`;
+  const started = Date.now();
   while (steps < maxSteps) {
     steps++;
+    // Toplam süre sınırı (insan beklemesi hariç): 25 dakikayı geçen başvuru takılmış demektir
+    if (Date.now() - started - (ctx.waitedMs || 0) > 25 * 60000) return { status: 'failed', reason: 'Başvuru 25 dakikayı aştı (sayfa yanıt vermiyor)', steps, answers };
     const s = await snapshot(page);
     const sig = await sha256(`${s.url}|${(s.fields || []).map((f) => `${f.label}=${f.value || f.checked || ''}`).join(';')}|${(s.errors || []).join(';')}|${clip(s.text, 400)}`);
     if (sig === lastSig) { stall++; } else { stall = 0; lastSig = sig; }
@@ -149,7 +152,9 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
             }
             return null;
           })();
+          const w0 = Date.now();
           const r = await Promise.race([h.done, watch.then((x) => x || h.done)]);
+          ctx.waitedMs = (ctx.waitedMs || 0) + (Date.now() - w0); // insanı beklerken geçen süre toplam sınıra sayılmaz
           stop = true;
           history.push(`(insan müdahalesi: ${r.success ? 'tamamlandı — ' + (r.reason || 'Done') : 'olmadı: ' + (r.reason || '')}; sayfaya yeniden bak ve kaldığın yerden devam et)`);
           await rec.shot(page, r.success ? 'Robot doğrulaması geçildi' : 'Bekleme bitti').catch(() => {});
@@ -185,7 +190,7 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
           return { status: 'dry_run', reason: `Form dolduruldu, gönder düğmesine basılmadı. Boş zorunlu alan: ${empty.length}`, steps, answers, emptyRequired: empty.map((f) => f.label) };
         }
       }
-      const res = await act(page, a, ctx);
+      const res = await withTimeout(act(page, a, ctx), a.op === 'email_code' || a.op === 'email_link' ? 240000 : 60000, `${a.op} eylemi`).catch((e) => `${a.op} hata: ${e.message}`);
       const shown = a.value && /password|parola|şifre/i.test(JSON.stringify(a0)) ? '••••' : clip(a.value ?? a.url ?? a.file ?? '', 80);
       history.push(`${a.op} ${a.id || ''} ${shown} → ${res}`);
       if ((a.op === 'fill' || a.op === 'select') && a.value && !/password/i.test(res)) {

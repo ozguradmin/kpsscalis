@@ -73,6 +73,7 @@ export async function jev(env, state, questions, { retries = 2 } = {}) {
       method: 'POST',
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
       body: JSON.stringify({ model: 'jev-latest', state, questions }),
+      signal: AbortSignal.timeout(90000), // asılı kalmasın
     });
     if (r.ok) {
       const j = await r.json();

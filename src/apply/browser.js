@@ -104,6 +104,8 @@ export async function openBrowser(env, { recording = true } = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 900 });
   await page.setExtraHTTPHeaders({ 'accept-language': 'en-US,en;q=0.9,tr;q=0.8' });
+  // alert/confirm/beforeunload pencereleri sayfayı kilitler (evaluate sonsuza dek bekler): hepsini kabul et
+  page.on('dialog', (d) => { d.accept().catch(() => {}); });
   // Yeni sekme/pencere açan başvuru düğmeleri aynı sekmede açılsın (ajan tek sekmeyi izler)
   await page.evaluateOnNewDocument(`(() => { const o = window.open; window.open = function (u) { if (u && typeof u === 'string' && !/^javascript:/i.test(u)) { location.href = u; return window; } return o.apply(this, arguments); }; document.addEventListener('click', (e) => { const a = e.target && e.target.closest && e.target.closest('a[target]'); if (a) a.removeAttribute('target'); }, true); })()`).catch(() => {});
   let sessionId = null;
@@ -130,9 +132,14 @@ export async function dismissConsent(page) {
   try { const r = await page.evaluate(CONSENT_JS); if (r) await sleep(500); return r; } catch (e) { return ''; }
 }
 
+// Sayfa işlemleri için üst süre: donmuş bir sekme ajanı sonsuza dek bekletmesin
+export function withTimeout(p, ms, what = 'işlem') {
+  let t; return Promise.race([p, new Promise((_, rej) => { t = setTimeout(() => rej(new Error(`${what} ${Math.round(ms / 1000)} sn içinde bitmedi (sayfa yanıt vermiyor)`)), ms); })]).finally(() => clearTimeout(t));
+}
+
 export async function snapshot(page) {
-  await dismissConsent(page);
-  try { return await page.evaluate(SNAPSHOT_JS); } catch (e) { return { url: page.url(), error: String(e.message), fields: [], buttons: [], links: [], errors: [], text: '' }; }
+  await withTimeout(dismissConsent(page), 15000, 'çerez bandı').catch(() => {});
+  try { return await withTimeout(page.evaluate(SNAPSHOT_JS), 25000, 'sayfa okuma'); } catch (e) { return { url: page.url(), error: String(e.message), fields: [], buttons: [], links: [], errors: [], text: '' }; }
 }
 
 const sel = (id) => `[data-agent-id="${id}"]`;

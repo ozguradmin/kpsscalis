@@ -62,7 +62,7 @@ export function parseJSON(text) {
 }
 
 // Tek tip çağrı. runner(model, body) -> ham sonuç (env.AI.run veya REST)
-export async function chatCore(runner, { model, messages, json = false, schema = null, tools = null, maxTokens = 1200, thinking = false, temperature = 0.2, effort = 'low' }) {
+export async function chatCore(runner, { model, messages, json = false, schema = null, tools = null, maxTokens = 1200, thinking = false, temperature = 0.2, effort = 'low', timeoutMs = 150000 }) {
   const body = { messages, max_completion_tokens: maxTokens, temperature };
   if (THINK_TOGGLE.test(model)) body.chat_template_kwargs = { enable_thinking: !!thinking };
   if (model.includes('gpt-oss')) body.reasoning_effort = thinking ? 'medium' : effort;
@@ -70,7 +70,9 @@ export async function chatCore(runner, { model, messages, json = false, schema =
   else if (json) body.response_format = { type: 'json_object' };
   if (tools) { body.tools = tools; body.tool_choice = 'auto'; }
   const t0 = Date.now();
-  const raw = await runner(model, body);
+  // Model bazen yanıt vermeden asılı kalıyor: üst süre koy (hata olursa çağıran taraf yeniden dener / yedek modele geçer)
+  let timer;
+  const raw = await Promise.race([runner(model, body), new Promise((_, rej) => { timer = setTimeout(() => rej(new Error(`model ${model} ${timeoutMs / 1000} sn içinde yanıt vermedi`)), timeoutMs); })]).finally(() => clearTimeout(timer));
   const ms = Date.now() - t0;
   const r = raw && raw.result ? raw.result : raw;
   const msg = r?.choices?.[0]?.message || {};
