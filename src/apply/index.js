@@ -272,7 +272,7 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
   if ((running?.n || 0) >= 2) return { started: 0, why: 'zaten 2 başvuru sürüyor' };
   // Günlük sınır sadece gerçekten gönderilen başvuruları sayar; takılan denemeleri tarayıcı dakikası sınırlar
   const todayApps = await env.DB.prepare("SELECT COUNT(*) n FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.created_at > ? AND a.status IN ('submitted','confirmed','next_step','interview','offer','applying','prepared') AND j.source != 'followup'").bind(now() - DAY).first();
-  const left = settings.daily_apply_limit - Math.max(usage.applications || 0, todayApps?.n || 0);
+  const left = settings.daily_apply_limit - (todayApps?.n || 0); // gerçek kayıtlar esas (sayaç, sonradan düzeltilen yanlış onayları içerebilir)
   if (left <= 0) return { started: 0, why: 'günlük başvuru sınırı doldu' };
   if (usage.browser_ms / 60000 >= settings.daily_browser_minutes) return { started: 0, why: 'günlük tarayıcı süresi doldu' };
   const blockedHosts = new Set((settings.blocked_domains || []).map(String));
