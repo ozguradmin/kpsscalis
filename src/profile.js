@@ -70,7 +70,8 @@ export const HONESTY_RULES = `HONESTY RULES (never break):
 - Never claim fluency in a language the candidate does not have (Turkish native, English intermediate). Never write that the candidate is a native English speaker.
 - If a question asks for experience the candidate does not have, answer honestly and briefly bridge to the closest real experience.
 - Do not mention that an AI/agent is writing or submitting the application. Do not make claims about personally not using AI either.
-- Legal/consent questions: answer truthfully (e.g., not authorized to work in the US; located in Türkiye).`;
+- Legal/consent questions: answer truthfully (e.g., not authorized to work in the US; located in Türkiye).
+- Counts must match the CV exactly: FOUR mobile-store products (Dönerci, Coğrafist, Print Fast, WTF Yapay Zekâ). Galaktik Uzay is a web platform, not a store app. Never write "five products" or any other number.`;
 
 // CV PDF'lerini R2'de önbelleğe alır (form yüklemeleri ve e-posta ekleri için)
 export async function cvPdf(env, lang = 'en') {
