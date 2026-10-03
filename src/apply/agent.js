@@ -6,7 +6,9 @@ import { clip, now, sleep, hostOf, sha256 } from '../lib/util.js';
 import { log, addAction } from '../lib/db.js';
 import { alertUser } from '../mail.js';
 
-const SUCCESS_RE = /(thank(s| you) for (your )?(applying|application|submitting|interest)|application (has been |was )?(received|submitted|sent|complete)|we('ve| have) received your application|successfully (submitted|applied)|your application is (in|complete)|başvurunuz (alındı|iletildi|tamamlandı)|candidatura (enviada|recebida)|solicitud (enviada|recibida)|bewerbung (wurde )?(erfolgreich )?(versendet|übermittelt|eingegangen)|danke für deine bewerbung|merci pour votre candidature|отклик отправлен|спасибо за отклик|dziękujemy za (aplikację|zgłoszenie)|thanks for updating your profile|profile (has been |was )?(saved|updated|completed)|your profile is (complete|live))/i;
+const SUCCESS_RE = /(thank(s| you) for (your )?(applying|application|submitting|interest)|application (has been |was )?(received|submitted|sent|complete)|we('ve| have) received your application|successfully (submitted|applied)|your application is (in|complete)|başvurunuz (alındı|iletildi|tamamlandı)|candidatura (enviada|recebida)|solicitud (enviada|recibida)|bewerbung (wurde )?(erfolgreich )?(versendet|übermittelt|eingegangen)|danke für deine bewerbung|merci pour votre candidature|отклик отправлен|спасибо за отклик|dziękujemy za (aplikację|zgłoszenie))/i;
+// Profil/hesap tamamlama ifadeleri sadece takip (profil doldurma) görevlerinde başarı sayılır: WaaS şirket listesinde de eski bir "Thanks for updating your profile" bandı duruyor
+const PROFILE_OK_RE = /(thanks for updating your profile|profile (has been |was )?(saved|updated|completed)|your profile is (complete|live))/i;
 const CLOSED_RE = /(no longer (accepting|available)|position (has been )?(filled|closed)|job (is )?(closed|expired|not found)|this job has expired|ilan yayından kaldırıldı|page not found|404)/i;
 
 const AGENT_SYS = `You are an expert web agent that completes and submits a job application in a real browser for the candidate below. You see a numbered snapshot of the page (fields/buttons/links with ids). Reply with ONLY JSON:
@@ -64,6 +66,7 @@ function renderSnapshot(s) {
 }
 
 export async function runAgent(env, settings, { page, job, app, letter, rec, ctx, account = null, maxSteps = 28, userActive = false }) {
+  const okText = (t) => SUCCESS_RE.test(t) || (job.source === 'followup' && PROFILE_OK_RE.test(t));
   const history = [];
   let model = 'agent', stall = 0, lastSig = '', steps = 0, handoffs = 0;
   const answers = {};
@@ -80,7 +83,7 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
       const err = (s.errors || []).join(' | ');
       return err ? { status: 'needs_human', reason: `Site aynı hatayı veriyor: ${clip(err, 200)} (muhtemelen robot doğrulaması)`, steps, answers } : { status: 'failed', reason: 'Sayfa ilerlemiyor (takıldı)', steps, answers };
     }
-    if (SUCCESS_RE.test(`${s.title} ${s.text}`) && steps > 1) { await rec.shot(page, 'Başvuru onay ekranı'); return { status: 'submitted', reason: 'Onay metni görüldü', steps, answers }; }
+    if (okText(`${s.title} ${s.text}`) && steps > 1) { await rec.shot(page, 'Başvuru onay ekranı'); return { status: 'submitted', reason: 'Onay metni görüldü', steps, answers }; }
     if (steps === 1 && CLOSED_RE.test(`${s.title} ${clip(s.text, 600)}`)) return { status: 'closed', reason: 'İlan kapanmış', steps, answers };
     const msgs = [
       { role: 'system', content: AGENT_SYS },
@@ -103,7 +106,9 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
         // Modelin iddiasını doğrula: sayfada onay var mı?
         const s2 = await snapshot(page);
         await rec.shot(page, 'Gönderim sonrası');
-        if (SUCCESS_RE.test(`${s2.title} ${s2.text}`)) return { status: 'submitted', reason: d.reason || d.thought, steps, answers };
+        if (okText(`${s2.title} ${s2.text}`)) return { status: 'submitted', reason: d.reason || d.thought, steps, answers };
+        // YC Work at a Startup: gönderilince "Apply" düğmesi "Applied" olur (ayrı onay metni yok)
+        if (/workatastartup\.com\/jobs\//.test(s2.url || page.url()) && (s2.buttons || []).some((b) => /^applied$/i.test(String(b.text).trim()))) return { status: 'submitted', reason: 'WaaS: düğme "Applied" oldu', steps, answers };
         // Kalıp tutmadıysa Jev hakemlik yapar (browser-use/jev-ultrafast'taki "hedefe ulaşıldı mı" yargısı gibi)
         let conf = null;
         try {
