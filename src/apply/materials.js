@@ -42,9 +42,12 @@ export function validLetter(t) {
 
 function cleanLetter(s) {
   return String(s || '').replace(/^\s*(subject|konu):.*$/gim, '').replace(/\*\*/g, '').replace(/\[(your|company|hiring manager)[^\]]*\]/gi, '')
-    // Sayı uydurmasın: mağazadaki ürün sayısı CV'de dört (beş/altı yazarsa düzelt)
-    .replace(/\b(five|six|seven|5|6|7)(\s+(?:mobile\s+|published\s+|live\s+)?(?:products|apps|applications|mobile products))/gi, (m, n, rest) => (/^\d/.test(n) ? '4' : n[0] === n[0].toUpperCase() ? 'Four' : 'four') + rest)
-    .replace(/\b(beş|altı|yedi)(\s+(?:mobil\s+)?(?:ürün|uygulama))/gi, (m, n, rest) => (n[0] === n[0].toUpperCase() ? 'Dört' : 'dört') + rest)
+    // Sayı uydurmasın: mağazada 4 uygulama var (Galaktik Uzay web platformu, mağazada değil; toplam 5 ürün).
+    // Sadece mağaza/mobil bağlamında geçen 5+ sayısını 4'e çevir; "toplam beş ürün" doğru, dokunma.
+    .split(/((?<=[.!?])\s+)/).map((sen) => /app store|google play|\bstores?\b|mobile|mağaza|mobil/i.test(sen)
+      ? sen.replace(/\b(five|six|seven|5|6|7)(\s+(?:mobile\s+|published\s+|live\s+)?(?:products|apps|applications|mobile products))/gi, (m, n, rest) => (/^\d/.test(n) ? '4' : n[0] === n[0].toUpperCase() ? 'Four' : 'four') + rest)
+        .replace(/\b(beş|altı|yedi)(\s+(?:mobil\s+)?(?:ürün|uygulama))/gi, (m, n, rest) => (n[0] === n[0].toUpperCase() ? 'Dört' : 'dört') + rest)
+      : sen).join('')
     .trim();
 }
 
