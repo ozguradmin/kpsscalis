@@ -44,10 +44,11 @@ export const SNAPSHOT_JS = `(() => {
     if (el.getAttribute('aria-invalid') === 'true') f.invalid = true;
     out.fields.push(f);
   });
-  document.querySelectorAll('button, [role=button], input[type=submit], input[type=button], a.button, a[class*=btn], a[class*=Button]').forEach((el) => {
+  document.querySelectorAll('button, [role=button], input[type=submit], input[type=button], a.button, a[class*=btn], a[class*=Button], a:not([href]), [onclick], [class*=cursor-pointer]').forEach((el) => {
+    if (el.closest('button') && el.tagName !== 'BUTTON') return; // düğme içindeki span'ı ikinci kez sayma
     if (!vis(el)) return;
     const t = txt(el.innerText || el.value || el.getAttribute('aria-label'), 80);
-    if (!t) return;
+    if (!t || (!/^(BUTTON|INPUT|A)$/.test(el.tagName) && t.length > 40)) return;
     out.buttons.push({ id: tag(el), text: t, type: el.type || '', disabled: !!el.disabled || el.getAttribute('aria-disabled') === 'true' });
   });
   document.querySelectorAll('a[href]').forEach((el) => {
