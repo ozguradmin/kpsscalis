@@ -233,8 +233,16 @@ Only change things the data supports; keep each prompt_addenda under 700 chars, 
     await setSetting(env, 'role_weights', rw, 'self-review'); applied.push('role_weights');
   }
   if (Array.isArray(r.blocked_domains_add) && r.blocked_domains_add.length) {
-    const bd = [...new Set([...(settings.blocked_domains || []), ...r.blocked_domains_add.map(String).slice(0, 10)])];
-    await setSetting(env, 'blocked_domains', bd, 'self-review'); applied.push('blocked_domains+' + r.blocked_domains_add.length);
+    // Hesabı açık / oturumu kayıtlı siteler engellenmez (ör. Djinni profili tamamlanınca eski hatalar artık geçersiz)
+    const keep = new Set([
+      ...(await env.DB.prepare('SELECT domain FROM sessions').all()).results.map((x) => x.domain),
+      ...(await env.DB.prepare("SELECT site FROM accounts WHERE status='active'").all()).results.map((x) => String(x.site).split('.').slice(-2).join('.')),
+    ]);
+    const add = r.blocked_domains_add.map(String).slice(0, 10).filter((d) => !keep.has(d.split('.').slice(-2).join('.')));
+    if (add.length) {
+      const bd = [...new Set([...(settings.blocked_domains || []), ...add])];
+      await setSetting(env, 'blocked_domains', bd, 'self-review'); applied.push('blocked_domains+' + add.length);
+    }
   }
   if (r.prompt_addenda && typeof r.prompt_addenda === 'object') {
     const pa = { ...(settings.prompt_addenda || {}) };

@@ -278,7 +278,7 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
   const blockedHosts = new Set((settings.blocked_domains || []).map(String));
   // Öğrenilmiş: robot doğrulaması yüzünden hiç başarılamayan siteler, sen panelde değilken denenmez (tarayıcı süresi boşa gitmesin)
   // himalayas.app: başvuru hesabı + Turnstile ister, sunucu tarayıcısıyla hiç geçilemiyor (şirketin kendi ATS'si bulununca adres otomatik değişir)
-  const hardScopes = new Set(['himalayas.app', ...(await allRows(env, "SELECT scope FROM recipes WHERE failures >= 3 AND successes = 0 AND (notes LIKE '%robot%' OR notes LIKE '%CAPTCHA%' OR notes LIKE '%captcha%')")).map((r) => r.scope)]);
+  const hardScopes = new Set(['himalayas.app', ...(await allRows(env, "SELECT scope FROM recipes WHERE failures >= 3 AND successes = 0 AND notes LIKE '%CAPTCHA / robot%'")).map((r) => r.scope)]);
   const candidates = await allRows(env, `SELECT id, apply_url, url, company, source, substr(description, -1500) description FROM jobs WHERE status='approved' ORDER BY priority DESC, discovered_at DESC LIMIT 20`);
   // YC Work at a Startup haftada en fazla 5 başvuruya izin veriyor ("You've reached your limit of 5 applications per week")
   const waas = await env.DB.prepare("SELECT COUNT(*) n FROM applications a JOIN jobs k ON k.id=a.job_id WHERE k.apply_url LIKE '%workatastartup.com/jobs/%' AND a.status IN ('submitted','confirmed','next_step','interview','offer','rejected') AND a.submitted_at > ?").bind(now() - 7 * DAY).first();

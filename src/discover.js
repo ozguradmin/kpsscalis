@@ -28,7 +28,7 @@ export async function saveJobs(env, jobs) {
           url=CASE WHEN jobs.apply_url LIKE '%himalayas.app%' AND ?6 IS NOT NULL THEN ?4 ELSE jobs.url END,
           apply_url=CASE WHEN jobs.apply_url LIKE '%himalayas.app%' AND ?6 IS NOT NULL THEN ?5 ELSE jobs.apply_url END,
           ats=CASE WHEN jobs.apply_url LIKE '%himalayas.app%' AND ?6 IS NOT NULL THEN ?6 ELSE jobs.ats END,
-          status=CASE WHEN jobs.apply_url LIKE '%himalayas.app%' AND ?6 IS NOT NULL AND jobs.status='review' AND jobs.reason LIKE '%himalayas.app sitesinde%' THEN 'approved' ELSE jobs.status END`)
+          status=CASE WHEN jobs.apply_url LIKE '%himalayas.app%' AND ?6 IS NOT NULL AND jobs.status='review' AND jobs.reason LIKE '%himalayas.app sitesinde%' THEN 'approved' WHEN jobs.apply_url LIKE '%himalayas.app%' AND ?6 IS NOT NULL AND jobs.status='rejected' AND jobs.reason='engelli alan adı' THEN 'new' ELSE jobs.status END`)
         .bind(uid('j_'), j.source, j.external_id, j.url, j.apply_url, ats ? ats.ats : null, j.company, j.title, j.location, j.lang, j.description, j.salary, j.tags, j.posted_at, t, k);
     });
     const res = await env.DB.batch(stmts);
