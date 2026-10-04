@@ -23,6 +23,9 @@ Style: ${lang}, 120-190 words, warm and direct, no clichés ("I am writing to ex
   };
   let text;
   try { text = await gen(); } catch (e) { text = await gen('\n\nWrite the final letter directly. No analysis, no notes.'); }
+  // CV'de olmayan teknoloji adı geçiyorsa (ör. React Native ↔ Capacitor) bir kez yeniden yaz
+  const fake = unsupportedTech(text, profile);
+  if (fake.length) { try { text = await gen(`\n\nIMPORTANT: do not claim these technologies, the candidate has not used them: ${fake.join(', ')}. Mobile apps were built with React + TypeScript + Capacitor.`); } catch (e) { /* ilk metin */ } }
   const check = await truthCheck(env, settings, text);
   if (!check.ok) {
     try { text = await gen(`\n\nIMPORTANT: a previous draft contained unsupported claims: ${check.issues.join('; ')}. Do not repeat them.`); } catch (e) { /* ilk metinle devam */ }
@@ -30,6 +33,19 @@ Style: ${lang}, 120-190 words, warm and direct, no clichés ("I am writing to ex
     if (!c2.ok) return { text, lang, warnings: c2.issues };
   }
   return { text, lang, warnings: [] };
+}
+
+const TECH_TERMS = ['React Native', 'Flutter', 'Swift', 'SwiftUI', 'Kotlin', 'Java', 'Python', 'Django', 'Golang', 'Rust', 'Ruby', 'Rails', 'PHP', 'Laravel', 'Vue', 'Angular', 'Svelte', '.NET', 'C#', 'Kubernetes', 'AWS', 'GraphQL', 'PostgreSQL', 'Postgres', 'MongoDB', 'Docker', 'Terraform', 'Unity', 'Unreal'];
+// Metinde geçen, ama adayın profilinde/CV'sinde hiç geçmeyen teknoloji adları ("deneyimim yok" diye geçenler hariç)
+export function unsupportedTech(text, profile) {
+  const t = String(text || ''), p = String(profile || '').toLowerCase();
+  return TECH_TERMS.filter((k) => {
+    const re = new RegExp(`(^|[^A-Za-z])${k.replace(/[.#+]/g, (c) => '\\' + c)}([^A-Za-z]|$)`);
+    if (!re.test(t) || p.includes(k.toLowerCase())) return false;
+    // "X ile deneyimim yok / eager to learn X / new to X" gibi dürüst ifadeler sorun değil
+    const i = t.search(re); const ctx = t.slice(Math.max(0, i - 80), i + 80);
+    return !/(eager to (learn|deepen)|new to|haven't|have not|not yet|no (professional )?experience|learning|deneyimim yok|öğren)/i.test(ctx);
+  });
 }
 
 export function validLetter(t) {
@@ -55,7 +71,7 @@ function cleanLetter(s) {
 export async function truthCheck(env, settings, text) {
   try {
     const o = await llm(env, settings, { task: 'judge', json: true, maxTokens: 500, messages: [
-      { role: 'system', content: 'You verify claims in an application text against the candidate CV/facts. Return ONLY JSON {"ok":true|false,"issues":["each unsupported or false claim, short"]}. Reasonable paraphrases and enthusiasm are fine; invented employers, numbers, years, skills, degrees, language fluency or claims of being a native English speaker are NOT.' },
+      { role: 'system', content: 'You verify claims in an application text against the candidate CV/facts. Return ONLY JSON {"ok":true|false,"issues":["each unsupported or false claim, short"]}. Reasonable paraphrases and enthusiasm are fine; invented employers, numbers, years, skills, degrees, language fluency or claims of being a native English speaker are NOT. Technologies/frameworks must appear in the CV (e.g. the mobile apps use React + Capacitor; saying React Native is false). The candidate has FOUR apps on the App Store/Google Play; Galaktik Uzay is a web platform.' },
       { role: 'user', content: `CANDIDATE:\n${await profileContext(env, { maxFacts: 40 })}\n\nTEXT:\n${text}` }] });
     const j = o.json || {};
     return { ok: j.ok !== false || !(j.issues || []).length, issues: j.issues || [] };
