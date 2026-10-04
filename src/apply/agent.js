@@ -9,6 +9,7 @@ import { alertUser } from '../mail.js';
 const SUCCESS_RE = /(thank(s| you) for (your )?(applying|application|submitting|interest)|application (has been |was )?(received|submitted|sent|complete)|we('ve| have) received your application|successfully (submitted|applied)|your application is (in|complete)|başvurunuz (alındı|iletildi|tamamlandı)|candidatura (enviada|recebida)|solicitud (enviada|recibida)|bewerbung (wurde )?(erfolgreich )?(versendet|übermittelt|eingegangen)|danke für deine bewerbung|merci pour votre candidature|отклик отправлен|спасибо за отклик|dziękujemy za (aplikację|zgłoszenie))/i;
 // Profil/hesap tamamlama ifadeleri sadece takip (profil doldurma) görevlerinde başarı sayılır: WaaS şirket listesinde de eski bir "Thanks for updating your profile" bandı duruyor
 const PROFILE_OK_RE = /(thanks for updating your profile|profile (has been |was )?(saved|updated|completed)|your profile is (complete|live))/i;
+const NOT_ELIGIBLE_RE = /(your profile does not meet some of the requirements|we (only|currently only) (hire|accept|consider) (candidates|applicants) (from|based in)|not accepting applications from your (country|location|region))/i;
 const CLOSED_RE = /(no longer (accepting|available)|position (has been )?(filled|closed)|job (is )?(closed|expired|not found)|this job has expired|ilan yayından kaldırıldı|page not found|404)/i;
 
 const AGENT_SYS = `You are an expert web agent that completes and submits a job application in a real browser for the candidate below. You see a numbered snapshot of the page (fields/buttons/links with ids). Reply with ONLY JSON:
@@ -89,6 +90,7 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
     }
     if (okText(`${s.title} ${s.text}`) && steps > 1) { await rec.shot(page, 'Başvuru onay ekranı'); return { status: 'submitted', reason: 'Onay metni görüldü', steps, answers }; }
     if (steps === 1 && CLOSED_RE.test(`${s.title} ${clip(s.text, 600)}`)) return { status: 'closed', reason: 'İlan kapanmış', steps, answers };
+    if (steps <= 2 && NOT_ELIGIBLE_RE.test(s.text || '') && ![...(s.buttons || []), ...(s.links || [])].some((b) => /^\s*(apply|apply now|відгукнутися|откликнуться)\b/i.test(b.text || ''))) return { status: 'not_eligible', reason: 'Site profilin ilan şartlarını (ülke/İngilizce seviyesi) karşılamadığını söylüyor', steps, answers };
     const msgs = [
       { role: 'system', content: AGENT_SYS },
       { role: 'user', content: `${intro}\n\nHISTORY (last actions → results):\n${history.slice(-14).join('\n') || '(start)'}\n\nCURRENT PAGE SNAPSHOT (step ${steps}/${maxSteps}):\n${renderSnapshot(s)}` },

@@ -368,8 +368,15 @@ export const SOURCES = [
   {
     id: 'djinni', label: 'Djinni (Ukrayna, tam uzaktan)', cadence: 180, lang: 'en',
     async fetch() {
-      const items = parseRSS(await fetchText('https://djinni.co/jobs/rss/?remote_type=full_remote'));
-      return items.map((i) => job({ source: 'djinni', external_id: i.guid, url: i.link, company: i.author || '', title: i.title, description: htmlToText(i.description), posted_at: i.pubDate, location: 'Full remote', remote_hint: 'remote' }));
+      // Sadece dünya genelinden aday kabul eden ve en çok orta seviye İngilizce isteyen ilanlar + Türkiye'deki adayları kabul edenler
+      // (Djinni, profil şartları tutmayınca "Apply" düğmesini hiç göstermiyor; Avrupa/Ukrayna'ya kısıtlı ilanlar boşa gider)
+      const feeds = [['region=worldwide&english_level=intermediate', 'Full remote (worldwide, English ≤ intermediate)'], ['country=TUR', 'Full remote (Türkiye kabul)']];
+      const out = [], seen = new Set();
+      for (const [q, loc] of feeds) {
+        const items = parseRSS(await fetchText(`https://djinni.co/jobs/rss/?remote_type=full_remote&${q}`).catch(() => ''));
+        for (const i of items) if (!seen.has(i.link)) { seen.add(i.link); out.push(job({ source: 'djinni', external_id: i.guid, url: i.link, company: i.author || '', title: i.title, description: htmlToText(i.description), posted_at: i.pubDate, location: loc, remote_hint: 'remote' })); }
+      }
+      return out;
     },
   },
   {
