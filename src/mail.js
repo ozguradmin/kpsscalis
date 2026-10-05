@@ -117,7 +117,9 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
       } catch (e2) { /* sınıflandırılamadı */ }
     }
     // 3) Takip görevi: kayıt/profil/CV adımını ajan kendisi tamamlasın
-    if (action === 'signup_or_profile' && app && category !== 'verification' && category !== 'rejection') {
+    // Otomatik rapor/bülten e-postalarından (ör. "Djinni statistics for the week") görev çıkarma
+    const bulk = /statistics|weekly|digest|newsletter|job alert|recommended jobs|new jobs for you|unsubscribe/i.test(`${m.subject} ${m.from_address}`) && !/^re:/i.test(m.subject);
+    if (action === 'signup_or_profile' && app && !bulk && category !== 'verification' && category !== 'rejection') {
       const url = pickCTA(m.text_body, m.html_body);
       if (url) await createFollowup(env, { mailId: m.id, url, app, subject: m.subject, body });
     }
