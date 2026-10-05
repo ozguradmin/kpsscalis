@@ -1,8 +1,9 @@
 // E-posta: ozgurguler-mail D1'inden gelen kutusunu okur, sınıflandırır, başvurulara bağlar; doğrulama kodu/bağlantısı bulur; e-posta gönderir.
-import { now, uid, clip, htmlToText, hostOf, normKey, sleep, DAY, MIN, dayKey } from './lib/util.js';
+import { now, uid, clip, htmlToText, hostOf, normKey, sleep, DAY, MIN, dayKey, humanize } from './lib/util.js';
 import { log, allRows, addAction, bumpUsage } from './lib/db.js';
 import { jev, llm } from './lib/llm.js';
 import { signLink } from './lib/auth.js';
+import { STYLE_RULES } from './profile.js';
 
 const LINK_RE = /https?:\/\/[^\s"'<>)\]]+/g;
 const isYear = (x) => /^(19|20)\d{2}$/.test(x);
@@ -129,7 +130,7 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
     if (['interview', 'assessment', 'recruiter', 'offer', 'rejection'].includes(category) || action !== 'none') {
       try {
         const o = await llm(env, settings, { task: 'mail', json: true, maxTokens: 700, messages: [
-          { role: 'system', content: 'You help a job seeker (Özgür Güler, Türkiye, remote-only, English intermediate, prefers written communication). Return JSON {"summary_tr":"1-2 sentences in Turkish: what they want and deadline","needs_human":true|false,"reply_en":"a short polite reply in the same language as the email (or English), only if a reply is useful; else null"}. Never promise things the candidate did not state; do not invent availability times.' },
+          { role: 'system', content: 'You help a job seeker (Özgür Güler, Türkiye, remote-only, English intermediate, prefers written communication). Return JSON {"summary_tr":"1-2 sentences in Turkish: what they want and deadline","needs_human":true|false,"reply_en":"a short polite reply in the same language as the email (or English), only if a reply is useful; else null"}. Never promise things the candidate did not state; do not invent availability times.\n' + STYLE_RULES },
           { role: 'user', content: `From: ${m.from_name || ''} <${m.from_address}>\nSubject: ${m.subject}\n\n${body}` }] });
         summary = o.json?.summary_tr || null; draft = o.json?.reply_en || null;
       } catch (e) { /* özet yok */ }
@@ -187,6 +188,8 @@ export async function alertUser(env, settings, { key, subject, text, url = null,
 
 // E-posta gönder (Cloudflare Email Service) ve posta sistemindeki "Gönderilenler"e kopyasını yaz
 export async function sendMail(env, settings, { to, subject, text, attachments = [], appId = null, replyTo = null }) {
+  // Şirketlere giden her e-posta insan yazısı gibi: uzun tire ve kalıp yapay zekâ ifadeleri temizlenir
+  if (to !== settings.alert_email) { subject = humanize(subject); text = humanize(text); }
   const from = { email: settings.from_email || 'destek@ozgurguler.tech', name: settings.from_name || 'Özgür Güler' };
   const res = await env.EMAIL.send({ to, from, subject, text, replyTo: replyTo || undefined, attachments: attachments.length ? attachments : undefined });
   const t = new Date().toISOString();

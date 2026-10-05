@@ -1,7 +1,7 @@
 // Başvuru malzemeleri: ilana özel ön yazı + doğruluk denetimi, form sorularına cevaplar.
 import { llm } from '../lib/llm.js';
-import { profileContext, HONESTY_RULES, CORE } from '../profile.js';
-import { clip, safeJSON } from '../lib/util.js';
+import { profileContext, HONESTY_RULES, CORE, STYLE_RULES } from '../profile.js';
+import { clip, safeJSON, humanize } from '../lib/util.js';
 import { allRows } from '../lib/db.js';
 
 export async function coverLetter(env, settings, job) {
@@ -10,6 +10,7 @@ export async function coverLetter(env, settings, job) {
   const profile = await profileContext(env, { maxFacts: 40 });
   const add = settings.prompt_addenda?.letter ? `\nLearned style rules:\n${settings.prompt_addenda.letter}` : '';
   const sys = `You write short, specific, human job application letters for the candidate below. ${HONESTY_RULES}
+${STYLE_RULES}
 Style: ${lang}, 120-190 words, warm and direct, no clichés ("I am writing to express"), no placeholders, no subject line, no markdown. Open with why this role/company fits the candidate's REAL work (use the pitch angle if given). Mention 2-3 concrete, true projects that match the job. Mention remote from Türkiye and async-friendly communication only if relevant. End with a simple call to action and the name "Özgür Güler".${add}`;
   const user = `${profile}\n\nJOB: ${job.title} at ${job.company}\nLocation: ${job.location || ''}\nPitch angle: ${a.pitch || ''}\nMust-haves: ${(a.must_haves || []).join('; ')}\n\n${clip(job.description, 6000)}`;
   const gen = async (extra = '') => {
@@ -59,14 +60,14 @@ export function validLetter(t) {
 }
 
 function cleanLetter(s) {
-  return String(s || '').replace(/^\s*(subject|konu):.*$/gim, '').replace(/\*\*/g, '').replace(/\[(your|company|hiring manager)[^\]]*\]/gi, '')
+  return humanize(String(s || '').replace(/^\s*(subject|konu):.*$/gim, '').replace(/\*\*/g, '').replace(/\[(your|company|hiring manager)[^\]]*\]/gi, '')
     // Sayı uydurmasın: mağazada 4 uygulama var (Galaktik Uzay web platformu, mağazada değil; toplam 5 ürün).
     // Sadece mağaza/mobil bağlamında geçen 5+ sayısını 4'e çevir; "toplam beş ürün" doğru, dokunma.
     .split(/((?<=[.!?])\s+)/).map((sen) => /app store|google play|\bstores?\b|mobile|mağaza|mobil/i.test(sen)
       ? sen.replace(/\b(five|six|seven|5|6|7)(\s+(?:mobile\s+|published\s+|live\s+)?(?:products|apps|applications|mobile products))/gi, (m, n, rest) => (/^\d/.test(n) ? '4' : n[0] === n[0].toUpperCase() ? 'Four' : 'four') + rest)
         .replace(/\b(beş|altı|yedi)(\s+(?:mobil\s+)?(?:ürün|uygulama))/gi, (m, n, rest) => (n[0] === n[0].toUpperCase() ? 'Dört' : 'dört') + rest)
       : sen).join('')
-    .trim();
+    .trim());
 }
 
 // Metindeki her iddianın CV'de dayanağı var mı?
@@ -83,9 +84,9 @@ export async function truthCheck(env, settings, text) {
 // Formdaki tek bir serbest metin sorusuna doğru ve kısa cevap
 export async function answerQuestion(env, settings, job, question, { maxWords = 120 } = {}) {
   const o = await llm(env, settings, { task: 'answers', maxTokens: 500, temperature: 0.3, messages: [
-    { role: 'system', content: `Answer a job application question for the candidate, in the question's language (default English), max ${maxWords} words, first person, concrete and true. ${HONESTY_RULES}` },
+    { role: 'system', content: `${STYLE_RULES}\nAnswer a job application question for the candidate, in the question's language (default English), max ${maxWords} words, first person, concrete and true. ${HONESTY_RULES}` },
     { role: 'user', content: `${await profileContext(env, { maxFacts: 60 })}\n\nJOB: ${job.title} at ${job.company}\n\nQUESTION: ${question}` }] });
-  return o.content.trim();
+  return humanize(o.content.trim());
 }
 
 // Daha önce başarıyla kullanılmış alan/cevap eşleşmeleri (öğrenilmiş tarifler)

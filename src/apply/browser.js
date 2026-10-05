@@ -1,6 +1,6 @@
 // Browser Run oturumu: sayfa gözlemi (form alanları, düğmeler, hatalar), eylemler ve ekran kaydı.
 import puppeteer from '@cloudflare/puppeteer';
-import { now, uid, sleep, clip } from '../lib/util.js';
+import { now, uid, sleep, clip, humanize } from '../lib/util.js';
 
 // Sayfadaki etkileşimli öğeleri numaralayıp modele verilecek sade bir görünüm çıkarır.
 // Not: page.evaluate'e string veriyoruz; paketleyicinin fonksiyon gövdesini bozmasını önler.
@@ -273,6 +273,7 @@ export async function act(page, a, ctx) {
   try {
     if (op === 'fill' || op === 'type') {
       let v = String(a.value ?? '');
+      if (v.length > 25 && !/^(https?:|mailto:|[^\s@]+@[^\s@]+$)/i.test(v)) v = humanize(v); // insan yazısı: uzun tire yok
       const handle = await page.$(sel(a.id));
       if (!handle) return `fill ${a.id}: öğe yok`;
       // Türk numarası + bayraklı alan: önce ülkeyi Türkiye yap, sonra alanın beklediği biçimde yaz

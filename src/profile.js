@@ -94,3 +94,11 @@ export async function cvPdf(env, lang = 'en') {
 export async function cvBase64(env, lang = 'en') {
   return b64(await cvPdf(env, lang));
 }
+
+// Yazım üslubu: metin bir insanın elinden çıkmış gibi olmalı (işverenler yapay zekâ izlerini fark ediyor)
+export const STYLE_RULES = `WRITING STYLE (always):
+- Write like a real person typing a short note: plain words, short and medium sentences mixed, a bit informal but polite.
+- Never use em dashes (—) or en dashes (–). Use a comma, a period or parentheses instead. Do not use semicolons.
+- Avoid AI-sounding phrases: "I'd love to", "I'm excited", "thrilled", "passionate", "resonates", "leverage", "delve", "seamless", "cutting-edge", "exactly the kind of", "I am writing to express", "aligns perfectly", "in today's fast-paced world".
+- No bullet lists, no bold, no headings in letters or answers. No exclamation marks in a row. Do not repeat the company name more than twice.
+- Specific beats generic: one or two concrete details from real projects instead of adjectives.`;

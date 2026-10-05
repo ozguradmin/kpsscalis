@@ -187,8 +187,9 @@ export async function submit(env, appId, { userActive = false } = {}) {
 
 async function submitByEmail(env, settings, app, job, analysis) {
   const to = analysis.apply_email;
-  const subject = /open application/i.test(job.title) ? `Open application: remote full-stack / AI product developer — Özgür Güler` : `Application: ${job.title} — Özgür Güler`;
-  const text = `${app.letter}\n\n—\nÖzgür Güler\n${CORE.email} · ${CORE.phone}\nPortfolio: ${CORE.portfolio}\nGitHub: ${CORE.github}\nLinkedIn: ${CORE.linkedin}\nCV (PDF): ${CORE.cv_url_en}`;
+  const subject = /open application/i.test(job.title) ? `Open application: full-stack developer (remote), Özgür Güler` : `Application for ${job.title.replace(/\s*[—–|]\s*/g, ', ')} (Özgür Güler)`;
+  const body = String(app.letter || '').replace(/\s*Özgür Güler\s*$/u, '');
+  const text = `${body}${/,\s*$/.test(body) ? '\n' : '\n\n'}Özgür Güler\n${CORE.email} · ${CORE.phone}\nPortfolio: ${CORE.portfolio}\nGitHub: ${CORE.github}\nLinkedIn: ${CORE.linkedin}\nCV (PDF): ${CORE.cv_url_en}`;
   try {
     const res = await sendMail(env, settings, { to, subject, text, appId: app.id, attachments: [{ content: await cvBase64(env, 'en'), filename: 'Ozgur_Guler_CV_English.pdf', type: 'application/pdf', disposition: 'attachment' }] });
     return finalize(env, settings, app.id, job, { status: 'submitted', reason: `E-posta ile gönderildi → ${to} (gönderim kabul edildi, teslim henüz doğrulanmadı)`, steps: 1, answers: { email_to: to, subject }, messageId: res?.messageId }, null);

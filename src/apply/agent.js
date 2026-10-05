@@ -1,6 +1,7 @@
 // Tarayıcı ajanı: sayfayı gözler, modele sorar, eylemleri uygular; başvuru gönderilene ya da engel çıkana kadar döner.
 import { llm, jev } from '../lib/llm.js';
 import { act, snapshot, liveHandoff, withTimeout } from './browser.js';
+import { STYLE_RULES } from '../profile.js';
 import { HONESTY_RULES, CORE } from '../profile.js';
 import { clip, now, sleep, hostOf, sha256 } from '../lib/util.js';
 import { log, addAction } from '../lib/db.js';
@@ -38,6 +39,8 @@ Rules:
 8c. If ANALYSIS has \"followup\": true, this is not a new application but the next step an employer asked for (e.g. create a marketplace account, complete the profile, upload the resume). Complete it fully (sign up with the candidate email, upload cv_en, fill profile fields truthfully) and return \"submitted\" when the profile/step is saved. Tests, video recordings and interviews are for the candidate himself: return \"blocked\" with reason if the next step is one.
 8d. Questions that test knowledge of the company's own product/game/domain (e.g. "Up to how many players can play X?", "What is our main feature?") are not about the candidate: answer them correctly from the job text, the page, or well-known public knowledge (you may open the company's site in the same tab only if the form state is safe; prefer answering directly). Never leave such a required field empty.
 8e. If this page is not an application form but a job post that links elsewhere (an "Apply" link, a careers page, a form link), follow the link with goto/click instead of stopping.
+8i. Any free text you type (motivation, "why us", summaries): follow these rules.
+${STYLE_RULES}
 8h. If the only way to apply is by email (a mailto link or "send your CV to x@y" and no form), return status "email" with that address in "email"; the system then emails the cover letter and CV itself. If both a form link and an email exist, use the form; but if that form is blocked (needs a Google/Microsoft sign-in, a captcha you cannot pass, or is closed), fall back to status "email" with the address instead of "blocked". Go back (goto the previous page) to find the address if needed.
 8f. Y Combinator Work at a Startup (workatastartup.com/jobs/N): the candidate is already logged in. Click "Apply", put the cover letter (plain text, no greeting placeholders) into the message box, click "Send". When the button then reads "Applied", the application is done: return status "submitted". If you see a login form instead, return status "blocked" with reason "YC oturumu düştü" (never type a password there).
 If clicking Send changes nothing on WaaS, YC's weekly limit (5 applications/week) may be reached: return status "blocked" with reason "YC haftalık 5 başvuru sınırı".

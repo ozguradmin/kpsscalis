@@ -136,3 +136,23 @@ export function hostOf(url) {
 export function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers } });
 }
+
+// Dışarı giden her metni (e-posta, ön yazı, form cevabı) insan yazısına yaklaştır:
+// uzun tire (—/–) yapay zekâ izi sayılıyor; virgüle/noktaya çevrilir. Kalıp yapay zekâ ifadeleri sadeleşir.
+export function humanize(input) {
+  let s = String(input ?? '');
+  if (!s) return s;
+  s = s.replace(/^[ \t]*[—–]+[ \t]*$/gm, '');                         // tek başına tire satırı (imza ayırıcı)
+  s = s.replace(/(\d)\s*[—–]\s*(\d)/g, '$1-$2');                     // 2020–2023 → 2020-2023
+  s = s.replace(/\s*[—–]\s*(?=(I|We|It|This|That|My|Our|You|They|He|She|There|Ben|Bu|Şu)\b)/g, '. '); // "— I built" → ". I built" (yeni cümle)
+  s = s.replace(/\s*[—–]\s*/g, ', ');                                // diğer tüm tireler → virgül
+  s = s.replace(/,\s*,/g, ',').replace(/\.\s*\./g, '.').replace(/,\s*\./g, '.').replace(/:\s*,/g, ':');
+  const swaps = [
+    [/\bI['’]d love to\b/g, 'I would like to'], [/\bI['’]m (really |truly )?excited to\b/gi, 'I would like to'], [/\bI am (really |truly )?excited to\b/gi, 'I would like to'],
+    [/\b(I['’]m|I am) (really |truly )?excited about\b/gi, 'I am interested in'], [/\bthrilled\b/gi, 'glad'], [/\bpassionate about\b/gi, 'interested in'],
+    [/\bresonates (deeply )?with me\b/gi, 'appeals to me'], [/\bexactly the kind of\b/gi, 'the kind of'], [/\bleverage\b/gi, 'use'], [/\bleveraging\b/gi, 'using'],
+    [/\bdelve into\b/gi, 'look into'], [/\bseamless(ly)?\b/gi, 'smooth$1'], [/\bcutting[- ]edge\b/gi, 'modern'], [/\bI am writing to express my interest in\b/gi, 'I am applying for'],
+  ];
+  for (const [re, to] of swaps) s = s.replace(re, to);
+  return s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
