@@ -279,13 +279,17 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
   // Öğrenilmiş: robot doğrulaması yüzünden hiç başarılamayan siteler, sen panelde değilken denenmez (tarayıcı süresi boşa gitmesin)
   // himalayas.app: başvuru hesabı + Turnstile ister, sunucu tarayıcısıyla hiç geçilemiyor (şirketin kendi ATS'si bulununca adres otomatik değişir)
   const hardScopes = new Set(['himalayas.app', ...(await allRows(env, "SELECT scope FROM recipes WHERE failures >= 3 AND successes = 0 AND notes LIKE '%CAPTCHA / robot%'")).map((r) => r.scope)]);
-  const candidates = await allRows(env, `SELECT id, apply_url, url, company, source, substr(description, -1500) description FROM jobs WHERE status='approved' ORDER BY priority DESC, discovered_at DESC LIMIT 20`);
+  const candidates = await allRows(env, `SELECT id, apply_url, url, company, source, title, substr(description, -1500) description FROM jobs WHERE status='approved' ORDER BY priority DESC, discovered_at DESC LIMIT 20`);
   // YC Work at a Startup haftada en fazla 5 başvuruya izin veriyor ("You've reached your limit of 5 applications per week")
   const waas = await env.DB.prepare("SELECT COUNT(*) n FROM applications a JOIN jobs k ON k.id=a.job_id WHERE k.apply_url LIKE '%workatastartup.com/jobs/%' AND a.status IN ('submitted','confirmed','next_step','interview','offer','rejected') AND a.submitted_at > ?").bind(now() - 7 * DAY).first();
   const waasFull = (waas?.n || 0) >= 5;
+  // Açık başvuru e-postaları soğuk e-posta sayılır: kampanya temposu (4 saatte en fazla 8), toplu gönderim yok
+  const cold = await env.DB.prepare("SELECT COUNT(*) n FROM applications a JOIN jobs k ON k.id=a.job_id WHERE k.title LIKE 'Open application%' AND a.method='email' AND a.created_at > ?").bind(now() - 240 * MIN).first();
+  const coldFull = (cold?.n || 0) >= 8;
   let started = 0;
   for (const j of candidates) {
     if (waasFull && /workatastartup\.com\/jobs\//.test(j.apply_url || '')) continue; // hafta dolunca sırada beklesin
+    if (coldFull && /^open application/i.test(j.title || '')) continue;
     if (started >= Math.min(max, left)) break;
     if (blockedHosts.has(hostOf(j.apply_url || j.url))) continue;
     const scope = detectATS(j.apply_url || j.url)?.ats || hostOf(startUrl(j));
