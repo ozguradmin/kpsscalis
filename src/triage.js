@@ -57,7 +57,7 @@ async function jevStage(env, settings, jobs) {
     if (v.turkey_ok < 0.15) reason = `Türkiye'den başvurulamaz (Jev ${v.turkey_ok})`;
     else if (v.other_language > 0.85) reason = `başka dil şart (Jev ${v.other_language})`;
     else if (v.scam > 0.75) reason = `şüpheli ilan (Jev ${v.scam})`;
-    else if (v.fit < 1.2) reason = `uyum çok düşük (Jev ${v.fit}/4)`;
+    else if (v.fit < 1.2 && !OPEN_APP.test(j.title || '')) reason = `uyum çok düşük (Jev ${v.fit}/4)`;
     if (reason) { rej++; await setJob(env, j.id, { stage: 1, status: 'rejected', decision: 'reject', reason, jev: v, fit: Math.round(v.fit * 25) }); }
     else { pass++; await setJob(env, j.id, { stage: 2, jev: v, fit: Math.round(v.fit * 25) }); }
   }
@@ -68,6 +68,7 @@ async function jevStage(env, settings, jobs) {
 export const TRIAGE_SYS = `You analyze job listings (any language) for ONE candidate who lives in Türkiye (Turkish citizen), speaks Turkish natively and English at intermediate level, and works only remotely as a contractor/employee.
 Return ONLY JSON: {"remote_scope":"worldwide|region_includes_turkey|region_excludes_turkey|country_restricted|onsite_or_hybrid|unclear","turkey_ok":true|false|null,"languages_required":["ISO 639-1 codes of human languages needed for the daily work"],"role_family":"frontend|backend|fullstack|mobile|ai_training|data|qa|devops|design|marketing|content|support|sales|product|other","scam":true|false,"fit":0-100,"reason":"max 20 words, Turkish"}
 Rules: turkey_ok=true only if someone living in Türkiye can realistically be hired for this remote role. Residence-limited (Brazil only, LATAM, EU only, US only, Ukraine only, "must live in X") => false. If the listing is written in a language and the team communicates in it, include that language. Payment-upfront, WhatsApp-only HR, unrealistic pay => scam=true.
+If the title is "Open application (remote)" there is no specific opening: the company hires worldwide and publishes a hiring email. Then judge COMPANY fit instead of role fit: fit 60-85 if the company builds software, web/mobile apps, SaaS, AI or developer tools or is a digital agency; fit < 40 only if its work is unrelated to the candidate (hardware, medicine, pure sales). turkey_ok=true for these unless the text restricts residence.
 Fit is for this candidate: ${PROFILE_BRIEF}`;
 
 async function llmStage(env, settings, jobs) {
@@ -98,6 +99,7 @@ async function llmStage(env, settings, jobs) {
 }
 
 // ---------- 3) derin analiz ----------
+const OPEN_APP = /^open application/i;
 const ANALYSIS_SYS = `You are a senior recruiter working FOR the candidate. Analyze the job deeply and return ONLY JSON:
 {"company":"real company name","title":"clean title","language":"ISO code of the listing","apply_method":"ats_form|email|job_board_account|external_site|unknown","apply_email":"address if applications go by email else null","needs_account":true|false,
 "turkey_ok":true|false|null,"location_rule":"short quote/paraphrase of the location/residency rule","languages_required":["iso"],"english_level_needed":"none|basic|intermediate|fluent|native",
@@ -105,7 +107,8 @@ const ANALYSIS_SYS = `You are a senior recruiter working FOR the candidate. Anal
 "must_haves":["..."],"candidate_has":["..."],"candidate_missing":["..."],"fit":0-100,"decision":"apply|review|reject","why":"2 sentences in Turkish","pitch":"1-2 sentences in English: the most relevant true angle from the candidate's real background","red_flags":["..."],
 "company_scale":"tiny|small|mid|large|famous","hire_chance":0-100}
 company_scale: tiny (<20 people, unknown), small (<100), mid (<1000), large, famous (household tech brand that gets thousands of applicants per role). hire_chance: realistic chance this candidate gets an interview, considering competition (famous brands and big AI-training marketplaces get flooded; small unknown companies, Turkish-speaking roles and non-English-market companies hiring worldwide are much better odds).
-Decide "apply" only if the candidate can realistically be hired from Türkiye, meets most must-haves, and no fluent language other than English/Turkish is needed. Prefer roles where work is written/async and deliverables are digital. A requirement for recorded face-video or frequent live English calls lowers fit (candidate avoids them) but does not auto-reject AI-training roles with optional video.`;
+Decide "apply" only if the candidate can realistically be hired from Türkiye, meets most must-haves, and no fluent language other than English/Turkish is needed. Prefer roles where work is written/async and deliverables are digital. A requirement for recorded face-video or frequent live English calls lowers fit (candidate avoids them) but does not auto-reject AI-training roles with optional video.
+OPEN APPLICATIONS (title "Open application (remote)"): there is no listed role; the company hires worldwide and publishes a hiring email. Evaluate COMPANY fit (does it build software/web/mobile/AI/SaaS/devtools or is it a digital agency, would a full-stack TypeScript/React/Node developer with shipped products be useful) and choose decision "apply" with fit 65-85 when it matches; the pitch must name what the company builds and the candidate's most relevant real projects. Reject only if the company's work is unrelated or it needs another language.`;
 
 async function analysisStage(env, settings, jobs) {
   let approved = 0, review = 0, rej = 0;

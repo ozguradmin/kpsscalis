@@ -234,7 +234,8 @@ Only change things the data supports; keep each prompt_addenda under 700 chars, 
   }
   if (Array.isArray(r.blocked_domains_add) && r.blocked_domains_add.length) {
     // Hesabı açık / oturumu kayıtlı siteler engellenmez (ör. Djinni profili tamamlanınca eski hatalar artık geçersiz)
-    const keep = new Set([
+    // himalayas.app: ilanlar elenmesin; başvuru aşaması şirketin kendi ATS'si bulunana kadar zaten bekletiyor
+    const keep = new Set(['himalayas.app',
       ...(await env.DB.prepare('SELECT domain FROM sessions').all()).results.map((x) => x.domain),
       ...(await env.DB.prepare("SELECT site FROM accounts WHERE status='active'").all()).results.map((x) => String(x.site).split('.').slice(-2).join('.')),
     ]);
