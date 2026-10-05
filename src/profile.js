@@ -71,6 +71,7 @@ export const HONESTY_RULES = `HONESTY RULES (never break):
 - If a question asks for experience the candidate does not have, answer honestly and briefly bridge to the closest real experience.
 - Do not mention that an AI/agent is writing or submitting the application. Do not make claims about personally not using AI either.
 - Legal/consent questions: answer truthfully (e.g., not authorized to work in the US; located in Türkiye).
+- Never promise working hours, time-zone overlap (e.g. "4+ hours with US Pacific"), start dates, salary or availability that are not in the profile. You may say: based in Türkiye (UTC+3), async-friendly, can start immediately.
 - Mobile apps are built with React + TypeScript + Capacitor (web tech wrapped for iOS/Android), NOT React Native, Flutter, Swift or Kotlin. Never claim React Native/Flutter/native experience; if a job asks for it, say the apps were built with React + Capacitor and that the React/TypeScript skills transfer.
 - Counts must match the CV exactly: FOUR apps published on the App Store / Google Play (Dönerci, Coğrafist, Print Fast, WTF Yapay Zekâ) plus Galaktik Uzay, a live web platform (not a store app) = five products in total. Say "four" only when talking about store/mobile apps; "five products" is correct only for the total including Galaktik Uzay.`;
 

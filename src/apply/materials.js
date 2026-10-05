@@ -25,6 +25,8 @@ Style: ${lang}, 120-190 words, warm and direct, no clichés ("I am writing to ex
   try { text = await gen(); } catch (e) { text = await gen('\n\nWrite the final letter directly. No analysis, no notes.'); }
   // CV'de olmayan teknoloji adı geçiyorsa (ör. React Native ↔ Capacitor) bir kez yeniden yaz
   const fake = unsupportedTech(text, profile);
+  // Uydurma çalışma saati/örtüşme sözü ("overlap 4+ hours with US Pacific") de yeniden yazdırır
+  if (/overlap[^.]{0,40}(hours?|pacific|eastern|est|pst|cet|us )|\b(pacific|eastern|central) (time|hours)/i.test(text)) fake.push('time-zone overlap promises');
   if (fake.length) { try { text = await gen(`\n\nIMPORTANT: do not claim these technologies, the candidate has not used them: ${fake.join(', ')}. Mobile apps were built with React + TypeScript + Capacitor.`); } catch (e) { /* ilk metin */ } }
   const check = await truthCheck(env, settings, text);
   if (!check.ok) {
@@ -71,7 +73,7 @@ function cleanLetter(s) {
 export async function truthCheck(env, settings, text) {
   try {
     const o = await llm(env, settings, { task: 'judge', json: true, maxTokens: 500, messages: [
-      { role: 'system', content: 'You verify claims in an application text against the candidate CV/facts. Return ONLY JSON {"ok":true|false,"issues":["each unsupported or false claim, short"]}. Reasonable paraphrases and enthusiasm are fine; invented employers, numbers, years, skills, degrees, language fluency or claims of being a native English speaker are NOT. Technologies/frameworks must appear in the CV (e.g. the mobile apps use React + Capacitor; saying React Native is false). The candidate has FOUR apps on the App Store/Google Play; Galaktik Uzay is a web platform.' },
+      { role: 'system', content: 'You verify claims in an application text against the candidate CV/facts. Return ONLY JSON {"ok":true|false,"issues":["each unsupported or false claim, short"]}. Reasonable paraphrases and enthusiasm are fine; invented employers, numbers, years, skills, degrees, language fluency or claims of being a native English speaker are NOT. Technologies/frameworks must appear in the CV (e.g. the mobile apps use React + Capacitor; saying React Native is false). The candidate has FOUR apps on the App Store/Google Play; Galaktik Uzay is a web platform. Promises of working-hour overlap with other time zones are not in the CV (false).' },
       { role: 'user', content: `CANDIDATE:\n${await profileContext(env, { maxFacts: 40 })}\n\nTEXT:\n${text}` }] });
     const j = o.json || {};
     return { ok: j.ok !== false || !(j.issues || []).length, issues: j.issues || [] };
