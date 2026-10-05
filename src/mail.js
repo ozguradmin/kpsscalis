@@ -239,6 +239,8 @@ export async function dailyDigest(env, settings) {
     `Son 7 gün: ${week.sent || 0} başvuru gönderildi · ${week.good || 0} olumlu dönüş (mülakat/sonraki adım/teklif) · ${week.rej || 0} olumsuz.`,
     '', 'Başvurular (son 24 saat):', ...(apps.length ? apps.map((a) => `- ${a.company} — ${a.title}: ${STATUS_TR[a.status] || a.status}`) : ['- (yok)']),
     '', 'Gelen e-postalar (son 24 saat, reklamlar hariç):', ...(mails.length ? mails.map((m) => `- [${CAT[m.category] || m.category}] ${m.company ? m.company + ' — ' : ''}${clip(m.subject, 90)}${m.summary ? `\n    ${clip(m.summary, 220)}` : ''}`) : ['- (yok)']),
+    ...(() => { const st = settings.source_stats?.stats || {}; const top = Object.entries(st).filter(([, v]) => v.attempts >= 3).sort((a, b) => b[1].sent - a[1].sent).slice(0, 8);
+      return top.length ? ['', 'Kaynakların performansı (deneme → gönderilen → olumlu dönüş):', ...top.map(([k, v]) => `- ${k}: ${v.attempts} → ${v.sent} → ${v.positive}  (ağırlık ${settings.source_weights?.[k] ?? 1})`)] : []; })(),
     '', 'Senin bakman gerekebilecekler:', ...(acts.length ? acts.map((a) => `- ${a.title}${a.detail ? ` — ${clip(a.detail, 160)}` : ''}`) : ['- (yok)']),
     '', `Dünkü yapay zekâ maliyeti: ${Number(cost.c || 0).toFixed(2)} $ (Cloudflare kredisinden).`,
     '', 'Panel: ' + (settings.public_url || ''),

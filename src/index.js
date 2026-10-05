@@ -11,7 +11,7 @@ import { openBrowser, liveHandoff } from './apply/browser.js';
 import { cvPdf } from './profile.js';
 import { CV_EN, CV_TR } from './cv-text.js';
 import { dispatch, recoverStuck, createApplication, ApplyWorkflow } from './apply/index.js';
-import { chat, dailyReview, stateSummary, validateSetting, runTool } from './brain.js';
+import { chat, dailyReview, stateSummary, validateSetting, runTool, learnSourceWeights } from './brain.js';
 import { runModelEval } from './evals.js';
 import { SOURCES, SEED_VERSION } from './sources/index.js';
 import { DEFAULT_MODELS } from './lib/llm.js';
@@ -65,6 +65,7 @@ async function tick(env, ctx, { force = null } = {}) {
     // Günlük işler (Türkiye saatiyle)
     const trHour = new Date(now() + 3 * HOUR).getUTCHours();
     const today = dayKey();
+    if (trHour >= 4 && settings.last_learn_day !== today) { await setSetting(env, 'last_learn_day', today); await step('learn', () => learnSourceWeights(env)); }
     if (trHour >= 5 && settings.last_review_day !== today) { await setSetting(env, 'last_review_day', today); await step('review', () => startTask(env, 'review')); }
     if (trHour >= 8 && settings.digest_email && settings.last_digest_day !== today) { await setSetting(env, 'last_digest_day', today); await step('digest', () => dailyDigest(env, settings)); }
     if (trHour >= 10 && trHour < 18 && settings.last_followup_day !== today) { await setSetting(env, 'last_followup_day', today); await step('followup', () => followUps(env, settings)); }
@@ -120,6 +121,7 @@ async function runTask(env, ctx, task) {
     case 'review': return startTask(env, 'review');
     case 'eval': return startTask(env, 'eval');
     case 'digest': await dailyDigest(env, settings); return { ok: true };
+    case 'learn': return learnSourceWeights(env);
     case 'dispatch': return dispatch(env, settings, { max: 1, userActive: true });
     case 'tick': return tick(env, ctx);
     default: {

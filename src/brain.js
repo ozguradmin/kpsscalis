@@ -213,7 +213,7 @@ export async function dailyReview(env) {
     { role: 'system', content: `You are the self-improvement module of an autonomous job-application agent working for Özgür Güler (Türkiye, remote only). Analyze the last 7 days and improve the system. Goals in order: (1) more confirmed applications and interviews for jobs he can really get, (2) fewer wasted attempts (failed/blocked/needs_human), (3) cost efficiency. Never loosen honesty. daily_apply_limit is only a ceiling: never lower it because few applications were sent (that makes things worse); raise it when good jobs are waiting. Favor small/unknown companies and sources that find Türkiye-eligible roles; famous brands are low-odds. Return ONLY JSON:
 {"summary_tr":"3-5 sentences in Turkish for Özgür","lessons":[{"text":"Turkish, concrete","kind":"lesson|rule|insight"}],
 "settings":[{"key":"daily_apply_limit|min_fit_apply|min_fit_review|max_agent_steps|handoff_wait_minutes","value":number,"why":"..."}],
-"source_weights":{"source_id":0.0-2.0},"role_weights":{"role":0.3-1.5},"blocked_domains_add":["domain"],
+"role_weights":{"role":0.3-1.5},"blocked_domains_add":["domain"],
 "prompt_addenda":{"triage":"full replacement text or null","analysis":"...","letter":"...","agent":"..."}}
 Only change things the data supports; keep each prompt_addenda under 700 chars, written as short imperative rules in English. Use null to keep an addendum unchanged.\nHARD LIMITS: never lower max_agent_steps below 20; never add agent rules that make it give up on normal forms (field counts, 'unusual fields', unknown optional fields) — agent rules must teach HOW to complete specific sites/fields better; never weaken honesty rules; with fewer than 10 applications of data, prefer small changes.` },
     { role: 'user', content: JSON.stringify(data).slice(0, 60000) }] });
@@ -222,11 +222,7 @@ Only change things the data supports; keep each prompt_addenda under 700 chars, 
   for (const s of r.settings || []) {
     try { const v = validateSetting(s.key, s.value); await setSetting(env, s.key, v, 'self-review'); applied.push(`${s.key}=${v} (${clip(s.why, 80)})`); } catch (e) { /* geçersiz öneri */ }
   }
-  if (r.source_weights && typeof r.source_weights === 'object') {
-    const sw = { ...(settings.source_weights || {}) };
-    for (const [k, v] of Object.entries(r.source_weights)) if (Number.isFinite(Number(v))) sw[k] = Math.max(0, Math.min(2, Number(v)));
-    await setSetting(env, 'source_weights', sw, 'self-review'); applied.push('source_weights');
-  }
+  // Kaynak ağırlıkları artık yapay zekâ tahminiyle değil, gerçek sonuçlarla (learnSourceWeights) belirlenir
   if (r.role_weights && typeof r.role_weights === 'object') {
     const rw = { ...(settings.role_weights || {}) };
     for (const [k, v] of Object.entries(r.role_weights)) if (Number.isFinite(Number(v))) rw[k] = Math.max(0.3, Math.min(1.5, Number(v)));
@@ -277,3 +273,30 @@ Only change things the data supports; keep each prompt_addenda under 700 chars, 
 }
 
 export { DEFAULTS };
+
+
+// Kaynak öğrenmesi: son 30 günün gerçek sonuçlarına göre kaynak ağırlıkları (keşif sıklığı ve başvuru önceliği bunlarla çarpılır).
+// verimlilik = gönderilen / deneme; dönüş = olumlu (sonraki adım, mülakat, teklif, işverenden kişisel e-posta) / gönderilen.
+// Hiçbir kaynak tamamen kapanmaz (en az 0.3); 5 denemeden az veri olan kaynak 1'de kalır (denenmeye devam eder).
+export async function learnSourceWeights(env) {
+  const settings = await getSettings(env);
+  const since = Math.max(now() - 30 * DAY, Number(settings.learn_since || 0));
+  const rows = await allRows(env, `SELECT j.source src, COUNT(*) attempts,
+      SUM(a.status IN ('submitted','confirmed','next_step','interview','offer','rejected')) sent,
+      SUM(a.status IN ('next_step','interview','offer')) good, SUM(a.status='rejected') rej,
+      (SELECT COUNT(DISTINCT m.app_id) FROM mail m JOIN applications a2 ON a2.id=m.app_id JOIN jobs j2 ON j2.id=a2.job_id WHERE j2.source=j.source AND a2.created_at > ? AND m.category IN ('recruiter','interview','assessment','offer')) human
+    FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.created_at > ? AND j.source != 'followup' GROUP BY j.source`, since, since);
+  const sw = {}, stats = {};
+  for (const r of rows) {
+    const eff = r.attempts ? r.sent / r.attempts : 0;
+    const resp = r.sent ? Math.max(r.good, r.human) / r.sent : 0;
+    stats[r.src] = { attempts: r.attempts, sent: r.sent, positive: Math.max(r.good, r.human), rejected: r.rej, eff: +eff.toFixed(2), resp: +resp.toFixed(2) };
+    if (r.attempts >= 5) sw[r.src] = +Math.max(0.3, Math.min(1.8, 0.5 + 0.7 * eff + 2.5 * resp)).toFixed(2);
+  }
+  // Yeterli verisi olmayan kaynaklar: eski (yapay zekânın verdiği) aşırı düşük değerleri sıfırla, 1'e çek
+  for (const [k, v] of Object.entries(settings.source_weights || {})) if (!(k in sw)) sw[k] = Math.max(1, Number(v) || 1) > 1 ? Math.min(1.8, Number(v)) : 1;
+  await setSetting(env, 'source_weights', sw, 'learn');
+  await setSetting(env, 'source_stats', { since, at: now(), stats }, 'learn');
+  await log(env, 'brain', `Kaynak ağırlıkları gerçek sonuçlara göre güncellendi (${Object.keys(stats).length} kaynak)`, { data: { sw, stats } });
+  return { sw, stats };
+}
