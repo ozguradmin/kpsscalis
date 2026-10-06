@@ -1,5 +1,5 @@
 // E-posta: ozgurguler-mail D1'inden gelen kutusunu okur, sınıflandırır, başvurulara bağlar; doğrulama kodu/bağlantısı bulur; e-posta gönderir.
-import { now, uid, clip, htmlToText, hostOf, normKey, sleep, DAY, MIN, dayKey, humanize } from './lib/util.js';
+import { now, uid, clip, htmlToText, hostOf, normKey, sleep, DAY, MIN, dayKey, humanize, looksEnglish, fixSiteLink } from './lib/util.js';
 import { log, allRows, addAction, bumpUsage } from './lib/db.js';
 import { jev, llm } from './lib/llm.js';
 import { signLink } from './lib/auth.js';
@@ -189,7 +189,7 @@ export async function alertUser(env, settings, { key, subject, text, url = null,
 // E-posta gönder (Cloudflare Email Service) ve posta sistemindeki "Gönderilenler"e kopyasını yaz
 export async function sendMail(env, settings, { to, subject, text, attachments = [], appId = null, replyTo = null }) {
   // Şirketlere giden her e-posta insan yazısı gibi: uzun tire ve kalıp yapay zekâ ifadeleri temizlenir
-  if (to !== settings.alert_email) { subject = humanize(subject); text = humanize(text); }
+  if (to !== settings.alert_email) { subject = humanize(subject); text = humanize(text); if (looksEnglish(text)) text = fixSiteLink(text); }
   const from = { email: settings.from_email || 'destek@ozgurguler.tech', name: settings.from_name || 'Özgür Güler' };
   const res = await env.EMAIL.send({ to, from, subject, text, replyTo: replyTo || undefined, attachments: attachments.length ? attachments : undefined });
   const t = new Date().toISOString();
@@ -214,7 +214,7 @@ export async function followUps(env, settings) {
   for (const r of rows) {
     const ans = (() => { try { return JSON.parse(r.answers || '{}'); } catch (e) { return {}; } })();
     if (!ans.email_to) continue;
-    const text = `Hello,\n\nI wanted to briefly follow up on my application for ${r.title} at ${r.company}, sent on ${new Date(r.submitted_at).toISOString().slice(0, 10)}. I remain very interested and I am happy to share anything else that would help, such as code samples or a short written task.\n\nThank you for your time,\nÖzgür Güler\nozgurguler.tech`;
+    const text = `Hello,\n\nI wanted to briefly follow up on my application for ${r.title} at ${r.company}, sent on ${new Date(r.submitted_at).toISOString().slice(0, 10)}. I remain very interested and I am happy to share anything else that would help, such as code samples or a short written task.\n\nThank you for your time,\nÖzgür Güler\nozgurguler.tech/en`;
     await sendMail(env, settings, { to: ans.email_to, subject: /^re:/i.test(ans.subject || '') ? ans.subject : `Re: ${ans.subject || 'Application — Özgür Güler'}`, text, appId: r.id });
     await log(env, 'followup', `${r.company}: 8 gün yanıt gelmediği için kısa hatırlatma gönderildi (kabul edildi)`, { ref: r.id });
     sent++;

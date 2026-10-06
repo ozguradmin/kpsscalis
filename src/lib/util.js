@@ -156,3 +156,14 @@ export function humanize(input) {
   for (const [re, to] of swaps) s = s.replace(re, to);
   return s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
+
+// İngilizce metinde "ozgurguler.tech" kök adresi Türkçe sayfaya gidiyor: /en ekle (e-posta adresi ve zaten yolu olan bağlantılar hariç)
+export function looksEnglish(t) {
+  const s = String(t || '');
+  const en = (s.match(/\b(the|and|I|my|with|for|you|your|to)\b/g) || []).length;
+  const tr = (s.match(/\b(ve|bir|bu|için|ile|ben|merhaba|teşekkür)\b/gi) || []).length + (s.match(/[ğışĞİŞ]/g) || []).length / 3;
+  return en > tr;
+}
+export function fixSiteLink(t) {
+  return String(t ?? '').replace(/(^|[^@\w./-])((?:https?:\/\/)?(?:www\.)?ozgurguler\.tech)(\/?)(?![\w/])/g, (m, pre, host) => `${pre}${host}/en`);
+}

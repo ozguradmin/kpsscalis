@@ -1,7 +1,7 @@
 // Başvuru malzemeleri: ilana özel ön yazı + doğruluk denetimi, form sorularına cevaplar.
 import { llm } from '../lib/llm.js';
 import { profileContext, HONESTY_RULES, CORE, STYLE_RULES } from '../profile.js';
-import { clip, safeJSON, humanize } from '../lib/util.js';
+import { clip, safeJSON, humanize, fixSiteLink } from '../lib/util.js';
 import { allRows } from '../lib/db.js';
 
 export async function coverLetter(env, settings, job) {
@@ -11,7 +11,7 @@ export async function coverLetter(env, settings, job) {
   const add = settings.prompt_addenda?.letter ? `\nLearned style rules:\n${settings.prompt_addenda.letter}` : '';
   const sys = `You write short, specific, human job application letters for the candidate below. ${HONESTY_RULES}
 ${STYLE_RULES}
-Style: ${lang}, 120-190 words, warm and direct, no clichés ("I am writing to express"), no placeholders, no subject line, no markdown. Open with why this role/company fits the candidate's REAL work (use the pitch angle if given). Mention 2-3 concrete, true projects that match the job. Mention remote from Türkiye and async-friendly communication only if relevant. End with a simple call to action and the name "Özgür Güler".${add}`;
+Style: ${lang}, 120-190 words, warm and direct, no clichés ("I am writing to express"), no placeholders, no subject line, no markdown. Open with ONE concrete link between something specific this company builds (taken from the job/company text) and ONE real project of the candidate; do not open with "Your mission" or praise. Do not just list projects: pick the 2 most relevant and say in one sentence what problem each solved. Do not sign with the name twice (the signature is added separately; end with just "Özgür Güler"). If you mention the portfolio in an English letter write it as ozgurguler.tech/en. Mention 2-3 concrete, true projects that match the job. Mention remote from Türkiye and async-friendly communication only if relevant. End with a simple call to action and the name "Özgür Güler".${add}`;
   const user = `${profile}\n\nJOB: ${job.title} at ${job.company}\nLocation: ${job.location || ''}\nPitch angle: ${a.pitch || ''}\nMust-haves: ${(a.must_haves || []).join('; ')}\n\n${clip(job.description, 6000)}`;
   const gen = async (extra = '') => {
     // JSON içinde istenir: bazı modeller düşünme metnini içeriğe sızdırıyor; JSON bunu ayıklar
@@ -33,8 +33,9 @@ Style: ${lang}, 120-190 words, warm and direct, no clichés ("I am writing to ex
   if (!check.ok) {
     try { text = await gen(`\n\nIMPORTANT: a previous draft contained unsupported claims: ${check.issues.join('; ')}. Do not repeat them.`); } catch (e) { /* ilk metinle devam */ }
     const c2 = await truthCheck(env, settings, text);
-    if (!c2.ok) return { text, lang, warnings: c2.issues };
+    if (!c2.ok) return { text: lang === 'English' ? fixSiteLink(text) : text, lang, warnings: c2.issues };
   }
+  if (lang === 'English') text = fixSiteLink(text);
   return { text, lang, warnings: [] };
 }
 
