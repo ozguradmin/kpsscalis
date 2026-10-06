@@ -52,7 +52,12 @@ ${HONESTY_RULES}`;
 
 function renderSnapshot(s) {
   const lines = [`URL: ${s.url}`, `TITLE: ${clip(s.title, 120)}`];
-  if (s.captcha) lines.push('⚠ CAPTCHA/HUMAN CHECK DETECTED ON PAGE');
+  if (s.captcha) {
+    const empty = (s.fields || []).filter((f) => !f.value && !f.checked && f.kind !== 'file').length;
+    lines.push(empty >= 2
+      ? 'Note: this page loads a captcha widget, which is normally checked only when you submit. Fill the whole form first; report "captcha" only if a visible challenge blocks submission.'
+      : '⚠ CAPTCHA/HUMAN CHECK on page (form looks filled): if submit does not go through, report status "captcha".');
+  }
   if (s.errors?.length) lines.push('ERRORS: ' + s.errors.join(' | '));
   lines.push('FIELDS:');
   for (const f of s.fields || []) {
