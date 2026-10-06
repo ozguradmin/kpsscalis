@@ -81,6 +81,11 @@ export async function submit(env, appId, { userActive = false } = {}) {
   const analysis = safeJSON(job.analysis, {}) || {};
   await setApp(env, appId, { status: 'applying', started_at: now(), attempts: (app.attempts || 0) + 1 });
   if (app.method === 'email') return submitByEmail(env, settings, app, job, analysis);
+  // Workable (apply/jobs.workable.com): Cloudflare doğrulaması sunucu tarayıcısını geçirmiyor, gönder düğmesi açılmıyor.
+  // Tarayıcı süresi harcamadan "kendi tarayıcından gönder" paketini hazırla (ön yazı + kopyalanabilir bilgiler + CV)
+  if (/(^|\.)workable\.com$/i.test(hostOf(startUrl(job))) || job.ats === 'workable') {
+    return finalize(env, settings, appId, job, { status: 'needs_human', ownBrowser: true, reason: 'Workable, Cloudflare robot doğrulaması kullanıyor; sunucu tarayıcısını kabul etmiyor. Kendi tarayıcından göndermen gerekiyor (her şey hazır)', steps: 0, answers: {} }, null);
+  }
 
   const usage = await usageToday(env);
   if (usage.browser_ms / 60000 >= settings.daily_browser_minutes || (await browserHoursThisMonth(env)) >= settings.monthly_browser_hours) {
