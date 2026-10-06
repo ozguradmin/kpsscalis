@@ -7,7 +7,7 @@ import { openBrowser, Recorder } from './browser.js';
 import { runAgent } from './agent.js';
 import { profileContext, cvBase64, CORE } from '../profile.js';
 import { waitForMail, sendMail, alertUser } from '../mail.js';
-import { seal, unseal, strongPassword } from '../lib/auth.js';
+import { seal, unseal, strongPassword, signLink } from '../lib/auth.js';
 import { detectATS } from '../sources/index.js';
 import { loadSessions, saveSessions, regDomain } from '../sessions.js';
 const regDomainOf = (u) => { try { return regDomain(new URL(u).hostname); } catch (e) { return ''; } };
@@ -212,7 +212,14 @@ async function finalize(env, settings, appId, job, r, recId) {
   if (status === 'submitted') await bumpUsage(env, 'applications', 1);
   if (status === 'needs_human') await addAction(env, { kind: 'needs_human', title: `${job.company} — ${job.title}: elle tamamlanabilir`, detail: `${r.reason}. Ön yazı ve cevaplar hazır. Panelde başvuruyu açıp "Canlı devral"a bas: ajan formu baştan doldurur ve robot doğrulaması için seni bekler (bağlantı Gmail'ine de gelir). Ya da bağlantıdan kendin gönderebilirsin.`, url: startUrl(job), job_id: job.id, app_id: appId, priority: 2, dedupe: 'nh_' + appId });
   const handoffMailed = status === 'needs_human' && await env.DB.prepare("SELECT 1 FROM events WHERE type='alert' AND ref LIKE ? AND ts > ?").bind('handoff_' + appId + '%', now() - 3600000).first();
-  if (status === 'needs_human' && !handoffMailed) {
+  if (status === 'needs_human' && r.ownBrowser) {
+    const st = await getSettings(env);
+    const panel = st.public_url || 'https://ozgur-is-ajani.ozgurglr256.workers.dev';
+    const link = `${panel}/api/h/${encodeURIComponent(await signLink(env, { a: appId, op: 'own', exp: now() + 10 * DAY }))}`;
+    await env.DB.prepare("UPDATE actions SET url=?, title=?, detail=? WHERE id=?").bind(link, `${job.company}: kendi tarayıcından gönder (3 dk)`, 'Site Cloudflare doğrulaması kullanıyor, sunucu tarayıcısını kabul etmiyor. Bağlantıdaki sayfada ilan, ön yazı ve cevaplar kopyalamaya hazır.', 'nh_' + appId).run();
+    await alertUser(env, st, { key: 'own_' + appId, appId, subject: `3 dakikalık iş: ${job.company} başvurusunu kendi tarayıcından gönder`,
+      text: `${job.company}, ${job.title}\nBu site Cloudflare robot doğrulaması kullanıyor ve sunucudaki tarayıcıyı (senin tıklamanla bile) kabul etmiyor. O yüzden başvuruyu senin tarayıcından göndermek gerekiyor; her şey hazır:\n\n${link}\n\nSayfada: 1) "İlanı aç" ile başvuru formunu aç, 2) ön yazı ve cevapları "Kopyala" ile yapıştır, CV'yi yükle, 3) gönderince "Gönderdim"e bas. Sistem gerisini (onay e-postası, takip) kendisi yapar.` });
+  } else if (status === 'needs_human' && !handoffMailed) {
     const st = await getSettings(env);
     await alertUser(env, st, { key: 'nh_' + appId, appId, restart: true, subject: `Senin yardımın gerekiyor: ${job.company} başvurusu`,
       text: `${job.company}, ${job.title}\nNeden durdu: ${r.reason}\nİlan: ${startUrl(job)}\n\nAşağıdaki "yeniden başlat" bağlantısına bastığında ajan formu baştan doldurur, takıldığı yere gelince sana ayrı bir e-postayla CANLI TARAYICI bağlantısı gönderir. O bağlantıyı açıp sadece takıldığı kısmı geçersin (doğrulama, giriş ya da çalışmayan düğme); gerisini ajan yapar.` });

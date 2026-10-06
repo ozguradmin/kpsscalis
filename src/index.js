@@ -8,7 +8,7 @@ import { triageTick, reanalyze } from './triage.js';
 import { mailTick, sendMail, dailyDigest, alertUser, followUps } from './mail.js';
 import { liveLogin, regDomain } from './sessions.js';
 import { openBrowser, liveHandoff } from './apply/browser.js';
-import { cvPdf } from './profile.js';
+import { cvPdf, CORE } from './profile.js';
 import { CV_EN, CV_TR } from './cv-text.js';
 import { dispatch, recoverStuck, createApplication, ApplyWorkflow } from './apply/index.js';
 import { chat, dailyReview, stateSummary, validateSetting, runTool, learnSourceWeights } from './brain.js';
@@ -154,6 +154,31 @@ async function restartApp(env, appId, handoff) {
   return { ok: true, workflow: inst.id };
 }
 
+// "Kendi tarayıcından gönder": Cloudflare doğrulaması sunucu tarayıcısını geçirmeyen sitelerde Özgür kendi tarayıcısından gönderir;
+// her cevap kopyalanmaya hazır, sonunda "Gönderdim" ile başvuru kaydı güncellenir.
+async function ownBrowserPage(env, request, url, method, appId, panel) {
+  const a = await oneRow(env, 'SELECT a.id, a.status, a.letter, a.answers, j.id job_id, j.company, j.title, j.apply_url, j.url FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.id=?', appId);
+  if (method === 'POST') {
+    await env.DB.prepare("UPDATE applications SET status='submitted', submitted_at=?, updated_at=?, error=NULL, confirmation='Özgür kendi tarayıcından gönderdi' WHERE id=?").bind(now(), now(), appId).run();
+    await env.DB.prepare("UPDATE jobs SET status='applied' WHERE id=?").bind(a.job_id).run();
+    await env.DB.prepare("UPDATE actions SET status='done' WHERE app_id=? AND status='open'").bind(appId).run();
+    await log(env, 'apply', `${a.company}: Özgür kendi tarayıcından gönderdi`, { ref: appId });
+    return htmlPage('Kaydedildi', `<h1>Teşekkürler</h1><p>${escHtml(a.company)} başvurusu "gönderildi" olarak kaydedildi. Onay e-postası gelirse sistem kendisi eşleştirir.</p><a href="${panel}">Panelde aç</a>`);
+  }
+  const ans = safeJSON(a.answers, {}) || {};
+  const rows = [['Ad Soyad', CORE.full_name], ['Ad', CORE.first_name], ['Soyad', CORE.last_name], ['E-posta', CORE.email], ['Telefon', CORE.phone], ['Konum', `${CORE.city}, ${CORE.country_en}`], ['LinkedIn', CORE.linkedin], ['GitHub', CORE.github], ['Portfolyo', CORE.portfolio]];
+  for (const [k, v] of Object.entries(ans)) if (v && String(v) !== '••••' && !rows.some((r) => r[1] === v)) rows.push([k, String(v)]);
+  if (a.letter) rows.splice(0, 0, ['Ön yazı / Cover letter', a.letter]);
+  const item = ([k, v], i) => `<div class="it"><div class="k">${escHtml(clip(k, 140))}</div><textarea id="v${i}" readonly rows="${Math.min(10, Math.ceil(String(v).length / 60) + 1)}">${escHtml(v)}</textarea><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('v${i}').value);this.textContent='Kopyalandı ✓'">Kopyala</button></div>`;
+  const css = '<style>.it{margin:14px 0}.k{font-size:13px;color:#9fb0c8;margin-bottom:4px}textarea{width:100%;box-sizing:border-box;background:#141c2c;color:#e9edf4;border:1px solid #2a3550;border-radius:8px;padding:8px;font:15px/1.4 system-ui}.it button{margin-top:6px;padding:8px 14px;font-size:14px}main{max-width:560px;width:100%}.big{display:block;text-align:center;margin:10px 0}</style>';
+  return htmlPage(`${a.company}: kendi tarayıcından gönder`, `${css}<h1>${escHtml(a.company)}</h1><p>${escHtml(a.title)}</p>
+    <p>Bu site Cloudflare robot doğrulaması kullanıyor ve sunucu tarayıcısını kabul etmiyor. Formu kendi tarayıcında aç, aşağıdakileri kopyala yapıştır, CV'yi yükle, gönder. Sonra en alttaki "Gönderdim"e bas.</p>
+    <a class="big" href="${escHtml(a.apply_url || a.url)}" target="_blank" rel="noopener">1) İlanı / formu aç</a>
+    <a class="big" href="${escHtml(CORE.cv_url_en)}" target="_blank" rel="noopener" style="background:#2a3550;color:#e9edf4">CV (İngilizce PDF) indir</a>
+    <h2 style="font-size:18px;margin-top:22px">2) Kopyala, yapıştır</h2>${rows.map(item).join('')}
+    <h2 style="font-size:18px;margin-top:22px">3) Gönderdikten sonra</h2><form method="post"><button>Gönderdim ✓</button></form><p><a href="${panel}" style="background:none;color:#86a9ee;padding:0">Panelde aç</a></p>`);
+}
+
 const escHtml = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const htmlPage = (title, body) => new Response(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{font:16px/1.5 -apple-system,system-ui,sans-serif;margin:0;background:#0d1320;color:#e9edf4;display:grid;place-items:center;min-height:100vh;padding:20px}main{max-width:420px}h1{font-size:24px}a,button{display:inline-block;background:#e9edf4;color:#0d1320;border:0;border-radius:10px;padding:12px 18px;font:600 16px system-ui;text-decoration:none;cursor:pointer}p{color:#c3cbd8}</style></head><body><main>${body}</main></body></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'x-robots-tag': 'noindex' } });
 
@@ -176,6 +201,7 @@ async function api(request, env, ctx) {
     const a = await oneRow(env, 'SELECT a.id, a.status, j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.id=?', p.a);
     if (!a) return htmlPage('Bulunamadı', '<h1>Başvuru bulunamadı</h1>');
     const panel = `${url.origin}/#/basvuru/${a.id}`;
+    if (p.op === 'own') return ownBrowserPage(env, request, url, method, a.id, panel);
     if (method !== 'POST') return htmlPage('Canlı devral', `<h1>${escHtml(a.company)}</h1><p>${escHtml(a.title)}</p><p>Ajan başvuruyu baştan dolduracak ve robot doğrulamasına gelince seni bekleyecek. Canlı tarayıcı bağlantısı 2-4 dakika içinde e-postana gelir; doğrulamayı geçince ajan kendiliğinden devam eder.</p><form method="post"><button>Başlat</button></form><p><a href="${panel}" style="background:none;color:#86a9ee;padding:0">Panelde aç</a></p>`);
     const r = await restartApp(env, a.id, true);
     return htmlPage('Başladı', `<h1>${r.running ? 'Zaten çalışıyor' : 'Başladı'}</h1><p>Canlı bağlantı e-postana ve paneldeki "Sana kalanlar"a gelecek. Bu sayfayı kapatabilirsin.</p><a href="${panel}">Panelde izle</a>`);

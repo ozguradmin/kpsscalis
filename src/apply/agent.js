@@ -91,6 +91,9 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
     const trHour = (new Date().getUTCHours() + 3) % 24;
     // Sen "Canlı devral" dediysen her zaman; değilse Türkiye saatiyle 09-24 arası (gece seni uyandırmaz)
     const wait = (userActive || trHour >= 9) && settings.handoff_wait_minutes > 0 && handoffs < 2 ? settings.handoff_wait_minutes * 60000 : 0;
+    // Cloudflare Turnstile ("Verify you are human") sunucu tarayıcısını insan tıklasa da geçirmiyor: canlı devral yerine kendi tarayıcından gönder
+    const turnstile = await page.evaluate(() => !!document.querySelector('iframe[src*="challenges.cloudflare.com"], [class*="cf-turnstile"], #challenge-stage, input[name="cf-turnstile-response"]') || /verify you are human|bir insan olduğunuzu doğrulay/i.test(document.body.innerText)).catch(() => false);
+    if (turnstile && kind !== 'stuck') return 'own_browser';
     if (!wait) return 'gave_up';
     const before = await snapshot(page);
     // Robot doğrulaması genelde formun sonunda: form boşken seni çağırma, önce kendisi doldursun (bir kez hatırlatır)
@@ -194,6 +197,7 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
         const r = await askHuman(d.status === 'captcha' || /captcha|robot|human|turnstile|hcaptcha|recaptcha/i.test(d.reason || '') ? 'captcha' : 'blocked', d.reason || d.thought || '');
         if (r === 'continue') continue;
         if (r === 'submitted') return { status: 'submitted', reason: 'Sen devraldıktan sonra onay ekranı görüldü', steps, answers };
+        if (r === 'own_browser') return { status: 'needs_human', ownBrowser: true, reason: 'Cloudflare robot doğrulaması sunucu tarayıcısını kabul etmiyor; kendi tarayıcından göndermen gerekiyor', steps, answers };
         return { status: 'needs_human', reason: d.status === 'captcha' ? 'CAPTCHA / robot doğrulaması' : clip(d.reason || 'İnsan gerektiren engel', 200), steps, answers };
       }
       return { status: d.status === 'not_eligible' ? 'not_eligible' : d.status, reason: d.reason || d.thought, steps, answers, email: d.email || null };
