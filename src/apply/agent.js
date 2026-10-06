@@ -45,6 +45,7 @@ ${STYLE_RULES}
 8h. If the only way to apply is by email (a mailto link or "send your CV to x@y" and no form), return status "email" with that address in "email"; the system then emails the cover letter and CV itself. If both a form link and an email exist, use the form; but if that form is blocked (needs a Google/Microsoft sign-in, a captcha you cannot pass, or is closed), fall back to status "email" with the address instead of "blocked". Go back (goto the previous page) to find the address if needed.
 8f. Y Combinator Work at a Startup (workatastartup.com/jobs/N): the candidate is already logged in. Click "Apply", put the cover letter (plain text, no greeting placeholders) into the message box, click "Send". When the button then reads "Applied", the application is done: return status "submitted". If you see a login form instead, return status "blocked" with reason "YC oturumu düştü" (never type a password there).
 If clicking Send changes nothing on WaaS, YC's weekly limit (5 applications/week) may be reached: return status "blocked" with reason "YC haftalık 5 başvuru sınırı".
+8j. CAPTCHA/human-check: never report status "captcha" while form fields are still empty. Fill EVERYTHING first (all fields, uploads, questions), then submit; only if the captcha blocks submission report "captcha".
 8g. A cookie/consent banner or dark backdrop can cover buttons; if a click does nothing, look for "Decline all"/"Accept all" and click it first.
 9. Never invent facts about the candidate. Never make up usernames, profile URLs or accounts (e.g. a game/community profile link): leave such optional fields empty, and for required ones write "N/A" or use only links listed in the profile. Never state you are an AI. Prefer few, correct actions per step; after page-changing clicks you will get a fresh snapshot.
 ${HONESTY_RULES}`;
@@ -87,6 +88,13 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
     const wait = (userActive || trHour >= 9) && settings.handoff_wait_minutes > 0 && handoffs < 2 ? settings.handoff_wait_minutes * 60000 : 0;
     if (!wait) return 'gave_up';
     const before = await snapshot(page);
+    // Robot doğrulaması genelde formun sonunda: form boşken seni çağırma, önce kendisi doldursun (bir kez hatırlatır)
+    const emptyFill = (before.fields || []).filter((f) => !f.value && !f.checked && /^(text|email|tel|textarea|url|number|search|)$/.test(f.type || '') && f.kind !== 'file').length;
+    if (kind === 'captcha' && !ctx.fillFirstNudged && (emptyFill >= 2 || Object.keys(answers).length < 2)) {
+      ctx.fillFirstNudged = true;
+      history.push('(ÖNCE formu doldur: robot doğrulaması formun sonunda/gönderirken çıkar. Tüm alanları, CV yüklemesini ve soruları bitir; doğrulamayı ancak form tamamen doluyken ve gönder düğmesi doğrulama yüzünden çalışmıyorsa bildir.)');
+      return 'continue';
+    }
     const what = { captcha: 'robot doğrulaması var', stuck: 'bir yerde takıldım', blocked: 'beni durduran bir engel var' }[kind] || 'yardımın gerekiyor';
     const h = await liveHandoff(page, { instructions: `Özgür, ${job.company} başvurusunda ${what}. O kısmı geç; ben kendiliğinden devam ederim ("Done"a basman da olur).`, waitMs: wait }).catch(() => null);
     if (!h?.url || !h.done) return 'gave_up';
