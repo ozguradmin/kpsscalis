@@ -93,7 +93,7 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
     const wait = (userActive || trHour >= 9) && settings.handoff_wait_minutes > 0 && handoffs < 2 ? settings.handoff_wait_minutes * 60000 : 0;
     // Cloudflare Turnstile ("Verify you are human") sunucu tarayıcısını insan tıklasa da geçirmiyor: canlı devral yerine kendi tarayıcından gönder
     const turnstile = await page.evaluate(() => !!document.querySelector('iframe[src*="challenges.cloudflare.com"], [class*="cf-turnstile"], #challenge-stage, input[name="cf-turnstile-response"]') || /verify you are human|bir insan olduğunuzu doğrulay/i.test(document.body.innerText)).catch(() => false);
-    if (turnstile && kind !== 'stuck') return 'own_browser';
+    if (turnstile) return 'own_browser';
     if (!wait) return 'gave_up';
     const before = await snapshot(page);
     // Robot doğrulaması genelde formun sonunda: form boşken seni çağırma, önce kendisi doldursun (bir kez hatırlatır)
@@ -150,6 +150,7 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
       const r = await askHuman('stuck', err ? `Site aynı hatayı veriyor: ${clip(err, 200)}` : 'Sayfa ilerlemiyor; bir düğme ya da alan çalışmıyor olabilir');
       if (r === 'continue') { stall = 0; lastSig = ''; continue; }
       if (r === 'submitted') return { status: 'submitted', reason: 'Sen devraldıktan sonra onay ekranı görüldü', steps, answers };
+      if (r === 'own_browser') return { status: 'needs_human', ownBrowser: true, reason: 'Cloudflare robot doğrulaması sunucu tarayıcısını kabul etmiyor; kendi tarayıcından göndermen gerekiyor', steps, answers };
       return err ? { status: 'needs_human', reason: `Site aynı hatayı veriyor: ${clip(err, 200)} (muhtemelen robot doğrulaması)`, steps, answers } : { status: 'failed', reason: 'Sayfa ilerlemiyor (takıldı)', steps, answers };
     }
     if (okText(`${s.title} ${s.text}`) && steps > 1) { await rec.shot(page, 'Başvuru onay ekranı'); return { status: 'submitted', reason: 'Onay metni görüldü', steps, answers }; }
