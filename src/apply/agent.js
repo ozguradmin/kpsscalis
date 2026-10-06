@@ -153,6 +153,11 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
       if (r === 'own_browser') return { status: 'needs_human', ownBrowser: true, reason: 'Cloudflare robot doğrulaması sunucu tarayıcısını kabul etmiyor; kendi tarayıcından göndermen gerekiyor', steps, answers };
       return err ? { status: 'needs_human', reason: `Site aynı hatayı veriyor: ${clip(err, 200)} (muhtemelen robot doğrulaması)`, steps, answers } : { status: 'failed', reason: 'Sayfa ilerlemiyor (takıldı)', steps, answers };
     }
+    // Gönder düğmesi kapalı ve sayfada Cloudflare doğrulaması var: o düğme doğrulama geçmeden açılmaz; kendi tarayıcından gönderilecek
+    if (steps > 2 && (s.buttons || []).some((b) => b.disabled && /submit|apply|send|gönder|başvur/i.test(b.text || ''))) {
+      const ts = await page.evaluate(() => !!document.querySelector('iframe[src*="challenges.cloudflare.com"], [class*="cf-turnstile"], input[name="cf-turnstile-response"]')).catch(() => false);
+      if (ts) return { status: 'needs_human', ownBrowser: true, reason: 'Form dolu ama Gönder düğmesi Cloudflare doğrulaması geçmeden açılmıyor; kendi tarayıcından göndermen gerekiyor', steps, answers };
+    }
     if (okText(`${s.title} ${s.text}`) && steps > 1) { await rec.shot(page, 'Başvuru onay ekranı'); return { status: 'submitted', reason: 'Onay metni görüldü', steps, answers }; }
     if (steps === 1 && (CLOSED_RE.test(`${s.title} ${clip(s.text, 600)}`) || STRONG_CLOSED_RE.test(s.text || ''))) return { status: 'closed', reason: 'İlan kapanmış', steps, answers };
     if (steps <= 2 && NOT_ELIGIBLE_RE.test(s.text || '') && ![...(s.buttons || []), ...(s.links || [])].some((b) => /^\s*(apply|apply now|відгукнутися|откликнуться)\b/i.test(b.text || ''))) return { status: 'not_eligible', reason: 'Site profilin ilan şartlarını (ülke/İngilizce seviyesi) karşılamadığını söylüyor', steps, answers };
