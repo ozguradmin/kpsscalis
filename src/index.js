@@ -9,6 +9,7 @@ import { mailTick, sendMail, dailyDigest, alertUser, followUps } from './mail.js
 import { liveLogin, regDomain } from './sessions.js';
 import { openBrowser, liveHandoff } from './apply/browser.js';
 import { cvPdf, CORE } from './profile.js';
+import { standardAnswers } from './apply/ownpack.js';
 import { CV_EN, CV_TR } from './cv-text.js';
 import { dispatch, recoverStuck, createApplication, ApplyWorkflow } from './apply/index.js';
 import { chat, dailyReview, stateSummary, validateSetting, runTool, learnSourceWeights } from './brain.js';
@@ -168,6 +169,10 @@ async function ownBrowserPage(env, request, url, method, appId, panel) {
   const ans = safeJSON(a.answers, {}) || {};
   const rows = [['Ad Soyad', CORE.full_name], ['Ad', CORE.first_name], ['Soyad', CORE.last_name], ['E-posta', CORE.email], ['Telefon', CORE.phone], ['Konum', `${CORE.city}, ${CORE.country_en}`], ['LinkedIn', CORE.linkedin], ['GitHub', CORE.github], ['Portfolyo', CORE.portfolio]];
   for (const [k, v] of Object.entries(ans)) if (v && String(v) !== '••••' && !rows.some((r) => r[1] === v)) rows.push([k, String(v)]);
+  // Formda çıkabilecek standart alanlar (form cevaplarında yoksa): özet, deneyim, eğitim, ücret, deneyim yılı, başlama, çalışma izni
+  const std = await standardAnswers(env);
+  const have = (re) => rows.some((r) => re.test(r[0]));
+  for (const [label, re, v] of [['Summary / About you', /summary|about/i, std.summary], ['Experience', /experience$|^experience/i, std.experience], ['Education', /education/i, std.education], ['Expected compensation', /compensation|salary|rate/i, std.compensation], ['Years of experience', /years/i, std.years], ['Notice period / start date', /notice|start/i, std.start], ['Work authorization / sponsorship', /authori|visa|sponsor/i, std.authorization]]) if (!have(re)) rows.push([`${label} (formda varsa)`, v]);
   if (a.letter) rows.splice(0, 0, ['Ön yazı / Cover letter', a.letter]);
   const item = ([k, v], i) => `<div class="it"><div class="k">${escHtml(clip(k, 140))}</div><textarea id="v${i}" readonly rows="${Math.min(10, Math.ceil(String(v).length / 60) + 1)}">${escHtml(v)}</textarea><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('v${i}').value);this.textContent='Kopyalandı ✓'">Kopyala</button></div>`;
   const css = '<style>.it{margin:14px 0}.k{font-size:13px;color:#9fb0c8;margin-bottom:4px}textarea{width:100%;box-sizing:border-box;background:#141c2c;color:#e9edf4;border:1px solid #2a3550;border-radius:8px;padding:8px;font:15px/1.4 system-ui}.it button{margin-top:6px;padding:8px 14px;font-size:14px}main{max-width:560px;width:100%}.big{display:block;text-align:center;margin:10px 0}</style>';

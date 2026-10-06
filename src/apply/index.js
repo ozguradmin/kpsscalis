@@ -9,6 +9,7 @@ import { profileContext, cvBase64, CORE } from '../profile.js';
 import { waitForMail, sendMail, alertUser } from '../mail.js';
 import { seal, unseal, strongPassword, signLink } from '../lib/auth.js';
 import { detectATS } from '../sources/index.js';
+import { buildOwnPack } from './ownpack.js';
 import { loadSessions, saveSessions, regDomain } from '../sessions.js';
 const regDomainOf = (u) => { try { return regDomain(new URL(u).hostname); } catch (e) { return ''; } };
 
@@ -84,7 +85,9 @@ export async function submit(env, appId, { userActive = false } = {}) {
   // Workable (apply/jobs.workable.com): Cloudflare doğrulaması sunucu tarayıcısını geçirmiyor, gönder düğmesi açılmıyor.
   // Tarayıcı süresi harcamadan "kendi tarayıcından gönder" paketini hazırla (ön yazı + kopyalanabilir bilgiler + CV)
   if (/(^|\.)workable\.com$/i.test(hostOf(startUrl(job))) || job.ats === 'workable') {
-    return finalize(env, settings, appId, job, { status: 'needs_human', ownBrowser: true, reason: 'Workable, Cloudflare robot doğrulaması kullanıyor; sunucu tarayıcısını kabul etmiyor. Kendi tarayıcından göndermen gerekiyor (her şey hazır)', steps: 0, answers: {} }, null);
+    // Formun gerçek sorularını oku, her birine cevap hazırla (sayfada kopyalanmaya hazır)
+    const pack = await buildOwnPack(env, settings, app, job).catch(() => ({ items: [] }));
+    return finalize(env, settings, appId, job, { status: 'needs_human', ownBrowser: true, reason: 'Workable, Cloudflare robot doğrulaması kullanıyor; sunucu tarayıcısını kabul etmiyor. Kendi tarayıcından göndermen gerekiyor (her şey hazır)', steps: 0, answers: Object.fromEntries(pack.items.map((i) => [i.label, i.value])) }, null);
   }
 
   const usage = await usageToday(env);
