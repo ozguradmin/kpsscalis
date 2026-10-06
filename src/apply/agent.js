@@ -11,6 +11,13 @@ const SUCCESS_RE = /(thank(s| you) for (your )?(applying|application|submitting|
 // Profil/hesap tamamlama ifadeleri sadece takip (profil doldurma) görevlerinde başarı sayılır: WaaS şirket listesinde de eski bir "Thanks for updating your profile" bandı duruyor
 const PROFILE_OK_RE = /(thanks for updating your profile|profile (has been |was )?(saved|updated|completed)|your profile is (complete|live))/i;
 const SOURCE_NAMES = { remote_cos: 'Remote In Tech company directory', yc: 'Y Combinator Work at a Startup', hn: 'Hacker News "Who is hiring"', himalayas: 'Himalayas', djinni: 'Djinni', workable_tr: 'Workable', workable: 'Workable', torre: 'Torre', getonbrd: 'Get on Board', followup: 'your email to me' };
+// Cloudflare Turnstile: gizli (shadow DOM) iframe'de olabilir; sayfanın tüm çerçevelerine bak
+async function hasTurnstile(page) {
+  try {
+    if (page.frames().some((f) => /challenges\.cloudflare\.com|turnstile/i.test(f.url()))) return true;
+    return await page.evaluate(() => !!document.querySelector('iframe[src*="challenges.cloudflare.com"], [class*="cf-turnstile"], input[name="cf-turnstile-response"], script[src*="challenges.cloudflare.com"]') || /verify you are human|bir insan olduğunuzu doğrulay/i.test(document.body.innerText));
+  } catch (e) { return false; }
+}
 const NOT_ELIGIBLE_RE = /(your profile does not meet some of the requirements|(ukrainian|russian|polish|german) (native|c1|c2|b2)[^\n]{0,10}\n?\s*not specified in your profile|we (only|currently only) (hire|accept|consider) (candidates|applicants) (from|based in)|not accepting applications from your (country|location|region))/i;
 const STRONG_CLOSED_RE = /(the job ad is no longer active|this (job|position|vacancy) is no longer (active|available|open)|вакансія (більше )?не активна|вакансия (больше )?не активна|ilan artık aktif değil)/i;
 const CLOSED_RE = /(no longer (accepting|available)|position (has been )?(filled|closed)|job (is )?(closed|expired|not found)|this job has expired|ilan yayından kaldırıldı|page not found|404)/i;
@@ -92,7 +99,7 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
     // Sen "Canlı devral" dediysen her zaman; değilse Türkiye saatiyle 09-24 arası (gece seni uyandırmaz)
     const wait = (userActive || trHour >= 9) && settings.handoff_wait_minutes > 0 && handoffs < 2 ? settings.handoff_wait_minutes * 60000 : 0;
     // Cloudflare Turnstile ("Verify you are human") sunucu tarayıcısını insan tıklasa da geçirmiyor: canlı devral yerine kendi tarayıcından gönder
-    const turnstile = await page.evaluate(() => !!document.querySelector('iframe[src*="challenges.cloudflare.com"], [class*="cf-turnstile"], #challenge-stage, input[name="cf-turnstile-response"]') || /verify you are human|bir insan olduğunuzu doğrulay/i.test(document.body.innerText)).catch(() => false);
+    const turnstile = await hasTurnstile(page);
     if (turnstile) return 'own_browser';
     if (!wait) return 'gave_up';
     const before = await snapshot(page);
@@ -154,9 +161,20 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
       return err ? { status: 'needs_human', reason: `Site aynı hatayı veriyor: ${clip(err, 200)} (muhtemelen robot doğrulaması)`, steps, answers } : { status: 'failed', reason: 'Sayfa ilerlemiyor (takıldı)', steps, answers };
     }
     // Gönder düğmesi kapalı ve sayfada Cloudflare doğrulaması var: o düğme doğrulama geçmeden açılmaz; kendi tarayıcından gönderilecek
-    if (steps > 2 && (s.buttons || []).some((b) => b.disabled && /submit|apply|send|gönder|başvur/i.test(b.text || ''))) {
-      const ts = await page.evaluate(() => !!document.querySelector('iframe[src*="challenges.cloudflare.com"], [class*="cf-turnstile"], input[name="cf-turnstile-response"]')).catch(() => false);
+    const submitOff = (s.buttons || []).some((b) => b.disabled && /submit|apply|send|gönder|başvur/i.test(b.text || ''));
+    ctx.submitOff = submitOff ? (ctx.submitOff || 0) + 1 : 0;
+    if (steps > 2 && submitOff) {
+      const ts = await hasTurnstile(page);
       if (ts) return { status: 'needs_human', ownBrowser: true, reason: 'Form dolu ama Gönder düğmesi Cloudflare doğrulaması geçmeden açılmıyor; kendi tarayıcından göndermen gerekiyor', steps, answers };
+      // 3 adımdır kapalı: kör tıklamayı bırak, seni çağır (gizli doğrulama ya da doldurulmamış bir alan olabilir)
+      if (ctx.submitOff >= 3) {
+        const r = await askHuman('stuck', 'Form dolu görünüyor ama Gönder düğmesi kapalı kalıyor (gizli bir doğrulama ya da gözden kaçan bir alan olabilir)');
+        ctx.submitOff = 0;
+        if (r === 'continue') continue;
+        if (r === 'submitted') return { status: 'submitted', reason: 'Sen devraldıktan sonra onay ekranı görüldü', steps, answers };
+        if (r === 'own_browser') return { status: 'needs_human', ownBrowser: true, reason: 'Cloudflare robot doğrulaması sunucu tarayıcısını kabul etmiyor; kendi tarayıcından göndermen gerekiyor', steps, answers };
+        return { status: 'needs_human', ownBrowser: true, reason: 'Gönder düğmesi kapalı kalıyor; kendi tarayıcından göndermen gerekiyor', steps, answers };
+      }
     }
     if (okText(`${s.title} ${s.text}`) && steps > 1) { await rec.shot(page, 'Başvuru onay ekranı'); return { status: 'submitted', reason: 'Onay metni görüldü', steps, answers }; }
     if (steps === 1 && (CLOSED_RE.test(`${s.title} ${clip(s.text, 600)}`) || STRONG_CLOSED_RE.test(s.text || ''))) return { status: 'closed', reason: 'İlan kapanmış', steps, answers };
