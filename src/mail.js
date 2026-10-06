@@ -139,7 +139,7 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
       .bind(m.id, m.received_at, m.from_address, clip(m.subject, 300), category, app?.id || null, code, link, summary, draft, now()).run();
     // Doğrulama kodu geldi ama onu bekleyen bir ajan yoksa: Özgür elle bir şey yapıyordur (ör. Meridial kaydı) → kodu Gmail'ine ilet
     if (category === 'verification' && (code || link) && recvT > now() - 30 * MIN) {
-      const busy = await env.DB.prepare("SELECT 1 FROM applications WHERE status IN ('applying','prepared') AND updated_at > ?").bind(now() - 20 * MIN).first();
+      const busy = await env.DB.prepare("SELECT 1 FROM applications WHERE (status IN ('applying','prepared') AND updated_at > ?) OR created_at > ?").bind(now() - 20 * MIN, recvT - 25 * MIN).first();
       if (!busy) await alertUser(env, settings, { key: 'code_' + m.id, subject: `Doğrulama ${code ? 'kodu: ' + code : 'bağlantısı'} (${m.from_name || dom})`,
         text: `${m.from_name || ''} <${m.from_address}> az önce destek@ozgurguler.tech adresine bir doğrulama ${code ? 'kodu' : 'bağlantısı'} gönderdi.\n${code ? `\nKOD: ${code}\n` : ''}${link ? `\nBağlantı: ${link}\n` : ''}\nKonu: ${m.subject}` });
     }

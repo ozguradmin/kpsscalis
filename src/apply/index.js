@@ -214,8 +214,8 @@ async function finalize(env, settings, appId, job, r, recId) {
   const handoffMailed = status === 'needs_human' && await env.DB.prepare("SELECT 1 FROM events WHERE type='alert' AND ref LIKE ? AND ts > ?").bind('handoff_' + appId + '%', now() - 3600000).first();
   if (status === 'needs_human' && !handoffMailed) {
     const st = await getSettings(env);
-    await alertUser(env, st, { key: 'nh_' + appId, appId, url: startUrl(job), restart: true, subject: `2 dakikalık iş: ${job.company} başvurusu seni bekliyor`,
-      text: `${job.company} — ${job.title}\nNeden durdu: ${r.reason}\n\nForm büyük ölçüde dolduruldu; ön yazı ve cevaplar panelde hazır. Aşağıdaki "sonra şu bağlantıya bas" linkine bastığında ajan formu yeniden doldurur ve doğrulamada seni bekler; sen sadece doğrulamayı geçersin.` });
+    await alertUser(env, st, { key: 'nh_' + appId, appId, restart: true, subject: `Senin yardımın gerekiyor: ${job.company} başvurusu`,
+      text: `${job.company}, ${job.title}\nNeden durdu: ${r.reason}\nİlan: ${startUrl(job)}\n\nAşağıdaki "yeniden başlat" bağlantısına bastığında ajan formu baştan doldurur, takıldığı yere gelince sana ayrı bir e-postayla CANLI TARAYICI bağlantısı gönderir. O bağlantıyı açıp sadece takıldığı kısmı geçersin (doğrulama, giriş ya da çalışmayan düğme); gerisini ajan yapar.` });
   }
   // öğrenme: bu site/ATS için not
   const scope = job.ats || hostOf(startUrl(job));

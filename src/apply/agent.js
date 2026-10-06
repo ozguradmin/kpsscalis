@@ -79,6 +79,46 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
   const answers = {};
   const profile = ctx.profile;
   const intro = `CANDIDATE PROFILE:\n${profile}\n\nJOB: ${job.title} at ${job.company}\nJOB SOURCE: ${SOURCE_NAMES[job.source] || job.source || 'company website'}\nJob URL: ${job.url}\nApply URL: ${job.apply_url || job.url}\nANALYSIS: ${clip(JSON.stringify(ctx.analysis || {}), 1500)}\n\nCOVER LETTER (paste into cover letter text fields):\n${letter}\n\nACCOUNT: ${account ? `existing account on ${account.site}: username/email ${account.username}, password "{{ACCOUNT_PASSWORD}}"` : 'none yet'}${ctx.recipes?.length ? `\n\nNOTES FROM PREVIOUS APPLICATIONS ON THIS SITE:\n${ctx.recipes.map((r) => `- ${r.scope}: ${clip(r.notes, 600)}`).join('\n')}` : ''}${settings.prompt_addenda?.agent ? `\n\nLEARNED RULES:\n${settings.prompt_addenda.agent}` : ''}`;
+  // İnsanı çağır: canlı tarayıcı bağlantısını Gmail'e ve panele gönderir, bekler; sen geçince ajan kaldığı yerden devam eder.
+  // Dönüş: 'continue' (devam et), 'submitted' (sen gönderdin), 'gave_up' (beklenmedi / süre doldu)
+  const askHuman = async (kind, why) => {
+    const trHour = (new Date().getUTCHours() + 3) % 24;
+    // Sen "Canlı devral" dediysen her zaman; değilse Türkiye saatiyle 09-24 arası (gece seni uyandırmaz)
+    const wait = (userActive || trHour >= 9) && settings.handoff_wait_minutes > 0 && handoffs < 2 ? settings.handoff_wait_minutes * 60000 : 0;
+    if (!wait) return 'gave_up';
+    const before = await snapshot(page);
+    const what = { captcha: 'robot doğrulaması var', stuck: 'bir yerde takıldım', blocked: 'beni durduran bir engel var' }[kind] || 'yardımın gerekiyor';
+    const h = await liveHandoff(page, { instructions: `Özgür, ${job.company} başvurusunda ${what}. O kısmı geç; ben kendiliğinden devam ederim ("Done"a basman da olur).`, waitMs: wait }).catch(() => null);
+    if (!h?.url || !h.done) return 'gave_up';
+    handoffs++;
+    const min = Math.round(wait / 60000);
+    await addAction(env, { kind: 'handoff', title: `${job.company}: canlı devral (${what})`, detail: `${min} dk bekliyorum. Bağlantıyı aç, takıldığım yeri geç; sonrasını ben yaparım.`, url: h.url, app_id: app.id, job_id: job.id, priority: 1, ttlMs: wait + 120000, dedupe: 'handoff_' + app.id });
+    await env.DB.prepare('UPDATE applications SET live_url=? WHERE id=?').bind(h.url, app.id).run();
+    await alertUser(env, settings, { key: `handoff_${app.id}_${now()}`, appId: app.id, url: h.url, subject: `Canlı devral: ${job.company} (${min} dk bekliyorum)`,
+      text: `${job.company}, ${job.title}\nDurum: ${what}. ${clip(why, 220)}\n\nAşağıdaki "Canlı tarayıcı" bağlantısını aç. Ajanın açık tuttuğu sayfayı göreceksin; sadece takıldığı kısmı yap (doğrulama kutucuğu, bulmaca, giriş ya da çalışmayan düğme). Formun geri kalanını ajan doldurdu ve doldurmaya devam edecek. Bitince "Done"a bas; robot doğrulamasında basmana gerek yok, geçtiğini kendisi görür. ${min} dakika bekliyorum.` }).catch(() => {});
+    await log(env, 'apply', `${job.company}: canlı devralma bekleniyor (${what})`, { ref: app.id });
+    let stop = false;
+    const watch = (async () => {
+      let clear = 0;
+      while (!stop) {
+        await sleep(5000);
+        if (stop) return null;
+        const s3 = await snapshot(page);
+        if (okText(`${s3.title} ${s3.text}`)) return { success: true, submitted: true, reason: 'onay ekranı göründü' };
+        if (kind === 'captcha' && before.captcha && !s3.error && !s3.captcha) { if (++clear >= 2) return { success: true, reason: 'doğrulama geçildi (otomatik algılandı)' }; } else clear = 0;
+      }
+      return null;
+    })();
+    const w0 = Date.now();
+    const r = await Promise.race([h.done, watch.then((x) => x || h.done)]);
+    ctx.waitedMs = (ctx.waitedMs || 0) + (Date.now() - w0); // insanı beklerken geçen süre toplam sınıra sayılmaz
+    stop = true;
+    await env.DB.prepare("UPDATE actions SET status='done' WHERE id=?").bind('handoff_' + app.id).run().catch(() => {});
+    await rec.shot(page, r?.success ? 'Sen devraldın, devam' : 'Bekleme bitti').catch(() => {});
+    if (r?.submitted) return 'submitted';
+    if (r?.success) { history.push(`(Özgür canlı devraldı ve ${what.replace('var', 'geçildi')}; sayfaya yeniden bak ve kaldığın yerden devam et)`); await ctx.saveSession?.(page).catch(() => {}); return 'continue'; }
+    return 'gave_up';
+  };
   const started = Date.now();
   while (steps < maxSteps) {
     steps++;
@@ -89,8 +129,11 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
     if (sig === lastSig) { stall++; } else { stall = 0; lastSig = sig; }
     if (stall >= 2 && model === 'agent') { model = 'agent_hard'; rec.note('Takıldı, daha güçlü modele geçildi'); }
     if (stall >= 4) {
-      // Aynı hata tekrarlanıyorsa büyük ihtimalle görünmeyen bir doğrulama ya da site sorunu var: sana bırak
+      // Aynı yerde takıldı: önce seni çağırır (canlı tarayıcı bağlantısı), sen o adımı geçince kaldığı yerden devam eder
       const err = (s.errors || []).join(' | ');
+      const r = await askHuman('stuck', err ? `Site aynı hatayı veriyor: ${clip(err, 200)}` : 'Sayfa ilerlemiyor; bir düğme ya da alan çalışmıyor olabilir');
+      if (r === 'continue') { stall = 0; lastSig = ''; continue; }
+      if (r === 'submitted') return { status: 'submitted', reason: 'Sen devraldıktan sonra onay ekranı görüldü', steps, answers };
       return err ? { status: 'needs_human', reason: `Site aynı hatayı veriyor: ${clip(err, 200)} (muhtemelen robot doğrulaması)`, steps, answers } : { status: 'failed', reason: 'Sayfa ilerlemiyor (takıldı)', steps, answers };
     }
     if (okText(`${s.title} ${s.text}`) && steps > 1) { await rec.shot(page, 'Başvuru onay ekranı'); return { status: 'submitted', reason: 'Onay metni görüldü', steps, answers }; }
@@ -132,48 +175,13 @@ export async function runAgent(env, settings, { page, job, app, letter, rec, ctx
         history.push(`(submitted dedin ama sayfa onay göstermiyor${conf != null ? ` (Jev ${conf.toFixed(2)})` : ''}${emptyReq ? ', boş zorunlu alanlar var' : ''}; hata mesajlarına bak ve devam et)`);
         continue;
       }
-      if (d.status === 'captcha') {
-        // Panel açıksa, "Canlı devral" istendiyse ya da Türkiye saatiyle gündüzse (09-24) bekle; gece beklemez
-        const trHour = (new Date().getUTCHours() + 3) % 24;
-        const wait = (userActive || trHour >= 9) && settings.handoff_wait_minutes > 0 && handoffs < 2 ? settings.handoff_wait_minutes * 60000 : 0;
-        const before = await snapshot(page);
-        const h = await liveHandoff(page, { instructions: `Özgür, ${job.company} başvurusunda robot doğrulaması var. Doğrulamayı geç; geçtiğini görünce ben kendiliğinden devam ederim ("Done"a basman da olur).`, waitMs: wait }).catch(() => null);
-        if (h?.url) {
-          const min = Math.round(wait / 60000);
-          await addAction(env, { kind: 'handoff', title: `${job.company}: robot doğrulaması (canlı devral)`, detail: wait ? `${min} dk bekliyorum. Bağlantıyı aç, doğrulamayı geç; ajan kendiliğinden devam eder.` : 'Şu an beklemiyorum. Başvuruyu açıp "Canlı devral"a basarsan ajan baştan doldurup seni bekler.', url: wait ? h.url : null, app_id: app.id, job_id: job.id, priority: 1, ttlMs: wait + 120000, dedupe: 'handoff_' + app.id });
-          await env.DB.prepare('UPDATE applications SET live_url=? WHERE id=?').bind(h.url, app.id).run();
-          if (wait) await alertUser(env, settings, { key: `handoff_${app.id}_${now()}`, appId: app.id, url: h.url, restart: true, subject: `Robot doğrulaması: ${job.company} (${min} dk bekliyorum)`,
-            text: `${job.company} — ${job.title}\nForm dolduruldu; site "robot değilim" doğrulaması istiyor. Bunu yapay zekâ geçemez.\n\n"Canlı tarayıcı" bağlantısını aç ve doğrulamayı geç (kutucuk ya da bulmaca). Geçtiğin anda ajan kendiliğinden devam edip başvuruyu gönderir; "Done"a basman gerekmez. ${min} dakika bekliyorum.` }).catch(() => {});
-        }
-        if (h?.done) {
-          handoffs++;
-          await log(env, 'apply', `${job.company}: canlı devralma bekleniyor`, { ref: app.id });
-          // Doğrulama geçilince "Done" beklemeden devam et; bu izleme tarayıcı oturumunu da canlı tutar
-          let stop = false;
-          const watch = (async () => {
-            let clear = 0;
-            while (!stop) {
-              await sleep(5000);
-              if (stop) return null;
-              const s3 = await snapshot(page);
-              if (before.captcha && !s3.error && !s3.captcha) { if (++clear >= 2) return { success: true, reason: 'doğrulama geçildi (otomatik algılandı)' }; } else clear = 0;
-            }
-            return null;
-          })();
-          const w0 = Date.now();
-          const r = await Promise.race([h.done, watch.then((x) => x || h.done)]);
-          ctx.waitedMs = (ctx.waitedMs || 0) + (Date.now() - w0); // insanı beklerken geçen süre toplam sınıra sayılmaz
-          stop = true;
-          history.push(`(insan müdahalesi: ${r.success ? 'tamamlandı — ' + (r.reason || 'Done') : 'olmadı: ' + (r.reason || '')}; sayfaya yeniden bak ve kaldığın yerden devam et)`);
-          await rec.shot(page, r.success ? 'Robot doğrulaması geçildi' : 'Bekleme bitti').catch(() => {});
-          if (r.success) {
-            await env.DB.prepare("UPDATE actions SET status='done' WHERE id=?").bind('handoff_' + app.id).run().catch(() => {});
-            await ctx.saveSession?.(page).catch(() => {});
-            continue;
-          }
-        }
-        await env.DB.prepare("UPDATE actions SET status='done' WHERE id=?").bind('handoff_' + app.id).run().catch(() => {});
-        return { status: 'needs_human', reason: 'CAPTCHA / robot doğrulaması', steps, answers };
+      // Robot doğrulaması, ya da insan gerektiren engel (giriş, doğrulama, garip hata): canlı devralma iste
+      const humanish = /captcha|robot|human|verif|doğrula|turnstile|hcaptcha|recaptcha|login|sign ?in|giriş|blocked|engel/i.test(`${d.reason || ''} ${d.thought || ''}`);
+      if (d.status === 'captcha' || ((d.status === 'blocked' || d.status === 'needs_human') && humanish)) {
+        const r = await askHuman(d.status === 'captcha' || /captcha|robot|human|turnstile|hcaptcha|recaptcha/i.test(d.reason || '') ? 'captcha' : 'blocked', d.reason || d.thought || '');
+        if (r === 'continue') continue;
+        if (r === 'submitted') return { status: 'submitted', reason: 'Sen devraldıktan sonra onay ekranı görüldü', steps, answers };
+        return { status: 'needs_human', reason: d.status === 'captcha' ? 'CAPTCHA / robot doğrulaması' : clip(d.reason || 'İnsan gerektiren engel', 200), steps, answers };
       }
       return { status: d.status === 'not_eligible' ? 'not_eligible' : d.status, reason: d.reason || d.thought, steps, answers, email: d.email || null };
     }

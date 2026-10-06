@@ -93,6 +93,8 @@ async function cleanup(env, settings) {
   await env.DB.prepare('DELETE FROM events WHERE ts < ?').bind(now() - 60 * DAY).run();
   await env.DB.prepare('DELETE FROM logins WHERE ts < ?').bind(now() - 7 * DAY).run();
   await env.DB.prepare("UPDATE actions SET status='expired' WHERE status='open' AND expires_at IS NOT NULL AND expires_at < ?").bind(now()).run();
+  // 'Sana kalanlar' şişmesin: başvurusu artık beklemede olmayan ya da 4 günden eski elle-tamamla görevleri kapat
+  await env.DB.prepare("UPDATE actions SET status='expired' WHERE status='open' AND kind='needs_human' AND (created_at < ? OR app_id IN (SELECT id FROM applications WHERE status NOT IN ('needs_human','blocked')))").bind(now() - 4 * DAY).run();
   // Çok eski ve hiç işlenmemiş ilanları temizle (kuyruk şişmesin)
   await env.DB.prepare("UPDATE jobs SET status='expired', reason='işlenmeden eskidi' WHERE status='new' AND discovered_at < ?").bind(now() - 20 * DAY).run();
   // Elenmiş ilanların uzun metnini kısalt (kayıt kalır ki aynı ilan tekrar değerlendirilmesin; veritabanı şişmesin)
