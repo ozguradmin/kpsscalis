@@ -299,7 +299,20 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
   const todayApps = await env.DB.prepare("SELECT COUNT(*) n FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.created_at > ? AND a.status IN ('submitted','confirmed','next_step','interview','offer','applying','prepared') AND j.source != 'followup'").bind(now() - DAY).first();
   const left = settings.daily_apply_limit - (todayApps?.n || 0); // gerçek kayıtlar esas (sayaç, sonradan düzeltilen yanlış onayları içerebilir)
   if (left <= 0) return { started: 0, why: 'günlük başvuru sınırı doldu' };
-  if (usage.browser_ms / 60000 >= settings.daily_browser_minutes) return { started: 0, why: 'günlük tarayıcı süresi doldu' };
+  // Elle sıraya geri alınan başvuru (ör. kendi tarayıcı paketi e-posta yoluna çevrildi): iş akışı yoksa başlat. Panel "yeniden dene" ile aynı iş.
+  const manual = await allRows(env, "SELECT id FROM applications WHERE status='queued' AND workflow_id IS NULL AND updated_at < ? LIMIT 2", now() - 2 * MIN);
+  let resumed = 0;
+  for (const a of manual) {
+    try {
+      const inst = await env.APPLY.create({ id: a.id + '-' + Date.now().toString(36), params: { appId: a.id, userActive: false } });
+      await setApp(env, a.id, { workflow_id: inst.id });
+      await log(env, 'apply', 'Elle sıraya alınan başvuru başlatıldı', { ref: a.id });
+      resumed++;
+    } catch (e) {
+      await setApp(env, a.id, { status: 'failed', error: 'Workflow başlatılamadı: ' + e.message });
+    }
+  }
+  if (usage.browser_ms / 60000 >= settings.daily_browser_minutes) return { started: resumed, why: 'günlük tarayıcı süresi doldu' };
   const blockedHosts = new Set((settings.blocked_domains || []).map(String));
   // Öğrenilmiş: robot doğrulaması yüzünden hiç başarılamayan siteler, sen panelde değilken denenmez (tarayıcı süresi boşa gitmesin)
   // himalayas.app: başvuru hesabı + Turnstile ister, sunucu tarayıcısıyla hiç geçilemiyor (şirketin kendi ATS'si bulununca adres otomatik değişir)
@@ -346,7 +359,7 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
       await setApp(env, appId, { status: 'failed', error: 'Workflow başlatılamadı: ' + e.message });
     }
   }
-  return { started };
+  return { started: started + resumed };
 }
 
 // Takılı kalan başvuruları kurtar
