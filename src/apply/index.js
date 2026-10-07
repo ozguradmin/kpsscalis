@@ -84,6 +84,10 @@ export async function submit(env, appId, { userActive = false } = {}) {
   if (app.method === 'email') return submitByEmail(env, settings, app, job, analysis);
   // Workable (apply/jobs.workable.com): Cloudflare doğrulaması sunucu tarayıcısını geçirmiyor, gönder düğmesi açılmıyor.
   // Tarayıcı süresi harcamadan "kendi tarayıcından gönder" paketini hazırla (ön yazı + kopyalanabilir bilgiler + CV)
+  // Himalayas kaynağı 2 saatte bir taranır; ilan 24 saattir görünmüyorsa kaldırılmıştır (7 Ekim: Careerswift paketi kalkmış ilana hazırlandı)
+  if (job.source === 'himalayas' && job.last_seen_at && now() - job.last_seen_at > DAY) {
+    return finalize(env, settings, appId, job, { status: 'closed', reason: 'İlan Himalayas aramasında 24 saattir görünmüyor (kaldırılmış)', steps: 0, answers: {} }, null);
+  }
   if (/(^|\.)(workable\.com|himalayas\.app)$/i.test(hostOf(startUrl(job))) || job.ats === 'workable') {
     // Formun gerçek sorularını oku, her birine cevap hazırla (sayfada kopyalanmaya hazır)
     const pack = await buildOwnPack(env, settings, app, job).catch(() => ({ items: [] }));
