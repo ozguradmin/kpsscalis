@@ -1,0 +1,11 @@
+import { makeEnv } from '../test/env.mjs';
+import { openBrowser, snapshot } from '../src/apply/browser.js';
+import { renderSnapshot } from '../src/apply/agent.js';
+const { browser, page } = await openBrowser(makeEnv(), { recording: false });
+await page.goto('https://jobs.cyberarrow.io/o/front-end-developer-reactjs-remote/c/new', { waitUntil: 'domcontentloaded' });
+await new Promise((r) => setTimeout(r, 4000));
+const s = await snapshot(page);
+console.log('captcha flag:', s.captcha, 'fields:', s.fields.length);
+const r = renderSnapshot(s); const i = r.search(/captcha/i); console.log(i >= 0 ? r.slice(Math.max(0, i - 200), i + 300) : '(no captcha text)');
+console.log(await page.evaluate(() => [...document.querySelectorAll('iframe, [class*=captcha i], [id*=captcha i], script[src*=captcha i]')].map((e) => e.tagName + ' ' + (e.src || e.className || e.id).toString().slice(0, 90))));
+await browser.close(); process.exit(0);

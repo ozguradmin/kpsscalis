@@ -1,0 +1,13 @@
+import { makeEnv } from '../test/env.mjs';
+import { migrate } from '../src/lib/db.js';
+import { signLink } from '../src/lib/auth.js';
+import worker from '../src/index.js';
+const env = makeEnv(); await migrate(env);
+await env.DB.prepare("INSERT INTO jobs (id, source, url, apply_url, company, title, discovered_at, last_seen_at, dedupe, status, stage) VALUES ('j1','test','https://x.test/job','https://x.test/apply','HyperDev','Frontend Software Engineer',1,1,'d1','approved',4)").run();
+await env.DB.prepare("INSERT INTO applications (id, job_id, status, created_at, updated_at, letter, answers) VALUES ('a1','j1','needs_human',1,1,?,?)").bind('Hi HyperDev team,\n\nI built Coğrafist...\n\nÖzgür Güler', JSON.stringify({ 'Expected salary (USD/month)': '4800', 'Password': '••••' })).run();
+const tok = encodeURIComponent(await signLink(env, { a: 'a1', op: 'own', exp: Date.now() + 86400000 }));
+const ctx = { waitUntil() {}, passThroughOnException() {} };
+let r = await worker.fetch(new Request(`https://w.test/api/h/${tok}`), env, ctx);
+const h = await r.text(); console.log(r.status, h.length, (h.match(/Kopyala<\/button>/g) || []).length, 'copy buttons;', h.includes('4800'), h.includes('••••') ? 'PASSWORD LEAK' : 'no pw');
+r = await worker.fetch(new Request(`https://w.test/api/h/${tok}`, { method: 'POST' }), env, ctx);
+console.log(r.status, (await r.text()).includes('Teşekkürler'), (await env.DB.prepare("SELECT status, confirmation FROM applications WHERE id='a1'").first()));

@@ -1,0 +1,10 @@
+import { makeEnv } from '../test/env.mjs';
+import { migrate } from '../src/lib/db.js';
+import { SOURCES, scanCompanySite } from '../src/sources/index.js';
+const env = makeEnv(); await migrate(env);
+const s = SOURCES.find((x) => x.id === 'yc');
+const t = Date.now(); const r = await s.fetch(env);
+console.log('jobs', r.length, (Date.now() - t) / 1000, 's');
+for (const j of r.slice(0, 12)) console.log(' ', j.company, '|', j.title, '|', j.location, '|', (j.apply_url || '').slice(0, 60), '|', j.description.length);
+console.log('boards', (await env.DB.prepare('SELECT id, company FROM boards').all()).results);
+console.log(await scanCompanySite('https://posthog.com'));

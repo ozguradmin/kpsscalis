@@ -1,0 +1,10 @@
+import { makeEnv } from '../test/env.mjs';
+import { openBrowser } from '../src/apply/browser.js';
+const { browser, page } = await openBrowser(makeEnv(), { recording: false });
+await page.goto('https://jobs.workable.com/view/fLy62TknZwjgsCAsgR5q8A/remote-frontend-software-engineer-in-pretoria-at-hyperdev', { waitUntil: 'domcontentloaded' });
+await new Promise((r) => setTimeout(r, 6000));
+await page.evaluate(() => [...document.querySelectorAll('button')].find(b=>/apply now/i.test(b.innerText))?.click()); await new Promise((r) => setTimeout(r, 8000)); console.log(page.url());
+console.log(page.frames().map((f) => f.url().slice(0, 90)));
+console.log(await page.evaluate(() => [...document.querySelectorAll('button')].filter(b=>/apply|submit|next/i.test(b.innerText)).map(b=>b.innerText.trim()+' disabled='+b.disabled)));
+console.log('shadow hosts:', await page.evaluate(() => [...document.querySelectorAll('*')].filter(e=>e.shadowRoot).map(e=>e.tagName).slice(0,5)), 'text has verify:', await page.evaluate(()=>/verify you are human/i.test(document.body.innerText)));
+await browser.close(); process.exit(0);
