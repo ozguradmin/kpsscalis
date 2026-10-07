@@ -71,6 +71,8 @@ export async function prepare(env, appId) {
   const method = a.apply_method === 'email' && a.apply_email && /@/.test(a.apply_email) ? 'email' : 'browser';
   if (method === 'email') await env.DB.prepare('UPDATE jobs SET analysis=? WHERE id=?').bind(JSON.stringify(a), job.id).run();
   await setApp(env, appId, { letter: letter.text, method, status: 'prepared', error: letter.warnings.length ? `ön yazı uyarısı: ${letter.warnings.join('; ')}` : null });
+  // Gönderilince error alanı silinir; uyarı sabah kontrolünde görülsün diye olay günlüğünde kalsın
+  if (letter.warnings.length) await log(env, 'letter', `Ön yazı uyarısı (${job.company}): ${clip(letter.warnings.join('; '), 400)}`, { ref: appId, level: 'warn' });
   return { ok: true, method };
 }
 

@@ -2,7 +2,8 @@
 // LLM taklit edilir (CF_TOKEN gerekmez). Çalıştır: node --import ./test/register.mjs scripts/letter-guard-test.mjs
 import { makeEnv } from '../test/env.mjs';
 import { migrate, getSettings } from '../src/lib/db.js';
-import { coverLetter, letterRedFlags, allowedTerms } from '../src/apply/materials.js';
+import { coverLetter, letterRedFlags, allowedTerms, stripClaims } from '../src/apply/materials.js';
+import { CV_EN } from '../src/cv-text.js';
 import { payFor } from '../src/profile.js';
 
 const BAD = `You build a web app for fractional operators, and I build products where small edge cases decide whether a user comes back. I shipped four mobile apps, including Coğrafist with 30+ learning modes and Print Fast with Bluetooth printer support.\n\nOne bug that was easy to miss: in Coğrafist, after finishing a quiz, the progress bar showed the previous score. Steps: finish a quiz. Expected: new score. Actual: old score.\n\nI am in Mardin, Türkiye (UTC+3). Bangkok is UTC+7, so I have four hours of weekday overlap in the afternoon. I can start immediately and give about 15 hours a week. My expected pay is $700 per month. I write bug reports in English and prefer async written communication.\n\nI would be glad to walk a flow and show you how I report. My portfolio is at ozgurguler.tech/en.\n\nÖzgür Güler`;
@@ -48,4 +49,12 @@ async function run(name, letters) {
   ok(!letterRedFlags('My expectation is 3000 USD per month.', low).length, 'ilan aralığındaki rakam serbest');
   ok(letterRedFlags('My expectation is 3200 USD per month.', low).length === 1, 'aralık dışı temel ücret işaretlenir');
   ok(letterRedFlags('My rate is 30 USD per hour.', allowedTerms(F, null)).length === 1, 'eski 30 USD işaretlenir');
+}
+
+{ // denetçi yeniden yazımdan sonra da itiraz ederse işaretli iddiaların cümleleri çıkar (7 Ekim djinni.co ön yazısı)
+  const ok = (c, m) => { console.log((c ? 'OK  ' : 'FAIL') + ' denetçi: ' + m); if (!c) process.exitCode = 1; };
+  const L = "I built Coğrafist with React, TypeScript and Capacitor. Those projects involved designing APIs and deploying on Linux servers. I use TypeScript in strict mode daily and I'm comfortable with Node.js, Express, and React. I understand Clean Architecture and apply it. You can see my work at ozgurguler.tech/en. Özgür Güler";
+  const r = stripClaims(L, ['Claims deploying on Linux servers, not in CV', 'Claims Express, not in CV', 'Claims TypeScript strict mode daily, not in CV', 'Claims Clean Architecture application, not in CV'], CV_EN);
+  ok(!/Linux|Express|strict|Clean Architecture/.test(r.text), 'işaretli iddialar çıktı');
+  ok(/Coğrafist/.test(r.text) && /Özgür Güler$/.test(r.text) && r.removed === 3, 'doğru cümleler ve imza duruyor');
 }

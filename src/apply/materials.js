@@ -37,7 +37,8 @@ Style: ${lang}, 120-190 words, warm and direct, no clichés ("I am writing to ex
   if (!check.ok) {
     try { text = await gen(`\n\nIMPORTANT: a previous draft contained unsupported claims: ${check.issues.join('; ')}. Do not repeat them.`); } catch (e) { /* ilk metinle devam */ }
     const c2 = await truthCheck(env, settings, text);
-    if (!c2.ok) warnings.push(...c2.issues);
+    // Denetçi yeniden yazımdan sonra da itiraz ediyorsa uyarıyla yetinme: işaretlenen iddiaların geçtiği cümleleri çıkar
+    if (!c2.ok) { const s = stripClaims(text, c2.issues, profile); text = s.text; warnings.push(...c2.issues.map((i) => (s.removed ? 'çıkarıldı (denetçi): ' : '') + i)); }
   }
   // Son güvence: yeniden yazımdan sonra hâlâ kodla yakalanan uydurma varsa o cümleleri/paragrafı metinden çıkar
   const left = letterRedFlags(text, allowed);
@@ -78,6 +79,22 @@ export function letterRedFlags(text, allowed = allowedTerms()) {
   if (OVERLAP_RE.test(t)) out.push({ label: 'saat dilimi örtüşme vaadi', fix: 'Do not promise time-zone or working-hour overlap. Only say: based in Türkiye (UTC+3), async-friendly.' });
   if (ANECDOTE_RE.test(t)) out.push({ label: 'CV\'de olmayan olay/hata hikâyesi', fix: 'Do not invent stories, incidents, bugs or example reports as if they happened. If the job asks for a sample, offer to write one instead.' });
   return out;
+}
+
+// Denetçinin itiraz ettiği iddialar ("Claims Express, not in CV"): sorundaki, profilde hiç geçmeyen kelimeleri bul, o kelimelerin geçtiği cümleleri çıkar
+const CLAIM_STOP = new Set(['claims', 'claim', 'claimed', 'states', 'stated', 'says', 'mentions', 'unsupported', 'invented', 'false', 'candidate', 'profile', 'not', 'the', 'and', 'with', 'from', 'that', 'this', 'about', 'daily', 'using', 'used', 'uses', 'experience', 'years', 'year']);
+export function stripClaims(text, issues = [], profile = '') {
+  const p = String(profile || '').toLowerCase();
+  const words = [...new Set(issues.join(' ').toLowerCase().match(/[a-zçğıöşü][a-zçğıöşü.+#-]{3,}/g) || [])]
+    .map((w) => w.replace(/[.,-]+$/, '')).filter((w) => w.length >= 4 && !CLAIM_STOP.has(w) && !p.includes(w));
+  if (!words.length) return { text, removed: 0 };
+  let removed = 0;
+  const out = String(text || '').split(/\n{2,}/).map((para) => para.split(/(?<=[.!?])\s+/).filter((s) => {
+    const hit = words.some((w) => new RegExp(`(^|[^a-zçğıöşü])${w.replace(/[.+#]/g, '\\$&')}`, 'i').test(s));
+    if (hit && !/Özgür Güler\s*$/.test(s)) { removed++; return false; }
+    return true;
+  }).join(' ')).filter((x) => x.trim()).join('\n\n');
+  return { text: out, removed };
 }
 
 // Uydurma içeren cümleleri (anekdotta bütün paragrafı) çıkarır; geri kalan metne dokunmaz
