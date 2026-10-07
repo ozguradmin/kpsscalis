@@ -319,6 +319,7 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
     if (blockedHosts.has(hostOf(j.apply_url || j.url))) continue;
     const scope = detectATS(j.apply_url || j.url)?.ats || hostOf(startUrl(j));
     const ownOk = scope === 'himalayas.app' && (await ownBrowserToday(env)) < OWN_PER_DAY;
+    if (scope === 'himalayas.app' && !ownOk && !userActive) continue; // bugünün kendi-tarayıcı hakkı doldu: yarın sırada
     if (!userActive && j.source !== 'followup' && hardScopes.has(scope) && !ownOk) { await env.DB.prepare("UPDATE jobs SET status='review', reason=? WHERE id=?").bind(`${scope} sitesinde otomatik başvuru robot doğrulamasına takılıyor; panelden "Hemen başvur" ile canlı devralabilirsin`, j.id).run(); continue; }
     // Aynı şirkete 30 günde en fazla N başvuru (posta kutusundaki önceki başvuru e-postaları da sayılır)
     const perCo = j.source === 'followup' ? 99 : (settings.max_per_company_30d ?? 2);
