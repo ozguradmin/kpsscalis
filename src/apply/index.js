@@ -84,10 +84,10 @@ export async function submit(env, appId, { userActive = false } = {}) {
   if (app.method === 'email') return submitByEmail(env, settings, app, job, analysis);
   // Workable (apply/jobs.workable.com): Cloudflare doğrulaması sunucu tarayıcısını geçirmiyor, gönder düğmesi açılmıyor.
   // Tarayıcı süresi harcamadan "kendi tarayıcından gönder" paketini hazırla (ön yazı + kopyalanabilir bilgiler + CV)
-  if (/(^|\.)workable\.com$/i.test(hostOf(startUrl(job))) || job.ats === 'workable') {
+  if (/(^|\.)(workable\.com|himalayas\.app)$/i.test(hostOf(startUrl(job))) || job.ats === 'workable') {
     // Formun gerçek sorularını oku, her birine cevap hazırla (sayfada kopyalanmaya hazır)
     const pack = await buildOwnPack(env, settings, app, job).catch(() => ({ items: [] }));
-    return finalize(env, settings, appId, job, { status: 'needs_human', ownBrowser: true, reason: 'Workable, Cloudflare robot doğrulaması kullanıyor; sunucu tarayıcısını kabul etmiyor. Kendi tarayıcından göndermen gerekiyor (her şey hazır)', steps: 0, answers: Object.fromEntries(pack.items.map((i) => [i.label, i.value])) }, null);
+    return finalize(env, settings, appId, job, { status: 'needs_human', ownBrowser: true, reason: `${hostOf(startUrl(job))} Cloudflare robot doğrulaması kullanıyor; sunucu tarayıcısını kabul etmiyor. Kendi tarayıcından göndermen gerekiyor (her şey hazır)`, steps: 0, answers: Object.fromEntries(pack.items.map((i) => [i.label, i.value])) }, null);
   }
 
   const usage = await usageToday(env);
@@ -141,6 +141,8 @@ export async function submit(env, appId, { userActive = false } = {}) {
     try { await o.page.waitForNetworkIdle({ idleTime: 600, timeout: 6000 }); } catch (e) { /* devam */ }
     await rec.shot(o.page, 'Başvuru sayfası açıldı');
     result = await runAgent(env, settings, { page: o.page, job, app: { ...app, id: appId }, letter: app.letter, rec, ctx, account, maxSteps: settings.max_agent_steps, userActive });
+    // Site gönderimi 'spam/otomatik' diye reddettiyse (Ashby vb.): form zaten dolduruldu, kendi tarayıcından gönder
+    if (result.status === 'blocked' && /spam|automated|bot\b|robot|suspicious/i.test(result.reason || '')) result = { ...result, status: 'needs_human', ownBrowser: true, reason: 'Site sunucu tarayıcısından gelen gönderimi spam sandı; cevaplar hazır, kendi tarayıcından göndermen gerekiyor' };
     // Form engelliyse (Google girişi vb.) ilan sayfasında işe alım adresi var mı? Varsa e-postayla başvur
     if (result.status === 'blocked' && !/oturum|login|giriş/i.test(result.reason || '')) {
       try {
@@ -281,6 +283,13 @@ export class ApplyWorkflow extends WorkflowEntrypoint {
 }
 
 // Kuyruğu işlet: günlük sınırlar içinde en öncelikli ilanlara başvuru başlat
+// "Kendi tarayıcından gönder" görevleri sana yük: günde en fazla OWN_PER_DAY tane (en yüksek öncelikli olanlar)
+const OWN_PER_DAY = 4;
+async function ownBrowserToday(env) {
+  const r = await env.DB.prepare("SELECT COUNT(*) n FROM events WHERE type='alert' AND ref LIKE 'own_%' AND ts > ?").bind(now() - DAY).first();
+  return r?.n || 0;
+}
+
 export async function dispatch(env, settings, { max = 1, userActive = false } = {}) {
   if (settings.paused || !settings.auto_apply) return { started: 0, why: 'duraklatıldı/otomatik başvuru kapalı' };
   const usage = await usageToday(env);
@@ -309,7 +318,8 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
     if (started >= Math.min(max, left)) break;
     if (blockedHosts.has(hostOf(j.apply_url || j.url))) continue;
     const scope = detectATS(j.apply_url || j.url)?.ats || hostOf(startUrl(j));
-    if (!userActive && j.source !== 'followup' && hardScopes.has(scope)) { await env.DB.prepare("UPDATE jobs SET status='review', reason=? WHERE id=?").bind(`${scope} sitesinde otomatik başvuru robot doğrulamasına takılıyor; panelden "Hemen başvur" ile canlı devralabilirsin`, j.id).run(); continue; }
+    const ownOk = scope === 'himalayas.app' && (await ownBrowserToday(env)) < OWN_PER_DAY;
+    if (!userActive && j.source !== 'followup' && hardScopes.has(scope) && !ownOk) { await env.DB.prepare("UPDATE jobs SET status='review', reason=? WHERE id=?").bind(`${scope} sitesinde otomatik başvuru robot doğrulamasına takılıyor; panelden "Hemen başvur" ile canlı devralabilirsin`, j.id).run(); continue; }
     // Aynı şirkete 30 günde en fazla N başvuru (posta kutusundaki önceki başvuru e-postaları da sayılır)
     const perCo = j.source === 'followup' ? 99 : (settings.max_per_company_30d ?? 2);
     const mine = await env.DB.prepare("SELECT COUNT(*) n FROM applications a JOIN jobs k ON k.id=a.job_id WHERE lower(k.company)=lower(?) AND a.created_at > ? AND a.status IN ('submitted','confirmed','interview','next_step','applying','prepared','queued')").bind(j.company || '', now() - 30 * DAY).first();
