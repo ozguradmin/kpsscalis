@@ -6,6 +6,7 @@ Yerel ortam `test/env.mjs` içindeki taklitleri kullanır (bellek içi D1/R2, sa
 | Betik | Ne yapar |
 |---|---|
 | `smoke-dispatch.mjs` | Duman testi: `dispatch` + `mailTick` bir kez çalışır. Her push'tan önce çalıştır (`node --check` çalışma anı hatalarını yakalamaz). |
+| `letter-guard-test.mjs` | Ön yazı uydurma denetimi (ücret, haftalık saat, saat örtüşmesi, olay hikâyesi): LLM taklit edilir, `CF_TOKEN` gerekmez. Ön yazı koduna dokununca çalıştır. |
 | `own-page-test.mjs` | "Kendi tarayıcından gönder" sayfası: imzalı link, Kopyala butonları, şifre sızmıyor mu, POST ile `submitted` oluyor mu. |
 | `ownpack-test.mjs` | Workable form API'sinden soruları okuyup cevap paketi üretir (HyperDev ilanıyla). |
 | `digest-preview.mjs` | Günlük özet mailini göndermeden ekrana basar. |
