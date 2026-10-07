@@ -145,6 +145,7 @@ Kayıtlı tarayıcı çerezleri `sessions` tablosunda. `logins` tablosu canlı g
   - Ürün sayısı: App Store/Google Play'de **4 uygulama** (Dönerci, Coğrafist, Print Fast, WTF Yapay Zekâ). Galaktik Uzay ayrı bir web platformu. Toplam **5 ürün**.
   - Çalışma saati, saat dilimi örtüşmesi, başlama tarihi, maaş ya da müsaitlik vaadi profilde yoksa yazılmaz.
   - Seviye Junior ya da Mid. "Nereden duydunuz" sorusuna gerçek kaynak yazılır.
+  - **Ücret** (7 Ekim kararı, "yüksek olmasın"): temel ücret 20 USD/saat (`facts.expected_hourly_rate_usd`). İlanda aralık varsa aralığın içinde kalınır: aralık düşükse üst sınır, yüksekse alt sınır (`profile.js` → `payFor`). Ön yazı, form cevabı ve ajan aynı rakamı kullanır; başka rakam `letterRedFlags` ile uydurma sayılır.
   - Uygunluk sorusunun dürüst cevabı "hayır" ise başvuru gönderilmez (`not_eligible`).
 - **Yazım** (`STYLE_RULES`, `humanize`):
   - İnsan gibi, sade yazı. **Uzun tire "—" ve "–" yasak**; noktalı virgül yok.

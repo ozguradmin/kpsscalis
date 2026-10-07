@@ -39,6 +39,44 @@ export const CORE = {
   prefers: 'Written/async communication; no face-video recordings; not comfortable with English voice/video calls',
 };
 
+// ---------- Ücret: Özgür'ün saatlik ücreti (facts.expected_hourly_rate_usd) ilan aralığına uydurulur ----------
+// Karar (7 Ekim 2026): yüksek olmasın. Varsayılan 20 USD/saat; ilanda aralık varsa aralığın içinde kalınır.
+export const DEFAULT_RATE = 20;
+const HOURS_MONTH = 160, HOURS_YEAR = 1920;
+const FX = { usd: 1, eur: 1.1, gbp: 1.3 };
+
+export async function baseRate(env) {
+  const r = await allRows(env, "SELECT value FROM facts WHERE key='expected_hourly_rate_usd'").catch(() => []);
+  return Number(safeJSON(r[0]?.value, r[0]?.value)) || DEFAULT_RATE;
+}
+
+// İlanın ücret metni ("3500-4000 USD/ay", "$12K - $24K", "50-90 USD/hourly", "€70K - €130K EUR") → saatlik USD aralığı; çözülemezse null
+export function postedHourly(salary) {
+  const s = String(salary || '').toLowerCase();
+  const cur = /€|eur/.test(s) ? 'eur' : /£|gbp/.test(s) ? 'gbp' : /\$|usd|dollar/.test(s) ? 'usd' : null;
+  if (!cur) return null;
+  const nums = [...s.matchAll(/(\d[\d,.]*)\s*(k)?/g)].map((m) => Number(m[1].replace(/,/g, '')) * (m[2] ? 1000 : 1)).filter((n) => n > 0);
+  if (!nums.length) return null;
+  const lo = Math.min(...nums), hi = Math.max(...nums);
+  let period = /hour|hr\b|saat/.test(s) ? 'hour' : /month|\/mo\b|\bay\b|aylık/.test(s) ? 'month' : /year|annual|yr\b|yıl/.test(s) ? 'year'
+    : hi <= 300 ? 'hour' : hi <= 20000 ? 'month' : 'year';
+  if (period === 'year' && hi < 6000) period = 'month'; // "1100-1500 USD/annual" gibi yanlış etiket: yıllık bu kadar düşük olmaz
+  const div = { hour: 1, month: HOURS_MONTH, year: HOURS_YEAR }[period];
+  return { min: (lo * FX[cur]) / div, max: (hi * FX[cur]) / div, period };
+}
+
+// Bu ilan için söylenecek ücret: temel ücret, ilan aralığı varsa aralığa sıkıştırılır. text formlara ve ön yazıya aynen yazılır.
+export function payFor(job, rate = DEFAULT_RATE) {
+  const posted = postedHourly(job?.salary);
+  const hourly = posted ? Math.min(Math.max(rate, posted.min), posted.max) : rate;
+  const h = Math.round(hourly), monthly = Math.round((hourly * HOURS_MONTH) / 50) * 50, yearly = Math.round((hourly * HOURS_YEAR) / 1000) * 1000;
+  // Aylık/yıllık ilanda saat karşılığı yazılmaz: yarı zamanlı işlerde yanıltır
+  const text = posted?.period === 'month' ? `${monthly} USD per month`
+    : posted?.period === 'year' ? `${yearly} USD per year`
+    : `${h} USD per hour (about ${monthly} USD per month)`;
+  return { hourly: h, monthly, yearly, text, posted };
+}
+
 export async function loadFacts(env) {
   const rows = await allRows(env, 'SELECT key, value, source, confidence FROM facts');
   const facts = {};

@@ -158,7 +158,7 @@ async function restartApp(env, appId, handoff) {
 // "Kendi tarayıcından gönder": Cloudflare doğrulaması sunucu tarayıcısını geçirmeyen sitelerde Özgür kendi tarayıcısından gönderir;
 // her cevap kopyalanmaya hazır, sonunda "Gönderdim" ile başvuru kaydı güncellenir.
 async function ownBrowserPage(env, request, url, method, appId, panel) {
-  const a = await oneRow(env, 'SELECT a.id, a.status, a.letter, a.answers, j.id job_id, j.company, j.title, j.apply_url, j.url FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.id=?', appId);
+  const a = await oneRow(env, 'SELECT a.id, a.status, a.letter, a.answers, j.id job_id, j.company, j.title, j.apply_url, j.url, j.salary FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.id=?', appId);
   if (method === 'POST') {
     await env.DB.prepare("UPDATE applications SET status='submitted', submitted_at=?, updated_at=?, error=NULL, confirmation='Özgür kendi tarayıcından gönderdi' WHERE id=?").bind(now(), now(), appId).run();
     await env.DB.prepare("UPDATE jobs SET status='applied' WHERE id=?").bind(a.job_id).run();
@@ -170,7 +170,7 @@ async function ownBrowserPage(env, request, url, method, appId, panel) {
   const rows = [['Ad Soyad', CORE.full_name], ['Ad', CORE.first_name], ['Soyad', CORE.last_name], ['E-posta', CORE.email], ['Telefon', CORE.phone], ['Konum', `${CORE.city}, ${CORE.country_en}`], ['LinkedIn', CORE.linkedin], ['GitHub', CORE.github], ['Portfolyo', CORE.portfolio]];
   for (const [k, v] of Object.entries(ans)) if (v && String(v) !== '••••' && !rows.some((r) => r[1] === v)) rows.push([k, String(v)]);
   // Formda çıkabilecek standart alanlar (form cevaplarında yoksa): özet, deneyim, eğitim, ücret, deneyim yılı, başlama, çalışma izni
-  const std = await standardAnswers(env);
+  const std = await standardAnswers(env, a);
   const have = (re) => rows.some((r) => re.test(r[0]));
   for (const [label, re, v] of [['Summary / About you', /summary|about/i, std.summary], ['Experience', /experience$|^experience/i, std.experience], ['Education', /education/i, std.education], ['Expected compensation', /compensation|salary|rate/i, std.compensation], ['Years of experience', /years/i, std.years], ['Notice period / start date', /notice|start/i, std.start], ['Work authorization / sponsorship', /authori|visa|sponsor/i, std.authorization]]) if (!have(re)) rows.push([`${label} (formda varsa)`, v]);
   if (a.letter) rows.splice(0, 0, ['Ön yazı / Cover letter', a.letter]);

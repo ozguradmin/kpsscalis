@@ -1,6 +1,6 @@
 // "Kendi tarayıcından gönder" paketi: formun gerçek sorularını (Workable herkese açık form API'si) okuyup her birine
 // CV'ye dayalı cevap hazırlar. Form okunamazsa her formda çıkan standart alanlar (özet, deneyim, eğitim, ücret…) yine hazır olur.
-import { CORE } from '../profile.js';
+import { CORE, payFor, DEFAULT_RATE } from '../profile.js';
 import { answerQuestion } from './materials.js';
 import { allRows } from '../lib/db.js';
 import { clip, humanize, safeJSON } from '../lib/util.js';
@@ -10,15 +10,15 @@ async function facts(env) {
   return Object.fromEntries(rows.map((r) => [r.key, safeJSON(r.value, r.value)]));
 }
 
-// Her başvuru formunda sık çıkan alanlar (CV ve profildeki gerçek bilgilerle)
-export async function standardAnswers(env) {
+// Her başvuru formunda sık çıkan alanlar (CV ve profildeki gerçek bilgilerle). Ücret ilanın aralığına göre (payFor).
+export async function standardAnswers(env, job = null) {
   const f = await facts(env);
-  const rate = Number(f.expected_hourly_rate_usd) || 30;
+  const rate = Number(f.expected_hourly_rate_usd) || DEFAULT_RATE;
   return {
     summary: humanize(`Software and digital product developer based in Türkiye (UTC+3). Since 2023 I have built and shipped four mobile apps on the App Store and Google Play (Dönerci, Coğrafist, Print Fast and WTF Yapay Zekâ, the last one with 50K+ Android downloads) and Galaktik Uzay, a multilingual AI content platform running on Cloudflare Workers, Hono, D1 and Azure OpenAI. I work full stack with TypeScript, React, Next.js and Node.js, use AI coding tools every day, and prefer async, written communication.`),
     experience: `Title: Founder and Product Developer (self-employed)\nCompany: Own products (independent)\nDates: April 2023 to present\nDescription: Built and published four mobile apps on the App Store and Google Play (React, TypeScript, Capacitor, Firebase, RevenueCat) and the Galaktik Uzay AI content platform (Cloudflare Workers, Hono, D1, Next.js, Azure OpenAI). Built full-stack websites for two businesses (ONOPO Store, Ivricambi).`,
     education: 'School: Istanbul Yeni Yüzyıl University\nDegree: Associate degree, Oral and Dental Health\nYears: 2024 to 2026',
-    compensation: `${rate} USD per hour (about ${rate * 160} USD per month), open to discussion`,
+    compensation: `${payFor(job, rate).text}, open to discussion`,
     years: '3',
     start: 'Immediately',
     authorization: 'I live in Türkiye and work remotely as a contractor, so I do not need visa sponsorship for remote work. I am not authorized to work in the US, UK or EU as an employee.',
@@ -50,7 +50,7 @@ async function workableForm(job) {
 
 // Paket: [{ label, value }] (formdaki sırayla). Dosya alanları için not düşülür.
 export async function buildOwnPack(env, settings, app, job) {
-  const std = await standardAnswers(env);
+  const std = await standardAnswers(env, job);
   const fields = await workableForm(job).catch(() => null);
   const out = [];
   const add = (label, value) => { if (value) out.push({ label: clip(String(label).replace(/\s+/g, ' ').trim(), 160), value: String(value) }); };
