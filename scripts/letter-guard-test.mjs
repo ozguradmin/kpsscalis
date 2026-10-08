@@ -51,6 +51,14 @@ async function run(name, letters) {
   ok(letterRedFlags('My rate is 30 USD per hour.', allowedTerms(F, null)).length === 1, 'eski 30 USD işaretlenir');
 }
 
+{ // 8 Ekim: "overlaps well with GMT" ve "my working hours fall in your afternoon" kaçıyordu
+  const ok = (c, m) => { console.log((c ? 'OK  ' : 'FAIL') + ' örtüşme: ' + m); if (!c) process.exitCode = 1; };
+  const has = (t) => letterRedFlags(t).some((f) => f.label === 'saat dilimi örtüşme vaadi');
+  ok(has("I'm based in Türkiye (UTC+3), which overlaps well with GMT, and I prefer async."), 'overlaps well with GMT');
+  ok(has('Bangkok is 4 hours ahead, so my weekday working hours fall in your afternoon.'), 'hours fall in your afternoon');
+  ok(!has("I'm based in Türkiye (UTC+3) and prefer async, written communication."), 'sade saat dilimi cümlesi serbest');
+}
+
 { // denetçi yeniden yazımdan sonra da itiraz ederse işaretli iddiaların cümleleri çıkar (7 Ekim djinni.co ön yazısı)
   const ok = (c, m) => { console.log((c ? 'OK  ' : 'FAIL') + ' denetçi: ' + m); if (!c) process.exitCode = 1; };
   const L = "I built Coğrafist with React, TypeScript and Capacitor. Those projects involved designing APIs and deploying on Linux servers. I use TypeScript in strict mode daily and I'm comfortable with Node.js, Express, and React. I understand Clean Architecture and apply it. You can see my work at ozgurguler.tech/en. Özgür Güler";
