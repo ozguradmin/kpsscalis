@@ -106,7 +106,7 @@ export function stripRedFlags(text, allowed = allowedTerms()) {
     .filter((p) => p.trim()).join('\n\n');
 }
 
-const TECH_TERMS = ['React Native', 'Flutter', 'Swift', 'SwiftUI', 'Kotlin', 'Java', 'Python', 'Django', 'Golang', 'Rust', 'Ruby', 'Rails', 'PHP', 'Laravel', 'Vue', 'Angular', 'Svelte', '.NET', 'C#', 'Kubernetes', 'AWS', 'GraphQL', 'PostgreSQL', 'Postgres', 'MongoDB', 'Docker', 'Terraform', 'Unity', 'Unreal'];
+const TECH_TERMS = ['React Native', 'Flutter', 'Swift', 'SwiftUI', 'Kotlin', 'Java', 'Python', 'Django', 'Golang', 'Rust', 'Ruby', 'Rails', 'PHP', 'Laravel', 'Vue', 'Angular', 'Svelte', '.NET', 'C#', 'Kubernetes', 'AWS', 'GraphQL', 'PostgreSQL', 'Postgres', 'MongoDB', 'Docker', 'Terraform', 'Unity', 'Unreal', 'CapCut', 'Canva', 'Premiere', 'Final Cut', 'After Effects', 'DaVinci', 'Photoshop', 'Illustrator', 'Figma', 'Hootsuite', 'HubSpot'];
 // Metinde geçen, ama adayın profilinde/CV'sinde hiç geçmeyen teknoloji adları ("deneyimim yok" diye geçenler hariç)
 export function unsupportedTech(text, profile) {
   const t = String(text || ''), p = String(profile || '').toLowerCase();

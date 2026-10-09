@@ -2,7 +2,7 @@
 // LLM taklit edilir (CF_TOKEN gerekmez). Çalıştır: node --import ./test/register.mjs scripts/letter-guard-test.mjs
 import { makeEnv } from '../test/env.mjs';
 import { migrate, getSettings } from '../src/lib/db.js';
-import { coverLetter, letterRedFlags, allowedTerms, stripClaims } from '../src/apply/materials.js';
+import { coverLetter, letterRedFlags, allowedTerms, stripClaims, unsupportedTech } from '../src/apply/materials.js';
 import { CV_EN } from '../src/cv-text.js';
 import { payFor } from '../src/profile.js';
 
@@ -65,4 +65,10 @@ async function run(name, letters) {
   const r = stripClaims(L, ['Claims deploying on Linux servers, not in CV', 'Claims Express, not in CV', 'Claims TypeScript strict mode daily, not in CV', 'Claims Clean Architecture application, not in CV'], CV_EN);
   ok(!/Linux|Express|strict|Clean Architecture/.test(r.text), 'işaretli iddialar çıktı');
   ok(/Coğrafist/.test(r.text) && /Özgür Güler$/.test(r.text) && r.removed === 3, 'doğru cümleler ve imza duruyor');
+}
+
+{ // CV'de olmayan içerik araçları (8 Ekim UW-Madison ön yazısı: "I work with CapCut and Canva daily")
+  const ok = (c, m) => { console.log((c ? 'OK  ' : 'FAIL') + ' araç: ' + m); if (!c) process.exitCode = 1; };
+  ok(unsupportedTech('For editing, I work with CapCut and Canva daily.', CV_EN).join() === 'CapCut,Canva', 'CapCut ve Canva yakalandı');
+  ok(unsupportedTech('I have not used Figma yet, but I can learn it.', CV_EN).length === 0, 'dürüst ifade geçer');
 }
