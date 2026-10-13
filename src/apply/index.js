@@ -5,7 +5,8 @@ import { now, uid, clip, safeJSON, hostOf, b64, DAY, MIN } from '../lib/util.js'
 import { coverLetter } from './materials.js';
 import { openBrowser, Recorder } from './browser.js';
 import { runAgent } from './agent.js';
-import { profileContext, cvBase64, CORE } from '../profile.js';
+import { profileContext, CORE } from '../profile.js';
+import { prepareCv, cvForApp } from './cv.js';
 import { waitForMail, sendMail, alertUser } from '../mail.js';
 import { seal, unseal, strongPassword, signLink } from '../lib/auth.js';
 import { detectATS } from '../sources/index.js';
@@ -65,6 +66,8 @@ export async function prepare(env, appId) {
   if (app.letter) return { ok: true };
   const a = safeJSON(job.analysis, {}) || {};
   const letter = await coverLetter(env, settings, job);
+  // İlana göre uyarlanmış CV (unvan, özet, sıralama); basım CV kullanılacağı an yapılır, denetimden geçmezse orijinal CV gider
+  await prepareCv(env, settings, appId, job);
   // Forum ilanlarında (HN) başvuru bağlantısı yoksa ilandaki e-posta adresine başvur
   if (job.source === 'hn' && !a.apply_email && !linkFromText(job)) { const e = String(job.description || '').match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i); if (e) { a.apply_email = e[0]; a.apply_method = 'email'; } }
   if (/^mailto:/i.test(job.apply_url || '') && !a.apply_email) { a.apply_email = job.apply_url.slice(7).split('?')[0]; a.apply_method = 'email'; }
@@ -115,7 +118,7 @@ export async function submit(env, appId, { userActive = false } = {}) {
     lastPassword: null,
     async file(which) {
       if (files[which]) return files[which];
-      if (which === 'cv_tr' || which === 'cv_en') files[which] = { b64: await cvBase64(env, which === 'cv_tr' ? 'tr' : 'en'), name: which === 'cv_tr' ? 'Ozgur_Guler_CV.pdf' : 'Ozgur_Guler_CV_English.pdf', mime: 'application/pdf' };
+      if (which === 'cv_tr' || which === 'cv_en') files[which] = { b64: b64((await cvForApp(env, appId, which === 'cv_tr' ? 'tr' : 'en', { browser })).bytes), name: which === 'cv_tr' ? 'Ozgur_Guler_CV.pdf' : 'Ozgur_Guler_CV_English.pdf', mime: 'application/pdf' };
       else if (which === 'letter_pdf') {
         const p = await browser.newPage();
         await p.setContent(`<html><body style="font-family:Arial,Helvetica,sans-serif;font-size:12pt;line-height:1.5;margin:48px">${String(app.letter || '').split(/\n+/).map((x) => `<p>${x.replace(/</g, '&lt;')}</p>`).join('')}</body></html>`);
@@ -207,7 +210,7 @@ async function submitByEmail(env, settings, app, job, analysis) {
   const body = String(app.letter || '').replace(/\s*Özgür Güler\s*$/u, '');
   const text = `${body}${/,\s*$/.test(body) ? '\n' : '\n\n'}Özgür Güler\n${CORE.email} · ${CORE.phone}\nPortfolio: ${CORE.portfolio}\nGitHub: ${CORE.github}\nLinkedIn: ${CORE.linkedin}\nCV (PDF): ${CORE.cv_url_en}`;
   try {
-    const res = await sendMail(env, settings, { to, subject, text, appId: app.id, attachments: [{ content: await cvBase64(env, 'en'), filename: 'Ozgur_Guler_CV_English.pdf', type: 'application/pdf', disposition: 'attachment' }] });
+    const res = await sendMail(env, settings, { to, subject, text, appId: app.id, attachments: [{ content: b64((await cvForApp(env, app.id, 'en')).bytes), filename: 'Ozgur_Guler_CV_English.pdf', type: 'application/pdf', disposition: 'attachment' }] });
     return finalize(env, settings, app.id, job, { status: 'submitted', reason: `E-posta ile gönderildi → ${to} (gönderim kabul edildi, teslim henüz doğrulanmadı)`, steps: 1, answers: { email_to: to, subject }, messageId: res?.messageId }, null);
   } catch (e) {
     return finalize(env, settings, app.id, job, { status: 'failed', reason: 'E-posta gönderilemedi: ' + e.message, steps: 0, answers: {} }, null);

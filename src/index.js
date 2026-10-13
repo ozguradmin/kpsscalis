@@ -9,6 +9,7 @@ import { mailTick, sendMail, dailyDigest, alertUser, followUps } from './mail.js
 import { liveLogin, regDomain } from './sessions.js';
 import { openBrowser, liveHandoff } from './apply/browser.js';
 import { cvPdf, CORE } from './profile.js';
+import { cvForApp } from './apply/cv.js';
 import { standardAnswers } from './apply/ownpack.js';
 import { CV_EN, CV_TR } from './cv-text.js';
 import { dispatch, recoverStuck, createApplication, ApplyWorkflow } from './apply/index.js';
@@ -179,7 +180,7 @@ async function ownBrowserPage(env, request, url, method, appId, panel) {
   return htmlPage(`${a.company}: kendi tarayıcından gönder`, `${css}<h1>${escHtml(a.company)}</h1><p>${escHtml(a.title)}</p>
     <p>Bu site Cloudflare robot doğrulaması kullanıyor ve sunucu tarayıcısını kabul etmiyor. Formu kendi tarayıcında aç, aşağıdakileri kopyala yapıştır, CV'yi yükle, gönder. Sonra en alttaki "Gönderdim"e bas.</p>
     <a class="big" href="${escHtml(a.apply_url || a.url)}" target="_blank" rel="noopener">1) İlanı / formu aç</a>
-    <a class="big" href="${escHtml(CORE.cv_url_en)}" target="_blank" rel="noopener" style="background:#2a3550;color:#e9edf4">CV (İngilizce PDF) indir</a>
+    <a class="big" href="${escHtml(url.pathname)}?cv=en" target="_blank" rel="noopener" style="background:#2a3550;color:#e9edf4">CV (İngilizce PDF, bu ilana göre) indir</a>
     <h2 style="font-size:18px;margin-top:22px">2) Kopyala, yapıştır</h2>${rows.map(item).join('')}
     <h2 style="font-size:18px;margin-top:22px">3) Gönderdikten sonra</h2><form method="post"><button>Gönderdim ✓</button></form><p><a href="${panel}" style="background:none;color:#86a9ee;padding:0">Panelde aç</a></p>`);
 }
@@ -206,6 +207,12 @@ async function api(request, env, ctx) {
     const a = await oneRow(env, 'SELECT a.id, a.status, j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.id=?', p.a);
     if (!a) return htmlPage('Bulunamadı', '<h1>Başvuru bulunamadı</h1>');
     const panel = `${url.origin}/#/basvuru/${a.id}`;
+    // Bu başvuru için uyarlanmış CV (yoksa ya da tasarım denetiminden geçmezse orijinal CV)
+    if (p.op === 'own' && url.searchParams.get('cv')) {
+      const lang = url.searchParams.get('cv') === 'tr' ? 'tr' : 'en';
+      const cv = await cvForApp(env, a.id, lang);
+      return new Response(cv.bytes, { headers: { 'content-type': 'application/pdf', 'content-disposition': `inline; filename="${lang === 'tr' ? 'Ozgur_Guler_CV.pdf' : 'Ozgur_Guler_CV_English.pdf'}"`, 'cache-control': 'private, max-age=300' } });
+    }
     if (p.op === 'own') return ownBrowserPage(env, request, url, method, a.id, panel);
     if (method !== 'POST') return htmlPage('Canlı devral', `<h1>${escHtml(a.company)}</h1><p>${escHtml(a.title)}</p><p>Ajan başvuruyu baştan dolduracak ve robot doğrulamasına gelince seni bekleyecek. Canlı tarayıcı bağlantısı 2-4 dakika içinde e-postana gelir; doğrulamayı geçince ajan kendiliğinden devam eder.</p><form method="post"><button>Başlat</button></form><p><a href="${panel}" style="background:none;color:#86a9ee;padding:0">Panelde aç</a></p>`);
     const r = await restartApp(env, a.id, true);
