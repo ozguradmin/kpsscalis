@@ -1,9 +1,9 @@
 // Aday profili: CV metni + onaylı gerçekler (facts). Başvurularda SADECE buradaki bilgiler kullanılır.
-import { CV_EN, CV_TR } from './cv-text.js';
+import { CV_EN, CV_TR, CV_DETAILS_EN, CV_VERSION } from './cv-text.js';
 import { allRows } from './lib/db.js';
 import { safeJSON, b64 } from './lib/util.js';
 
-export { CV_EN, CV_TR };
+export { CV_EN, CV_TR, CV_DETAILS_EN };
 
 // Özgür'ün kendi söylediği ve CV'deki temel gerçekler.
 // facts tablosu bunları geçersiz kılabilir.
@@ -98,8 +98,11 @@ export async function profileContext(env, { withFacts = true, maxFacts = 80 } = 
   return `CANDIDATE CORE FACTS (authoritative):
 ${Object.entries(CORE).map(([k, v]) => `- ${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`).join('\n')}
 
-CV (English, authoritative):
+CV (English, authoritative; this is the CV employers receive, so lean on it first):
 ${CV_EN}
+
+MORE TRUE DETAILS (from the previous longer CV; fine for technical answers, but letters should rest on the CV above):
+${CV_DETAILS_EN}
 ${factLines ? `\nADDITIONAL CONFIRMED FACTS:\n${factLines}` : ''}`;
 }
 
@@ -110,12 +113,12 @@ export const HONESTY_RULES = `HONESTY RULES (never break):
 - Do not mention that an AI/agent is writing or submitting the application. Do not make claims about personally not using AI either.
 - Legal/consent questions: answer truthfully (e.g., not authorized to work in the US; located in Türkiye).
 - Never promise working hours, time-zone overlap (e.g. "4+ hours with US Pacific"), start dates, salary or availability that are not in the profile. You may say: based in Türkiye (UTC+3), async-friendly, can start immediately.
-- Mobile apps are built with React + TypeScript + Capacitor (web tech wrapped for iOS/Android), NOT React Native, Flutter, Swift or Kotlin. Never claim React Native/Flutter/native experience; if a job asks for it, say the apps were built with React + Capacitor and that the React/TypeScript skills transfer.
+- Coğrafist, Print Fast and WTF Yapay Zekâ are built with React + TypeScript + Capacitor (web tech wrapped for iOS/Android). Dönerci is a 3D game built with the Godot 4 engine. None of them use React Native, Flutter, Swift, Kotlin, Unity or Unreal. Never claim React Native/Flutter/native/Unity experience; if a job asks for it, say which real stack was used (React + Capacitor, or Godot for games) and that the skills transfer.
 - Counts must match the CV exactly: FOUR apps published on the App Store / Google Play (Dönerci, Coğrafist, Print Fast, WTF Yapay Zekâ) plus Galaktik Uzay, a live web platform (not a store app) = five products in total. Say "four" only when talking about store/mobile apps; "five products" is correct only for the total including Galaktik Uzay.`;
 
 // CV PDF'lerini R2'de önbelleğe alır (form yüklemeleri ve e-posta ekleri için)
 export async function cvPdf(env, lang = 'en') {
-  const key = `assets/cv_${lang}.pdf`;
+  const key = `assets/cv_${lang}_${CV_VERSION}.pdf`;
   const obj = await env.R2.get(key);
   if (obj && Date.now() - new Date(obj.uploaded).getTime() < 3 * 86400000) return new Uint8Array(await obj.arrayBuffer());
   const url = lang === 'tr' ? CORE.cv_url_tr : CORE.cv_url_en;

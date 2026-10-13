@@ -15,8 +15,15 @@ export async function standardAnswers(env, job = null) {
   const f = await facts(env);
   const rate = Number(f.expected_hourly_rate_usd) || DEFAULT_RATE;
   return {
-    summary: humanize(`Software and digital product developer based in Türkiye (UTC+3). Since 2023 I have built and shipped four mobile apps on the App Store and Google Play (Dönerci, Coğrafist, Print Fast and WTF Yapay Zekâ, the last one with 50K+ Android downloads) and Galaktik Uzay, a multilingual AI content platform running on Cloudflare Workers, Hono, D1 and Azure OpenAI. I work full stack with TypeScript, React, Next.js and Node.js, use AI coding tools every day, and prefer async, written communication.`),
-    experience: `Title: Founder and Product Developer (self-employed)\nCompany: Own products (independent)\nDates: April 2023 to present\nDescription: Built and published four mobile apps on the App Store and Google Play (React, TypeScript, Capacitor, Firebase, RevenueCat) and the Galaktik Uzay AI content platform (Cloudflare Workers, Hono, D1, Next.js, Azure OpenAI). Built full-stack websites for two businesses (ONOPO Store, Ivricambi).`,
+    summary: humanize(`Mobile app and game developer based in Türkiye (UTC+3). I have 4 apps on the App Store and Google Play (Dönerci, Coğrafist, Print Fast and WTF Yapay Zekâ, which passed 50,000 downloads) and I take projects from idea to launch on my own, including design, code, payments and store releases. I work with React, Next.js, TypeScript, Node.js, Capacitor, Godot 4 and Cloudflare Workers, and I also build AI tools (Galaktik Uzay, LLM Evaluation Toolkit, Turkish speech models). I prefer async, written communication.`),
+    experience: `Title: Independent Developer (self-employed)
+Company: Own products (independent)
+Dates: April 2023 to present
+Description: Built and published 4 apps on the App Store and Google Play: Dönerci (3D tycoon game in Godot, 5 languages, ads and in-app purchases), Coğrafist (geography learning app, React + Capacitor, 30+ study modes, subscriptions), Print Fast (thermal printer app) and WTF Yapay Zekâ (Turkish AI assistant, 50,000+ downloads). Also built Galaktik Uzay, an AI space news site that publishes in 6 languages.
+
+Title: Freelance Web Developer
+Company: ONOPO Store, Ivricambi
+Description: E-commerce site with iyzico payments and an admin panel (ONOPO Store) and a product catalog site for a spare parts company (Ivricambi).`,
     education: 'School: Istanbul Yeni Yüzyıl University\nDegree: Associate degree, Oral and Dental Health\nYears: 2024 to 2026',
     compensation: `${payFor(job, rate).text}, open to discussion`,
     years: '3',

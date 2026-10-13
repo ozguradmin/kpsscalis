@@ -45,7 +45,7 @@ Her şey Cloudflare üzerinde. Cloudflare hesabı `3c39c225b3a27de7822833feb24b6
 - `apply/ownpack.js`: "kendi tarayıcından gönder" paketi (Workable form API'sinden sorular ve standart cevaplar).
 - `mail.js`: posta işleme, sınıflandırma, takip görevleri, uyarılar, günlük özet, `sendMail` (insanlaştırma ve site linki düzeltme).
 - `brain.js`: panel sohbet ajanı, sabah öz değerlendirme, `learnSourceWeights`.
-- `profile.js`: CORE profil, HONESTY_RULES, STYLE_RULES. `cv-text.js`: CV metni.
+- `profile.js`: CORE profil, HONESTY_RULES, STYLE_RULES. `cv-text.js`: CV metni, ek ayrıntılar, `CV_VERSION`.
 - `lib/`: `db.js` (migrate, settings, secrets), `auth.js` (parola, oturum, imzalı link, kasa şifrelemesi), `llm.js`, `util.js` (`humanize`, `fixSiteLink`, `looksEnglish`).
 - `public/`: panel arayüzü (tek sayfa, telefona uygun).
 - `test/`: yerel ortam taklitleri. `scripts/`: yardımcı betikler (bkz. `scripts/README.md`).
@@ -141,7 +141,8 @@ Kayıtlı tarayıcı çerezleri `sessions` tablosunda. `logins` tablosu canlı g
 
 - **Dürüstlük** (`profile.js` HONESTY_RULES):
   - Sadece CV ve onaylı `facts` kullanılır. Uydurma deneyim, URL, yetki, dil yok.
-  - Mobil uygulamalar React + TypeScript + Capacitor. **React Native, Flutter ya da native değil.**
+  - Coğrafist, Print Fast, WTF Yapay Zekâ: React + TypeScript + Capacitor. Dönerci: Godot 4 (3D oyun). **React Native, Flutter, Unity ya da native değil.**
+  - CV: 13 Ekim 2026'dan beri sade tek sayfa CV (`cv-text.js` → `CV_EN`/`CV_TR`). Eski uzun CV'deki doğru teknik ayrıntılar `CV_DETAILS_EN` içinde. PDF değişince `CV_VERSION`'ı artır (R2 önbelleği yenilenir).
   - Ürün sayısı: App Store/Google Play'de **4 uygulama** (Dönerci, Coğrafist, Print Fast, WTF Yapay Zekâ). Galaktik Uzay ayrı bir web platformu. Toplam **5 ürün**.
   - Çalışma saati, saat dilimi örtüşmesi, başlama tarihi, maaş ya da müsaitlik vaadi profilde yoksa yazılmaz.
   - Seviye Junior ya da Mid. "Nereden duydunuz" sorusuna gerçek kaynak yazılır.

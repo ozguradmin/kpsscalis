@@ -29,7 +29,7 @@ Style: ${lang}, 120-190 words, warm and direct, no clichés ("I am writing to ex
   const fake = unsupportedTech(text, profile);
   const flags = letterRedFlags(text, allowed);
   if (fake.length || flags.length) {
-    const why = [fake.length ? `do not claim these technologies, the candidate has not used them: ${fake.join(', ')}. Mobile apps were built with React + TypeScript + Capacitor.` : '', ...flags.map((f) => f.fix)].filter(Boolean).join(' ');
+    const why = [fake.length ? `do not claim these technologies, the candidate has not used them: ${fake.join(', ')}. Mobile apps were built with React + TypeScript + Capacitor, the Dönerci game with Godot 4.` : '', ...flags.map((f) => f.fix)].filter(Boolean).join(' ');
     try { text = await gen(`\n\nIMPORTANT: ${why}`); } catch (e) { /* ilk metin */ }
   }
   const warnings = [];
@@ -142,7 +142,7 @@ function cleanLetter(s) {
 export async function truthCheck(env, settings, text) {
   try {
     const o = await llm(env, settings, { task: 'judge', json: true, maxTokens: 500, messages: [
-      { role: 'system', content: 'You verify claims in an application text against the candidate CV/facts. Return ONLY JSON {"ok":true|false,"issues":["each unsupported or false claim, short"]}. Reasonable paraphrases and enthusiasm are fine; invented employers, numbers, years, skills, degrees, language fluency or claims of being a native English speaker are NOT. Technologies/frameworks must appear in the CV (e.g. the mobile apps use React + Capacitor; saying React Native is false). The candidate has FOUR apps on the App Store/Google Play; Galaktik Uzay is a web platform. Promises of working-hour overlap with other time zones are not in the CV (false). Weekly hours that differ from preferred_weekly_hours are false. Pay is checked separately; ignore pay figures. Stories, incidents or example bug reports told as if they really happened are false unless they are in the CV.' },
+      { role: 'system', content: 'You verify claims in an application text against the candidate CV/facts. Return ONLY JSON {"ok":true|false,"issues":["each unsupported or false claim, short"]}. Reasonable paraphrases and enthusiasm are fine; invented employers, numbers, years, skills, degrees, language fluency or claims of being a native English speaker are NOT. Technologies/frameworks must appear in the CV (e.g. the mobile apps use React + Capacitor and the Dönerci game uses Godot 4; saying React Native, Flutter or Unity is false). The candidate has FOUR apps on the App Store/Google Play; Galaktik Uzay is a web platform. Promises of working-hour overlap with other time zones are not in the CV (false). Weekly hours that differ from preferred_weekly_hours are false. Pay is checked separately; ignore pay figures. Stories, incidents or example bug reports told as if they really happened are false unless they are in the CV.' },
       { role: 'user', content: `CANDIDATE:\n${await profileContext(env, { maxFacts: 40 })}\n\nTEXT:\n${text}` }] });
     const j = o.json || {};
     return { ok: j.ok !== false || !(j.issues || []).length, issues: j.issues || [] };

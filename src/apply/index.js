@@ -203,7 +203,7 @@ export async function submit(env, appId, { userActive = false } = {}) {
 
 async function submitByEmail(env, settings, app, job, analysis) {
   const to = analysis.apply_email;
-  const subject = /open application/i.test(job.title) ? `Open application: full-stack developer (remote), Özgür Güler` : `Application for ${job.title.replace(/\s*[—–|]\s*/g, ', ')} (Özgür Güler)`;
+  const subject = /open application/i.test(job.title) ? `Open application: mobile app and web developer (remote), Özgür Güler` : `Application for ${job.title.replace(/\s*[—–|]\s*/g, ', ')} (Özgür Güler)`;
   const body = String(app.letter || '').replace(/\s*Özgür Güler\s*$/u, '');
   const text = `${body}${/,\s*$/.test(body) ? '\n' : '\n\n'}Özgür Güler\n${CORE.email} · ${CORE.phone}\nPortfolio: ${CORE.portfolio}\nGitHub: ${CORE.github}\nLinkedIn: ${CORE.linkedin}\nCV (PDF): ${CORE.cv_url_en}`;
   try {
