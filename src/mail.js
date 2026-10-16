@@ -214,7 +214,9 @@ export async function followUps(env, settings) {
   for (const r of rows) {
     const ans = (() => { try { return JSON.parse(r.answers || '{}'); } catch (e) { return {}; } })();
     if (!ans.email_to) continue;
-    const text = `Hello,\n\nI wanted to briefly follow up on my application for ${r.title} at ${r.company}, sent on ${new Date(r.submitted_at).toISOString().slice(0, 10)}. I remain very interested and I am happy to share anything else that would help, such as code samples or a short written task.\n\nThank you for your time,\nÖzgür Güler\nozgurguler.tech/en`;
+    // Açık başvurularda ilan adı "Open application (remote)"; "application for Open application" gibi bozuk cümle çıkmasın
+    const what = /^open application/i.test(r.title || '') ? `my open application to ${r.company}` : `my application for ${r.title} at ${r.company}`;
+    const text = `Hello,\n\nI wanted to briefly follow up on ${what}, sent on ${new Date(r.submitted_at).toISOString().slice(0, 10)}. I remain very interested and I am happy to share anything else that would help, such as code samples or a short written task.\n\nThank you for your time,\nÖzgür Güler\nozgurguler.tech/en`;
     await sendMail(env, settings, { to: ans.email_to, subject: /^re:/i.test(ans.subject || '') ? ans.subject : `Re: ${ans.subject || 'Application — Özgür Güler'}`, text, appId: r.id });
     await log(env, 'followup', `${r.company}: 8 gün yanıt gelmediği için kısa hatırlatma gönderildi (kabul edildi)`, { ref: r.id });
     sent++;
