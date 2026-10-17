@@ -30,7 +30,7 @@ const NAVY = '#14325c', INK = '#1e1e1e', GREY = '#5a6270';
 const esc = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const lab = (it) => (it.href ? `<a class="l" href="${esc(it.href)}">${esc(it.label)}</a>: ` : `<b>${esc(it.label)}:</b> `);
 
-// Ölçüler orijinal PDF'ten (pt): kenar 57, yazı alanı 481.3; ad 24 kalın, unvan 12.5, iletişim 9.1, başlık 10.9 + 0.7 çizgi, metin 9.9 / 13.85 satır
+// Ölçüler orijinal PDF'ten (pt): kenar 57, yazı alanı 481.3; ad 24 kalın, unvan 12.5, iletişim 9.0, başlık 10.8 + 0.7 çizgi, metin 9.8 / 13.72 satır (17 Ekim sürümü)
 export function renderCvHtml(cv) {
   const sec = (s) => {
     let body = '';
@@ -52,19 +52,19 @@ a{color:${NAVY};text-decoration:none}
 b{font-weight:600}
 .name{font-weight:700;font-size:24pt;line-height:29pt;color:${NAVY};white-space:nowrap}
 .title{font-weight:600;font-size:12.5pt;line-height:15pt;color:${GREY};margin-top:-.81pt;white-space:nowrap}
-.contact{font-size:9.1pt;line-height:12pt;margin-top:4.34pt;white-space:nowrap}
+.contact{font-size:9pt;line-height:12pt;margin-top:4.34pt;white-space:nowrap}
 section{margin-top:13.01pt}
 section:first-of-type{margin-top:14.55pt}
-h2{font-weight:700;font-size:10.9pt;line-height:14.4pt;color:${NAVY};padding-bottom:1.41pt;border-bottom:.7pt solid ${NAVY}}
-.tx,.row,li{font-size:9.9pt;line-height:13.85pt}
+h2{font-weight:700;font-size:10.8pt;line-height:12.4pt;color:${NAVY};padding-bottom:3.41pt;border-bottom:.7pt solid ${NAVY}}
+.tx,.row,li{font-size:9.8pt;line-height:13.72pt}
 .tx{margin-top:5.03pt}
 .rows{margin-top:5.03pt}
 h2+.grp{margin-top:5.83pt}
 .grp+.grp{margin-top:6.86pt}
 .s-groups{padding-bottom:6pt}
-.gh{font-weight:600;font-size:10.5pt;line-height:13pt}
+.gh{font-weight:600;font-size:10.4pt;line-height:13pt}
 ul{list-style:none}
-li{position:relative;padding-left:12pt;margin-top:2.55pt}
+li{position:relative;padding-left:12pt;margin-top:2.5pt}
 .pl{padding-top:2.48pt}
 li::before{content:'•';position:absolute;left:1pt;top:0;font-family:Helvetica,Arial,sans-serif;font-size:10pt}
 li a.l{font-weight:600}

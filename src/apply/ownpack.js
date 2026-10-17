@@ -15,7 +15,7 @@ export async function standardAnswers(env, job = null) {
   const f = await facts(env);
   const rate = Number(f.expected_hourly_rate_usd) || DEFAULT_RATE;
   return {
-    summary: humanize(`Mobile app and game developer based in Türkiye (UTC+3). I have 4 apps on the App Store and Google Play (Dönerci, Coğrafist, Print Fast and WTF Yapay Zekâ, which passed 50,000 downloads) and I take projects from idea to launch on my own, including design, code, payments and store releases. I work with React, Next.js, TypeScript, Node.js, Capacitor, Godot 4 and Cloudflare Workers, and I also build AI tools (Galaktik Uzay, LLM Evaluation Toolkit, Turkish speech models). I prefer async, written communication.`),
+    summary: humanize(`Mobile app and game developer based in Türkiye (UTC+3). I have 4 apps on the App Store and Google Play (Dönerci, Coğrafist, Print Fast and WTF Yapay Zekâ, which passed 50,000 downloads) and I take projects from idea to launch on my own, including design, code, payments and store releases. I work with React, Next.js, TypeScript, Node.js, Capacitor, Godot 4 and Cloudflare Workers, and I also build AI tools (Galaktik Uzay, LLM Evaluation Toolkit, and Ahenk, an open-source Turkish text-to-speech model). I prefer async, written communication.`),
     experience: `Title: Independent Developer (self-employed)
 Company: Own products (independent)
 Dates: April 2023 to present

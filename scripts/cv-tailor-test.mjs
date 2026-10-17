@@ -18,7 +18,7 @@ const cases = [
   ['mobile', 'en', { title: 'mobile_only', summary: { en: SUM_MOBILE }, order: { indie: ['wtf', 'cografist', 'printfast', 'donerci'], skills: ['mobile', 'web', 'ai'] } }, true],
   ['fullstack', 'en', { title: 'fullstack', summary: { en: SUM_FULL }, order: { indie: ['galaktik', 'cografist'], skills: ['web', 'ai', 'mobile'], sections: ['experience', 'skills', 'projects', 'social'] } }, true],
   ['fullstack_tr', 'tr', { title: 'fullstack', summary: { tr: SUM_TR }, order: { indie: ['galaktik', 'cografist'], skills: ['web', 'ai', 'mobile'] } }, true],
-  ['ai_tr', 'tr', { title: 'ai', order: { projects: ['llmeval', 'speech', 'whisper', 'automation'], skills: ['ai'], sections: ['projects', 'experience', 'skills', 'social'] } }, true],
+  ['ai_tr', 'tr', { title: 'ai', order: { projects: ['ahenk', 'llmeval', 'stt', 'whisper', 'automation'], skills: ['ai'], sections: ['projects', 'experience', 'skills', 'social'] } }, true],
   ['content', 'en', { title: 'content', order: { sections: ['social', 'experience', 'projects', 'skills'], projects: ['automation'] } }, true],
   ['game', 'en', { title: 'game', order: { indie: ['donerci'] } }, true],
   // Bozuk olması gerekenler: çok uzun özet sayfayı taşırır, çok uzun unvan tek satıra sığmaz

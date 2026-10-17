@@ -1,4 +1,4 @@
-// CV'nin yapılandırılmış hâli (ozgurguler.tech/pro/*.pdf, 13 Ekim 2026 düzeltilmiş sürüm). Tek doğruluk kaynağı:
+// CV'nin yapılandırılmış hâli (ozgurguler.tech/pro/*.pdf, 17 Ekim 2026 sürümü: Ahenk eklendi). Tek doğruluk kaynağı:
 // düz metin (cv-text.js) ve başvuruya özel PDF (apply/cv.js) buradan üretilir. Burada olmayan bir şey başvuruda iddia edilmez.
 // Bağlantılı maddelerde iki nokta düz yazıyla gelir ("Dönerci: …"); bağlantısızlarda kalın etiketin içindedir.
 const LINKS = {
@@ -14,6 +14,7 @@ const LINKS = {
   galaktik: 'https://galaktikuzay.com/',
   onopo: 'https://onopostore.com/',
   ivricambi: 'https://ivricambi.com/',
+  ahenk: 'https://github.com/ozguradmin/ahenk-turkish-tts',
   llmeval: 'https://github.com/ozguradmin/galaktikuzay/tree/master/llm-eval',
   whisper: 'https://whisper-web-scribe.vercel.app/',
 };
@@ -31,7 +32,7 @@ export const CV_DATA = {
       { t: 'LinkedIn', href: LINKS.linkedin },
     ],
     sections: [
-      { id: 'summary', h: 'SUMMARY', type: 'text', text: 'I create mobile apps and games, and I also work on web projects. I have 4 apps live on the app stores; WTF Yapay Zekâ has passed 50,000 downloads. I take my projects from idea to launch on my own, including design, code, payments and store releases. Outside of software, I manage several social media accounts I grew from scratch (100K+ followers each, one peaked at 1M+).' },
+      { id: 'summary', h: 'SUMMARY', type: 'text', text: 'I create mobile apps and games, and I also work on web projects. I have 4 apps live on the app stores; WTF Yapay Zekâ has passed 50,000 downloads. I recently released Ahenk, an open-source Turkish text-to-speech model. I take my projects from idea to launch on my own, including design, code, payments and store releases. Outside of software, I manage several social media accounts I grew from scratch (100K+ followers each, one peaked at 1M+).' },
       { id: 'experience', h: 'EXPERIENCE', type: 'groups', groups: [
         { id: 'indie', h: 'Independent Developer', items: [
           { id: 'donerci', label: 'Dönerci', href: LINKS.donerci, text: '3D restaurant tycoon game (Godot). Live in 5 languages on the App Store and Google Play, with ads and in-app purchases.' },
@@ -46,7 +47,8 @@ export const CV_DATA = {
         ] },
       ] },
       { id: 'projects', h: 'OTHER PROJECTS', type: 'list', items: [
-        { id: 'speech', label: 'Turkish speech models', text: 'Developing Turkish speech-to-text (STT) and text-to-speech (TTS) models, to be released as open source.' },
+        { id: 'ahenk', label: 'Ahenk', href: LINKS.ahenk, text: 'Open-source Turkish text-to-speech (TTS) models with question intonation, 6 emotions and laughter. The small version runs in the browser; fewer errors than Trendyol-TTS on hard sentences.' },
+        { id: 'stt', label: 'Turkish speech recognition (STT)', text: 'Developing a small, commercially usable model, to be released as open source.' },
         { id: 'automation', label: 'Automation system', text: 'Automatically produces video content for my own social media accounts.' },
         { id: 'llmeval', label: 'LLM Evaluation Toolkit', href: LINKS.llmeval, text: 'Open-source tool that compares AI models on quality, speed and cost.' },
         { id: 'whisper', label: 'Whisper Web Scribe', href: LINKS.whisper, text: 'Open-source tool that transcribes audio in the browser, no server needed.' },
@@ -54,7 +56,7 @@ export const CV_DATA = {
       { id: 'skills', h: 'SKILLS', type: 'rows', rows: [
         { id: 'mobile', label: 'Mobile & Games', text: 'Capacitor (iOS/Android), Godot 4, AdMob, in-app purchases, store releases' },
         { id: 'web', label: 'Web & Backend', text: 'React, Next.js, TypeScript, Node.js, Cloudflare Workers, Firebase, SQL' },
-        { id: 'ai', label: 'AI', text: 'OpenAI / Azure OpenAI, Whisper, STT/TTS, content automation' },
+        { id: 'ai', label: 'AI', text: 'Speech model training (TTS/STT), OpenAI / Azure OpenAI, Whisper, content automation' },
       ] },
       { id: 'social', h: 'SOCIAL MEDIA', type: 'text', text: 'Grew several accounts from scratch and still manage them, including Tarihsel Wojak (Instagram 400K+, previously 1M+, YouTube 100K+), Kırmızı ya da Mavi (YouTube 250K+), WTF Çeviri and Galaktik Uzay (Instagram 200K+). Ran paid promotions for the films Siccin and Nazar.' },
       { id: 'education', h: 'EDUCATION', type: 'edu', label: 'Istanbul Yeni Yüzyıl University', text: 'Associate Degree, Oral and Dental Health · 2026' },
@@ -72,7 +74,7 @@ export const CV_DATA = {
       { t: 'LinkedIn', href: LINKS.linkedin },
     ],
     sections: [
-      { id: 'summary', h: 'PROFİL', type: 'text', text: "Mobil uygulama ve oyun geliştiriyorum, web projeleri de yapıyorum. Mağazalarda yayında 4 uygulamam var; WTF Yapay Zekâ 50.000'den fazla indirildi. Projelerimi fikirden yayına kadar tek başıma götürüyorum: tasarım, kod, ödeme sistemleri ve mağaza yayını dahil. Ayrıca 100K+ takipçili birçok sosyal medya hesabını sıfırdan kurdum ve yönetiyorum; en büyüğü bir dönem 1 milyonu geçti." },
+      { id: 'summary', h: 'PROFİL', type: 'text', text: "Mobil uygulama ve oyun geliştiriyorum, web projeleri de yapıyorum. Mağazalarda yayında 4 uygulamam var; WTF Yapay Zekâ 50.000'den fazla indirildi. Yakın zamanda açık kaynak Türkçe seslendirme modeli Ahenk'i yayınladım. Projelerimi fikirden yayına kadar tek başıma götürüyorum: tasarım, kod, ödeme sistemleri ve mağaza yayını dahil. Ayrıca 100K+ takipçili birçok sosyal medya hesabını sıfırdan kurdum ve yönetiyorum; en büyüğü bir dönem 1 milyonu geçti." },
       { id: 'experience', h: 'DENEYİM', type: 'groups', groups: [
         { id: 'indie', h: 'Bağımsız Geliştirici', items: [
           { id: 'donerci', label: 'Dönerci', href: LINKS.donerci, text: "3D döner dükkânı işletme oyunu (Godot). 5 dilde App Store ve Google Play'de; reklam ve uygulama içi satın alma sistemi." },
@@ -87,7 +89,8 @@ export const CV_DATA = {
         ] },
       ] },
       { id: 'projects', h: 'DİĞER PROJELER', type: 'list', items: [
-        { id: 'speech', label: 'Türkçe ses modelleri', text: 'Türkçe konuşmayı yazıya çeviren (STT) ve seslendiren (TTS) modeller geliştiriyorum; açık kaynak olarak yayınlanacak.' },
+        { id: 'ahenk', label: 'Ahenk', href: LINKS.ahenk, text: "Açık kaynak Türkçe seslendirme (TTS) modelleri; soru tonlaması, 6 duygu ve gülme. Küçük sürümü tarayıcıda çalışıyor; zor cümle testinde Trendyol-TTS'ten daha az hata yaptı." },
+        { id: 'stt', label: 'Türkçe konuşma tanıma (STT)', text: 'Ticari kullanıma açık, küçük bir model geliştiriyorum; açık kaynak olarak yayınlanacak.' },
         { id: 'automation', label: 'Otomasyon sistemi', text: 'Kendi sosyal medya hesaplarım için video içeriklerini otomatik üreten sistem.' },
         { id: 'llmeval', label: 'LLM Evaluation Toolkit', href: LINKS.llmeval, text: 'Yapay zekâ modellerini kalite, hız ve maliyete göre kıyaslar. Açık kaynak.' },
         { id: 'whisper', label: 'Whisper Web Scribe', href: LINKS.whisper, text: 'Sesi sunucuya göndermeden tarayıcıda yazıya döker. Açık kaynak.' },
@@ -95,7 +98,7 @@ export const CV_DATA = {
       { id: 'skills', h: 'YETKİNLİKLER', type: 'rows', rows: [
         { id: 'mobile', label: 'Mobil & Oyun', text: 'Capacitor (iOS/Android), Godot 4, AdMob, uygulama içi satın alma, mağaza yayını' },
         { id: 'web', label: 'Web & Backend', text: 'React, Next.js, TypeScript, Node.js, Cloudflare Workers, Firebase, SQL' },
-        { id: 'ai', label: 'Yapay Zekâ', text: 'OpenAI / Azure OpenAI, Whisper, STT/TTS, içerik otomasyonu' },
+        { id: 'ai', label: 'Yapay Zekâ', text: 'Ses modeli eğitimi (TTS/STT), OpenAI / Azure OpenAI, Whisper, içerik otomasyonu' },
       ] },
       { id: 'social', h: 'SOSYAL MEDYA', type: 'text', text: 'Tarihsel Wojak (Instagram 400K+, geçmişte 1M+, YouTube 100K+), Kırmızı ya da Mavi (YouTube 250K+), WTF Çeviri ve Galaktik Uzay (Instagram 200K+) dahil birçok hesabı sıfırdan kurdum ve yönetiyorum. Siccin ve Nazar filmlerinin ücretli tanıtımlarını yaptım.' },
       { id: 'education', h: 'EĞİTİM', type: 'edu', label: 'İstanbul Yeni Yüzyıl Üniversitesi', text: 'Ağız ve Diş Sağlığı (Ön Lisans) · 2026' },

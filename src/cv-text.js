@@ -1,8 +1,8 @@
-// ozgurguler.tech/pro/*.pdf içeriği (13 Ekim 2026, sade tek sayfa CV, düzeltilmiş sürüm). Kaynak: cv-data.js.
+// ozgurguler.tech/pro/*.pdf içeriği (17 Ekim 2026, sade tek sayfa CV, Ahenk eklendi). Kaynak: cv-data.js.
 // CV PDF'i değişince cv-data.js'i güncelle ve CV_VERSION'ı artır: R2'deki PDF önbelleği yenilenir.
 import { CV_DATA, cvToText } from './cv-data.js';
 
-export const CV_VERSION = '2026-10-13b';
+export const CV_VERSION = '2026-10-17';
 export const CV_EN = cvToText(CV_DATA.en);
 export const CV_TR = cvToText(CV_DATA.tr);
 
