@@ -93,10 +93,13 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
     // 1) Başvuruya bağla: sadece başvurudan SONRA gelen e-postalar; şirket adı ya da şirketin kendi alan adı (ATS alan adları ortak olduğu için sayılmaz)
     const recvT = Date.parse(m.received_at) || now();
     const dom = (m.from_address || '').split('@')[1] || '';
-    const hay = normKey(`${m.from_name} ${m.subject} ${body.slice(0, 1500)} ${dom}`);
+    // Kelime sınırıyla ara: "Open" şirketi "OpenToken" ya da "open source" geçen her maile bağlanmasın.
+    // Tek kelimelik kısa adlar (Open, FIRST…) sıradan kelime de olabilir: sadece gönderen adında / alan adında eşleşsin
+    const hay = ` ${normKey(`${m.from_name} ${m.subject} ${body.slice(0, 1500)} ${dom}`)} `;
+    const sender = ` ${normKey(`${m.from_name} ${dom.replace(/\./g, ' ')}`)} `;
     const eligible = apps.filter((a) => (a.created_at || 0) - 5 * 60000 <= recvT);
     const ATS_HOSTS = /greenhouse|lever|ashby|workable|recruitee|personio|teamtailor|breezy|smartrecruiters|himalayas|getonbrd|remoteok|djinni|jobicy|pstmrk|sendgrid|mailgun/i;
-    const app = eligible.find((a) => { const c = normKey(a.company); return c.length > 2 && hay.includes(c); })
+    const app = eligible.find((a) => { const c = normKey(a.company); if (c.length <= 2) return false; return (!c.includes(' ') && c.length <= 5 ? sender : hay).includes(` ${c} `); })
       || eligible.find((a) => { const h = hostOf(a.apply_url || a.url).split('.').slice(-2, -1)[0]; return h && h.length > 3 && !ATS_HOSTS.test(h) && dom.includes(h); });
     // 2) Sınıflandır (başvuru bağlamıyla) + takip eylemi türü
     let category = 'other', conf = 0, action = 'none';
@@ -116,6 +119,12 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
         const o = await llm(env, settings, { task: 'mail', json: true, maxTokens: 160, messages: [{ role: 'system', content: `Classify the email for a job seeker. Return JSON {"cat":"${Object.keys(CATS).join('|')}","action":"signup_or_profile|test_or_interview|schedule_or_reply|none"}` }, { role: 'user', content: `From: ${m.from_address}\nSubject: ${m.subject}\nRelated application: ${app ? app.company : 'none'}\n\n${clip(body, 2000)}` }] });
         category = o.json?.cat || 'other'; action = o.json?.action || 'none';
       } catch (e2) { /* sınıflandırılamadı */ }
+    }
+    // Başvuruya bağlanmayan ve işle ilgili tek kelime geçmeyen kişisel mailler (ör. Ahenk'e ses örneği teklifi) işveren mesajı değildir:
+    // "Sana kalanlar"a düşmesin, uyarı ve otomatik cevap gitmesin
+    if (!app && ['recruiter', 'interview', 'assessment', 'offer'].includes(category)
+      && !/\b(job|position|role|hiring|recruit\w*|application|apply|interview|candidate|resume|cv|opportunit\w*|offer|contract|assessment|invitation|qualif\w*|vacanc\w*|freelance|başvuru\w*|pozisyon\w*|ilan\w*|mülakat\w*|iş teklifi|işe alım)\b/i.test(`${m.subject}\n${body}`)) {
+      category = 'other'; action = 'none';
     }
     // 3) Takip görevi: kayıt/profil/CV adımını ajan kendisi tamamlasın
     // Otomatik rapor/bülten e-postalarından (ör. "Djinni statistics for the week") görev çıkarma
