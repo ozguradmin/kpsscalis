@@ -235,6 +235,8 @@ Only change things the data supports; keep each prompt_addenda under 700 chars, 
       ...(await env.DB.prepare('SELECT domain FROM sessions').all()).results.map((x) => x.domain),
       ...(await env.DB.prepare("SELECT site FROM accounts WHERE status='active'").all()).results.map((x) => String(x.site).split('.').slice(-2).join('.')),
     ]);
+    // Büyük ATS'ler (binlerce şirket) tek şirketteki hatalar yüzünden toptan engellenmez (26 Ekim: Yuno'da 2 takılma → lever.co engellendi)
+    for (const d of ['lever.co', 'greenhouse.io', 'ashbyhq.com', 'smartrecruiters.com', 'recruitee.com', 'teamtailor.com', 'breezy.hr']) keep.add(d);
     const add = r.blocked_domains_add.map(String).slice(0, 10).filter((d) => !keep.has(d.split('.').slice(-2).join('.')));
     if (add.length) {
       const bd = [...new Set([...(settings.blocked_domains || []), ...add])];
