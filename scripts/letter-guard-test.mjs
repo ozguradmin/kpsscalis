@@ -2,7 +2,7 @@
 // LLM taklit edilir (CF_TOKEN gerekmez). Çalıştır: node --import ./test/register.mjs scripts/letter-guard-test.mjs
 import { makeEnv } from '../test/env.mjs';
 import { migrate, getSettings } from '../src/lib/db.js';
-import { coverLetter, letterRedFlags, allowedTerms, stripClaims, unsupportedTech } from '../src/apply/materials.js';
+import { coverLetter, letterRedFlags, stripRedFlags, allowedTerms, stripClaims, unsupportedTech } from '../src/apply/materials.js';
 import { CV_EN } from '../src/cv-text.js';
 import { payFor } from '../src/profile.js';
 
@@ -57,6 +57,18 @@ async function run(name, letters) {
   ok(has("I'm based in Türkiye (UTC+3), which overlaps well with GMT, and I prefer async."), 'overlaps well with GMT');
   ok(has('Bangkok is 4 hours ahead, so my weekday working hours fall in your afternoon.'), 'hours fall in your afternoon');
   ok(!has("I'm based in Türkiye (UTC+3) and prefer async, written communication."), 'sade saat dilimi cümlesi serbest');
+}
+
+{ // 28 Ekim: ön yazılar "on a call or in writing" diye görüşme teklif ediyordu (Canonical, Fairarena, Ergeon)
+  const ok = (c, m) => { console.log((c ? 'OK  ' : 'FAIL') + ' görüşme: ' + m); if (!c) process.exitCode = 1; };
+  const has = (t) => letterRedFlags(t).some((f) => f.label === 'sesli/görüntülü görüşme teklifi');
+  ok(has('I would be glad to walk through my work in writing or on a call if that works for you.'), 'on a call');
+  ok(has('Happy to hop on a call or share more details about my projects.'), 'hop on a call');
+  ok(has('Is there a good time this week for a quick chat?'), 'quick chat');
+  ok(!has('I am comfortable working independently and meeting deadlines without calls.'), '"without calls" serbest');
+  ok(!has('I built a Turkish AI chat app and added a clear call to action on every page.'), 'chat app / call to action serbest');
+  ok(!letterRedFlags('I prefer written communication over video calls.', undefined, { calls: false }).length, 'form cevabında kapalı');
+  ok(stripRedFlags('My portfolio is at ozgurguler.tech/en. Happy to walk through my approach on a call or in writing.\n\nÖzgür Güler') === 'My portfolio is at ozgurguler.tech/en.\n\nÖzgür Güler', 'teklif cümlesi çıkarıldı');
 }
 
 { // denetçi yeniden yazımdan sonra da itiraz ederse işaretli iddiaların cümleleri çıkar (7 Ekim djinni.co ön yazısı)

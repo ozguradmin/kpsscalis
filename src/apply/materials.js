@@ -61,6 +61,8 @@ const WEEK_HOURS_RE = /\b(\d{1,2})(?:\s?(?:-|–|to)\s?(\d{1,2}))?\s*\+?\s*(?:ho
 const OVERLAP_RE = /overlap[^.\n]{0,60}(hours?|pacific|eastern|est|pst|cet|us\b|afternoon|morning|weekday)|\b(\d{1,2}|one|two|three|four|five|six|seven|eight)\s+hours?\s+of\s+(\w+\s+)?overlap|\b(pacific|eastern|central) (time|hours)|\b(align|overlap|match|work) (with|during) [^.\n]{0,25}business hours|\boverlaps?\s+(well|nicely|fully|partly|partially|closely|with)\b|\bhours (fall|sit|land) (in|within|into) your\b|saat(lik)? örtüşme/i;
 // CV'de olmayan, yaşanmış gibi anlatılan olay/hata hikâyesi (örnek bug raporu, "bir keresinde" anlatısı)
 const ANECDOTE_RE = /\b(steps( to reproduce)?|expected( result)?|actual( result)?)\s*:|\bone (bug|issue|time|day|incident)\b[^.\n]{0,40}\b(was|that|i|when)\b|\bI (once|remember)\b|\bbir keresinde\b/i;
+// Sesli/görüntülü görüşme teklifi: Özgür İngilizce görüşme yapmıyor ("on a call or in writing", "hop on a call", "quick chat")
+const CALL_RE = /\b(on|in|for|hop on|jump on|schedule|set up|book|have) (a |an )?(quick |short |brief )?(video |phone |zoom )?(call|chat)\b(?! to action)|\b(video|phone|zoom) (call|chat|meeting)s?\b|\b(sesli|görüntülü|telefonla) görüş/i;
 
 function moneyAmount(m) {
   const k = /k\b/i.test(m);
@@ -69,7 +71,8 @@ function moneyAmount(m) {
 }
 
 // Kod tabanlı uydurma denetimi: LLM denetçisinin kaçırdığı ücret/saat/örtüşme/anekdot uydurmalarını yakalar
-export function letterRedFlags(text, allowed = allowedTerms()) {
+// calls: form cevaplarında kapalı ("video görüşmeye uygun musun?" sorusunun dürüst cevabı işaretlenmesin)
+export function letterRedFlags(text, allowed = allowedTerms(), { calls = true } = {}) {
   const t = String(text || ''), out = [];
   const okAmount = (n) => allowed.amounts.some((a) => Math.abs(n - a) <= a * 0.03); // "$38K" ≈ 38400 gibi yuvarlamalar serbest
   const money = (t.match(MONEY_RE) || []).map(moneyAmount).filter((n) => n && !okAmount(n));
@@ -78,6 +81,7 @@ export function letterRedFlags(text, allowed = allowedTerms()) {
   if (hours.length) out.push({ label: `profilde olmayan haftalık saat (${hours.map((m) => m[0]).join(', ')})`, fix: `Do not promise weekly hours. The only true figure is up to ${allowed.hours} hours a week.` });
   if (OVERLAP_RE.test(t)) out.push({ label: 'saat dilimi örtüşme vaadi', fix: 'Do not promise time-zone or working-hour overlap. Only say: based in Türkiye (UTC+3), async-friendly.' });
   if (ANECDOTE_RE.test(t)) out.push({ label: 'CV\'de olmayan olay/hata hikâyesi', fix: 'Do not invent stories, incidents, bugs or example reports as if they happened. If the job asks for a sample, offer to write one instead.' });
+  if (calls && CALL_RE.test(t)) out.push({ label: 'sesli/görüntülü görüşme teklifi', fix: 'Do not offer calls, video chats or meetings. If you close with an offer, say you are happy to answer any questions in writing.' });
   return out;
 }
 
@@ -158,7 +162,7 @@ export async function answerQuestion(env, settings, job, question, { maxWords = 
     { role: 'user', content: `${profile}\n\nPAY TO STATE (for pay/salary/rate questions, never another figure): ${pay.text}\n\nJOB: ${job.title} at ${job.company}\n\nQUESTION: ${question}${extra}` }] })).content.trim());
   // Kodla yakalanan uydurma (ücret, haftalık saat, örtüşme, olay hikâyesi) varsa bir kez yeniden yaz
   let text = await ask();
-  const flags = letterRedFlags(text, allowedTerms(await loadFacts(env), job));
+  const flags = letterRedFlags(text, allowedTerms(await loadFacts(env), job), { calls: false });
   if (flags.length) { try { text = await ask(`\n\nIMPORTANT: ${flags.map((f) => f.fix).join(' ')}`); } catch (e) { /* ilk cevap */ } }
   return text;
 }
