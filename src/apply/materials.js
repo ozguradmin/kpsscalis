@@ -61,8 +61,8 @@ const WEEK_HOURS_RE = /\b(\d{1,2})(?:\s?(?:-|–|to)\s?(\d{1,2}))?\s*\+?\s*(?:ho
 const OVERLAP_RE = /overlap[^.\n]{0,60}(hours?|pacific|eastern|est|pst|cet|us\b|afternoon|morning|weekday)|\b(\d{1,2}|one|two|three|four|five|six|seven|eight)\s+hours?\s+of\s+(\w+\s+)?overlap|\b(pacific|eastern|central) (time|hours)|\b(align|overlap|match|work) (with|during) [^.\n]{0,25}business hours|\boverlaps?\s+(well|nicely|fully|partly|partially|closely|with)\b|\bhours (fall|sit|land) (in|within|into) your\b|saat(lik)? örtüşme/i;
 // CV'de olmayan, yaşanmış gibi anlatılan olay/hata hikâyesi (örnek bug raporu, "bir keresinde" anlatısı)
 const ANECDOTE_RE = /\b(steps( to reproduce)?|expected( result)?|actual( result)?)\s*:|\bone (bug|issue|time|day|incident)\b[^.\n]{0,40}\b(was|that|i|when)\b|\bI (once|remember)\b|\bbir keresinde\b/i;
-// Sesli/görüntülü görüşme teklifi: Özgür İngilizce görüşme yapmıyor ("on a call or in writing", "hop on a call", "quick chat")
-const CALL_RE = /\b(on|in|for|hop on|jump on|schedule|set up|book|have) (a |an )?(quick |short |brief )?(video |phone |zoom )?(call|chat)\b(?! to action)|\b(video|phone|zoom) (call|chat|meeting)s?\b|\b(sesli|görüntülü|telefonla) görüş/i;
+// Sesli/görüntülü görüşme teklifi: Özgür İngilizce görüşme yapmıyor ("on a call or in writing", "hop on a call", "jump into a call", "quick chat")
+const CALL_RE = /\b(on|in|into|for|hop on|hop into|jump on|jump into|get on|join|schedule|set up|book|have) (a |an )?(quick |short |brief )?(video |phone |zoom )?(call|chat)\b(?! to action)|\b(video|phone|zoom) (call|chat|meeting)s?\b|\b(sesli|görüntülü|telefonla) görüş/i;
 
 function moneyAmount(m) {
   const k = /k\b/i.test(m);
