@@ -204,9 +204,21 @@ export async function submit(env, appId, { userActive = false } = {}) {
   return fin;
 }
 
+// HN "Who is hiring" ilanlarında unvan yorumun tamamı olabiliyor; konu satırı kısa ve temiz kalsın
+export function mailSubject(job) {
+  const title = String(job.title || '');
+  if (/open application/i.test(title)) return `Open application: mobile app and web developer (remote), Özgür Güler`;
+  const clean = title.replace(/https?:\/\/\S+/g, '').replace(/\s*[—–|]\s*/g, ', ').replace(/\s+/g, ' ').replace(/^[\s,]+|[\s,]+$/g, '');
+  if (!clean || clean.length > 80 || /https?:\/\//.test(title)) {
+    const co = String(job.company || '').trim();
+    return co && co.length <= 60 ? `Application to ${co}: full-stack and mobile developer (Özgür Güler)` : `Application: full-stack and mobile developer (remote), Özgür Güler`;
+  }
+  return `Application for ${clean} (Özgür Güler)`;
+}
+
 async function submitByEmail(env, settings, app, job, analysis) {
   const to = analysis.apply_email;
-  const subject = /open application/i.test(job.title) ? `Open application: mobile app and web developer (remote), Özgür Güler` : `Application for ${job.title.replace(/\s*[—–|]\s*/g, ', ')} (Özgür Güler)`;
+  const subject = mailSubject(job);
   const body = String(app.letter || '').replace(/\s*Özgür Güler\s*$/u, '');
   const text = `${body}${/,\s*$/.test(body) ? '\n' : '\n\n'}Özgür Güler\n${CORE.email} · ${CORE.phone}\nPortfolio: ${CORE.portfolio}\nGitHub: ${CORE.github}\nLinkedIn: ${CORE.linkedin}\nCV (PDF): ${CORE.cv_url_en}`;
   try {
