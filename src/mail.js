@@ -69,6 +69,10 @@ export function pickCTA(text, html) {
 }
 
 async function createFollowup(env, { mailId, url, app, subject, body }) {
+  // Aynı şirketin tekrar eden hatırlatmaları (ör. join.com "Complete your application" her gün) her seferinde yeni görev açmasın:
+  // son 7 günde bu şirket için açılmış ve henüz tamamlanmamış/başarısız takip görevi varsa yenisini açma
+  const prev = await env.DB.prepare("SELECT id, status FROM jobs WHERE source='followup' AND company=? AND discovered_at>? AND status!='applied' ORDER BY discovered_at DESC LIMIT 1").bind(app.company, now() - 7 * DAY).first();
+  if (prev) { await log(env, 'mail', `${app.company}: yeni hatırlatma geldi ama son 7 günde açık/başarısız takip görevi var (${prev.status}); yeni görev açılmadı`, { ref: app.id, data: { url, prev: prev.id } }); return; }
   const id = uid('j_');
   const res = await env.DB.prepare(`INSERT OR IGNORE INTO jobs (id, source, external_id, url, apply_url, company, title, location, description, discovered_at, last_seen_at, dedupe, status, stage, fit, priority, reason, analysis, lang)
     VALUES (?, 'followup', ?, ?, ?, ?, ?, 'Remote', ?, ?, ?, ?, 'approved', 4, 90, 900, ?, ?, 'en')`)
