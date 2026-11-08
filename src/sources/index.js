@@ -548,6 +548,8 @@ export const SOURCES = [
         const hrefs = [...String(h.comment_text || '').matchAll(/href="([^"]+)"/g)].map((m) => m[1].replace(/&#x2F;/g, '/').replace(/&amp;/g, '&').replace(/&#x3D;/g, '=').replace(/&#x3F;/g, '?'));
         const text = htmlToText(h.comment_text || '', 6000) + (hrefs.length ? `\nLinks: ${[...new Set(hrefs)].join(' ')}` : '');
         if (!/remote/i.test(text.slice(0, 400))) continue;
+        // Yanlış başlığa yazılmış "Who wants to be hired" (iş arayan) şablonu: ilan değil
+        if (/willing to relocate\s*:/i.test(text.slice(0, 600)) || /^\s*(?:SEEKING WORK|FOR HIRE)\b/i.test(text)) continue;
         const first = text.split('\n')[0];
         const parts = first.split('|').map((x) => x.trim());
         out.push(job({ source: 'hn', external_id: h.objectID, url: `https://news.ycombinator.com/item?id=${h.objectID}`, company: parts[0], title: parts.slice(1, 3).join(' | ') || first.slice(0, 120), location: parts.find((p) => /remote/i.test(p)) || 'Remote', description: text, posted_at: h.created_at, remote_hint: 'remote' }));
