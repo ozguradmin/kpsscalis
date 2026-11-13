@@ -9,7 +9,7 @@ import { profileContext, CORE } from '../profile.js';
 import { prepareCv, cvForApp } from './cv.js';
 import { waitForMail, sendMail, alertUser } from '../mail.js';
 import { seal, unseal, strongPassword, signLink } from '../lib/auth.js';
-import { detectATS } from '../sources/index.js';
+import { detectATS, himalayasListed } from '../sources/index.js';
 import { buildOwnPack } from './ownpack.js';
 import { loadSessions, saveSessions, regDomain } from '../sessions.js';
 const regDomainOf = (u) => { try { return regDomain(new URL(u).hostname); } catch (e) { return ''; } };
@@ -89,9 +89,13 @@ export async function submit(env, appId, { userActive = false } = {}) {
   if (app.method === 'email') return submitByEmail(env, settings, app, job, analysis);
   // Workable (apply/jobs.workable.com): Cloudflare doğrulaması sunucu tarayıcısını geçirmiyor, gönder düğmesi açılmıyor.
   // Tarayıcı süresi harcamadan "kendi tarayıcından gönder" paketini hazırla (ön yazı + kopyalanabilir bilgiler + CV)
-  // Himalayas kaynağı 2 saatte bir taranır; ilan 24 saattir görünmüyorsa kaldırılmıştır (7 Ekim: Careerswift paketi kalkmış ilana hazırlandı)
+  // Himalayas ilanı 24 saattir taramada görünmüyorsa kaldırılmış olabilir (7 Ekim: Careerswift paketi kalkmış ilana hazırlandı).
+  // Tarama tek başına kanıt değil (13 Kasım: API hız sınırı yüzünden tarama boş döndü, yayındaki ilanlar "kaldırılmış" diye kapandı):
+  // ilan başlığıyla doğrudan aranır, ancak arama cevap verip ilanı göstermezse kapatılır.
   if (job.source === 'himalayas' && job.last_seen_at && now() - job.last_seen_at > DAY) {
-    return finalize(env, settings, appId, job, { status: 'closed', reason: 'İlan Himalayas aramasında 24 saattir görünmüyor (kaldırılmış)', steps: 0, answers: {} }, null);
+    const listed = await himalayasListed(env, job);
+    if (listed === false) return finalize(env, settings, appId, job, { status: 'closed', reason: 'İlan Himalayas aramasında artık çıkmıyor (kaldırılmış)', steps: 0, answers: {} }, null);
+    if (listed) await env.DB.prepare('UPDATE jobs SET last_seen_at=? WHERE id=?').bind(now(), job.id).run();
   }
   if (/(^|\.)(workable\.com|himalayas\.app)$/i.test(hostOf(startUrl(job))) || job.ats === 'workable') {
     // Formun gerçek sorularını oku, her birine cevap hazırla (sayfada kopyalanmaya hazır)

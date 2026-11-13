@@ -1,8 +1,36 @@
 // İlan kaynakları. Her kaynak normalize edilmiş ilan listesi döndürür.
 // Seçim ölçütü: herkesin baktığı büyük panolar yerine az bilinen, farklı dillerdeki panolar ve şirketlerin kendi ATS sayfaları.
-import { fetchJSON, fetchText, htmlToText, parseRSS, toTs, clip, hostOf } from '../lib/util.js';
+import { fetchJSON, fetchT, fetchText, htmlToText, parseRSS, toTs, clip, hostOf, sleep } from '../lib/util.js';
+import { getSecret } from '../lib/db.js';
 
 const MAXDESC = 9000;
+
+// Himalayas arama API'si (11 Kasım 2026'dan beri): sayfalama ?page= ile (offset yok sayılıyor), anahtarsız isteklere hız sınırı var (HTTP 429 + Retry-After).
+// D1 secrets tablosunda himalayas_key varsa Authorization: Bearer ile gönderilir (ücretsiz anahtar: himalayas.app/signup/developer).
+// budget: 429'da toplam ne kadar beklenebileceği (ms); tur süresini aşmamak için çağıran paylaştırır.
+async function himalayasSearch(env, q, page, budget = { ms: 0 }) {
+  const key = env?.HIMALAYAS_KEY || (env?.DB ? await getSecret(env, 'himalayas_key').catch(() => null) : null);
+  const url = `https://himalayas.app/jobs/api/search?country=Turkey&page=${page}${q ? `&q=${encodeURIComponent(q)}` : ''}`;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const r = await fetchT(url, key ? { headers: { authorization: `Bearer ${key}` } } : {});
+    if (r.ok) { const d = await r.json(); return { jobs: d.jobs || [], total: Number(d.totalCount ?? (d.jobs || []).length) }; }
+    const wait = Math.min(20, Number(r.headers.get('retry-after')) || 15) * 1000 + 500;
+    if (r.status !== 429 || attempt || budget.ms < wait) throw new Error(`HTTP ${r.status}`);
+    budget.ms -= wait;
+    await sleep(wait);
+  }
+}
+
+// İlan Himalayas'ta hâlâ yayında mı? true / false / null (bilinmiyor: API cevap vermedi ya da sonuç tek sayfaya sığmadı)
+export async function himalayasListed(env, job) {
+  const guid = String(job.external_id || '').split('?')[0];
+  if (!/himalayas\.app\/companies\//.test(guid) || !job.title) return null;
+  try {
+    const { jobs, total } = await himalayasSearch(env, job.title, 1, { ms: 25000 });
+    if (jobs.some((j) => String(j.guid || '').split('?')[0] === guid)) return true;
+    return total <= jobs.length ? false : null;
+  } catch (e) { return null; }
+}
 
 export function detectLang(text) {
   const s = String(text || '').slice(0, 3000).toLowerCase();
@@ -449,14 +477,21 @@ export const SOURCES = [
     async fetch(env) {
       const seen = new Map();
       const QS = ['developer', 'frontend', 'react', 'full stack', 'javascript', 'typescript', 'mobile', 'AI trainer', 'AI', 'content', 'social media', 'qa', 'turkish', 'support', ''];
-      for (const q of QS) {
-        for (let off = 0; off < (q ? 40 : 100); off += 20) {
-          const d = await fetchJSON(`https://himalayas.app/jobs/api/search?country=Turkey&limit=20&offset=${off}${q ? `&q=${encodeURIComponent(q)}` : ''}`).catch(() => null);
-          const list = d?.jobs || [];
+      // Sorgu sırası her taramada kayar: hız sınırına takılan taramada hep aynı sorgular açıkta kalmasın
+      const shift = Math.floor(Date.now() / (2 * 3600000)) % QS.length;
+      const budget = { ms: 60000 };
+      let ok = 0, fail = 0, lastErr = '';
+      scan: for (let i = 0; i < QS.length; i++) {
+        const q = QS[(i + shift) % QS.length];
+        for (let page = 1; page <= (q ? 2 : 5); page++) {
+          let list;
+          try { list = (await himalayasSearch(env, q, page, budget)).jobs; ok++; } catch (e) { fail++; lastErr = e.message; if (fail >= 3) break scan; break; }
           for (const j of list) if (!seen.has(j.guid)) seen.set(j.guid, j);
           if (list.length < 20) break;
         }
       }
+      // Hiç cevap alınamadıysa "0 ilan" diye sessizce geçme: kaynak hatalı görünsün
+      if (!ok) throw new Error(`Himalayas API cevap vermedi (${lastErr}; hız sınırı, himalayas_key gerekli olabilir)`);
       const out = [];
       for (const j of seen.values()) {
         if (j.pubDate && Date.now() - j.pubDate * 1000 > 40 * 86400000) continue;
