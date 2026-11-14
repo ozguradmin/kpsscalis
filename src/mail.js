@@ -219,6 +219,16 @@ export async function sendMail(env, settings, { to, subject, text, attachments =
 
 const STATUS_TR = { queued: 'sırada', prepared: 'hazırlandı', applying: 'başvuruyor', submitted: 'gönderildi', confirmed: 'gönderildi, şirketten otomatik "alındı" e-postası geldi', next_step: 'SONRAKİ ADIM istendi', interview: 'MÜLAKAT', offer: 'TEKLİF', rejected: 'olumsuz', needs_human: 'sana kaldı', not_eligible: 'uygun değil', closed: 'ilan kapalı', blocked: 'engel', failed: 'başarısız', cancelled: 'iptal' };
 
+// Hatırlatma cümlesindeki ilan adı: HN ilanlarında unvan yorumun tamamı (link, tanıtım metni) olabiliyor, o zaman sadece şirket adı
+export function followUpWhat(r) {
+  const title = String(r.title || '');
+  const co = String(r.company || '').trim() || 'your team';
+  if (/^open application/i.test(title)) return `my open application to ${co}`;
+  const clean = title.replace(/https?:\/\/\S+/g, '').replace(/\s*[—–|]\s*/g, ', ').replace(/\s+/g, ' ').replace(/^[\s,]+|[\s,]+$/g, '');
+  if (!clean || clean.length > 80 || /https?:\/\//.test(title)) return `my application to ${co}`;
+  return `my application for ${clean} at ${co}`;
+}
+
 // E-postayla yapılan başvurularda 8 gün ses çıkmazsa tek, kısa ve kibar bir hatırlatma (başvuru başına en fazla bir kez)
 export async function followUps(env, settings) {
   const rows = await allRows(env, `SELECT a.id, a.answers, a.submitted_at, j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id
@@ -228,9 +238,12 @@ export async function followUps(env, settings) {
     const ans = (() => { try { return JSON.parse(r.answers || '{}'); } catch (e) { return {}; } })();
     if (!ans.email_to) continue;
     // Açık başvurularda ilan adı "Open application (remote)"; "application for Open application" gibi bozuk cümle çıkmasın
-    const what = /^open application/i.test(r.title || '') ? `my open application to ${r.company}` : `my application for ${r.title} at ${r.company}`;
+    const what = followUpWhat(r);
     const text = `Hello,\n\nI wanted to briefly follow up on ${what}, sent on ${new Date(r.submitted_at).toISOString().slice(0, 10)}. I remain very interested and I am happy to share anything else that would help, such as code samples or a short written task.\n\nThank you for your time,\nÖzgür Güler\nozgurguler.tech/en`;
-    await sendMail(env, settings, { to: ans.email_to, subject: /^re:/i.test(ans.subject || '') ? ans.subject : `Re: ${ans.subject || 'Application — Özgür Güler'}`, text, appId: r.id });
+    // Eski başvurularda konu satırı HN yorumunun tamamı olabiliyor; uzunsa kısa ve temiz bir konu kullan
+    const orig = String(ans.subject || '');
+    const subject = !orig || orig.length > 100 || /https?:\/\//.test(orig) ? `Re: Application to ${r.company || 'your team'} (Özgür Güler)` : /^re:/i.test(orig) ? orig : `Re: ${orig}`;
+    await sendMail(env, settings, { to: ans.email_to, subject, text, appId: r.id });
     await log(env, 'followup', `${r.company}: 8 gün yanıt gelmediği için kısa hatırlatma gönderildi (kabul edildi)`, { ref: r.id });
     sent++;
   }
