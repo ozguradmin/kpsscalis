@@ -361,7 +361,7 @@ export async function dispatch(env, settings, { max = 1, userActive = false } = 
     if (!userActive && j.source !== 'followup' && hardScopes.has(scope) && !ownOk) { await env.DB.prepare("UPDATE jobs SET status='review', reason=? WHERE id=?").bind(`${scope} sitesinde otomatik başvuru robot doğrulamasına takılıyor; panelden "Hemen başvur" ile canlı devralabilirsin`, j.id).run(); continue; }
     // Aynı şirkete 30 günde en fazla N başvuru (posta kutusundaki önceki başvuru e-postaları da sayılır)
     const perCo = j.source === 'followup' ? 99 : (settings.max_per_company_30d ?? 2);
-    const mine = await env.DB.prepare("SELECT COUNT(*) n FROM applications a JOIN jobs k ON k.id=a.job_id WHERE lower(k.company)=lower(?) AND a.created_at > ? AND a.status IN ('submitted','confirmed','interview','next_step','applying','prepared','queued')").bind(j.company || '', now() - 30 * DAY).first();
+    const mine = await env.DB.prepare("SELECT COUNT(*) n FROM applications a JOIN jobs k ON k.id=a.job_id WHERE lower(k.company)=lower(?) AND a.created_at > ? AND a.status IN ('submitted','confirmed','interview','next_step','applying','prepared','queued','needs_human')").bind(j.company || '', now() - 30 * DAY).first();
     let prior = 0;
     if ((j.company || '').length > 2) {
       const r = await env.MAILDB.prepare("SELECT COUNT(DISTINCT substr(received_at,1,10)) n FROM messages WHERE direction='inbound' AND received_at > ? AND (subject LIKE ? OR from_name LIKE ?) AND (subject LIKE '%appl%' OR subject LIKE '%başvuru%' OR subject LIKE '%security code%')").bind(new Date(now() - 30 * DAY).toISOString(), `%${j.company}%`, `%${j.company}%`).first().catch(() => null);
