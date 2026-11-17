@@ -1,7 +1,7 @@
 // Başvuru orkestrasyonu: hazırlık (ön yazı), gönderim (tarayıcı ajanı ya da e-posta), kanıt, öğrenme.
 import { WorkflowEntrypoint } from 'cloudflare:workers';
 import { getSettings, log, addAction, bumpUsage, usageToday, browserHoursThisMonth, allRows } from '../lib/db.js';
-import { now, uid, clip, safeJSON, hostOf, b64, DAY, MIN } from '../lib/util.js';
+import { now, uid, clip, safeJSON, hostOf, b64, DAY, MIN, realCompany } from '../lib/util.js';
 import { coverLetter } from './materials.js';
 import { openBrowser, Recorder } from './browser.js';
 import { runAgent } from './agent.js';
@@ -214,7 +214,7 @@ export function mailSubject(job) {
   if (/open application/i.test(title)) return `Open application: mobile app and web developer (remote), Özgür Güler`;
   const clean = title.replace(/https?:\/\/\S+/g, '').replace(/\s*[—–|]\s*/g, ', ').replace(/\s+/g, ' ').replace(/^[\s,]+|[\s,]+$/g, '');
   if (!clean || clean.length > 80 || /https?:\/\//.test(title)) {
-    const co = String(job.company || '').trim();
+    const co = realCompany(job.company);
     return co && co.length <= 60 ? `Application to ${co}: full-stack and mobile developer (Özgür Güler)` : `Application: full-stack and mobile developer (remote), Özgür Güler`;
   }
   return `Application for ${clean} (Özgür Güler)`;

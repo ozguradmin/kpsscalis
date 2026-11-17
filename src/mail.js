@@ -1,5 +1,5 @@
 // E-posta: ozgurguler-mail D1'inden gelen kutusunu okur, sınıflandırır, başvurulara bağlar; doğrulama kodu/bağlantısı bulur; e-posta gönderir.
-import { now, uid, clip, htmlToText, hostOf, normKey, sleep, DAY, MIN, dayKey, humanize, looksEnglish, fixSiteLink } from './lib/util.js';
+import { now, uid, clip, htmlToText, hostOf, normKey, sleep, DAY, MIN, dayKey, humanize, looksEnglish, fixSiteLink, realCompany } from './lib/util.js';
 import { log, allRows, addAction, bumpUsage } from './lib/db.js';
 import { jev, llm } from './lib/llm.js';
 import { signLink } from './lib/auth.js';
@@ -222,7 +222,7 @@ const STATUS_TR = { queued: 'sırada', prepared: 'hazırlandı', applying: 'baş
 // Hatırlatma cümlesindeki ilan adı: HN ilanlarında unvan yorumun tamamı (link, tanıtım metni) olabiliyor, o zaman sadece şirket adı
 export function followUpWhat(r) {
   const title = String(r.title || '');
-  const co = String(r.company || '').trim() || 'your team';
+  const co = realCompany(r.company) || 'your team';
   if (/^open application/i.test(title)) return `my open application to ${co}`;
   const clean = title.replace(/https?:\/\/\S+/g, '').replace(/\s*[—–|]\s*/g, ', ').replace(/\s+/g, ' ').replace(/^[\s,]+|[\s,]+$/g, '');
   if (!clean || clean.length > 80 || /https?:\/\//.test(title)) return `my application to ${co}`;
@@ -237,12 +237,14 @@ export async function followUps(env, settings) {
   for (const r of rows) {
     const ans = (() => { try { return JSON.parse(r.answers || '{}'); } catch (e) { return {}; } })();
     if (!ans.email_to) continue;
+    // İş arayan yorumu ("Willing to relocate:") eskiden ilan sanılıp başvuru gitmişse üstüne hatırlatma gitmesin
+    if (/willing to relocate\s*:/i.test(String(r.title || ''))) { await log(env, 'followup', `${r.company}: ilan değil iş arayan yorumu, hatırlatma atlandı`, { ref: r.id }); continue; }
     // Açık başvurularda ilan adı "Open application (remote)"; "application for Open application" gibi bozuk cümle çıkmasın
     const what = followUpWhat(r);
     const text = `Hello,\n\nI wanted to briefly follow up on ${what}, sent on ${new Date(r.submitted_at).toISOString().slice(0, 10)}. I remain very interested and I am happy to share anything else that would help, such as code samples or a short written task.\n\nThank you for your time,\nÖzgür Güler\nozgurguler.tech/en`;
     // Eski başvurularda konu satırı HN yorumunun tamamı olabiliyor; uzunsa kısa ve temiz bir konu kullan
     const orig = String(ans.subject || '');
-    const subject = !orig || orig.length > 100 || /https?:\/\//.test(orig) ? `Re: Application to ${r.company || 'your team'} (Özgür Güler)` : /^re:/i.test(orig) ? orig : `Re: ${orig}`;
+    const subject = !orig || orig.length > 100 || /https?:\/\//.test(orig) ? `Re: Application to ${realCompany(r.company) || 'your team'} (Özgür Güler)` : /^re:/i.test(orig) ? orig : `Re: ${orig}`;
     await sendMail(env, settings, { to: ans.email_to, subject, text, appId: r.id });
     await log(env, 'followup', `${r.company}: 8 gün yanıt gelmediği için kısa hatırlatma gönderildi (kabul edildi)`, { ref: r.id });
     sent++;

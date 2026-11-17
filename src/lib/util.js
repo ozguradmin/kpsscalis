@@ -49,6 +49,12 @@ export function htmlToText(html, max = 12000) {
   return s.length > max ? s.slice(0, max) + '…' : s;
 }
 
+// Eleme modeli şirketi bulamayınca "Unknown (HN poster)" gibi bir ad yazabiliyor; bu ad maile girmesin
+export function realCompany(name) {
+  const co = String(name || '').trim();
+  return /^(?:unknown|unnamed|anonymous|n\/?a|none|null|undefined)\b/i.test(co) ? '' : co;
+}
+
 export function clip(s, n) {
   s = String(s ?? '');
   return s.length > n ? s.slice(0, n - 1) + '…' : s;
