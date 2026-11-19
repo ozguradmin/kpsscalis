@@ -66,6 +66,8 @@ async function run(name, letters) {
   ok(has('Happy to hop on a call or share more details about my projects.'), 'hop on a call');
   ok(has('Is there a good time this week for a quick chat?'), 'quick chat');
   ok(has('Happy to jump into a call or answer any questions.'), 'jump into a call');
+  ok(has('Happy to jump on a quick written chat or a call if useful.'), 'written chat or a call (19 Kasım, AnswerThis)');
+  ok(!has('Happy to answer any questions in a written chat.'), 'yazılı sohbet serbest');
   ok(!has('I am comfortable working independently and meeting deadlines without calls.'), '"without calls" serbest');
   ok(!has('I built a Turkish AI chat app and added a clear call to action on every page.'), 'chat app / call to action serbest');
   ok(!letterRedFlags('I prefer written communication over video calls.', undefined, { calls: false }).length, 'form cevabında kapalı');
