@@ -22,12 +22,12 @@ Rules: turkey_ok=true only if someone living in Türkiye can realistically be hi
 
 const MODELS = (process.env.MODELS || [
   '@cf/zai-org/glm-5.3-flash', '@cf/zai-org/glm-4.7-flash', '@cf/google/gemma-4-26b-a4b-it', '@cf/openai/gpt-oss-120b', '@cf/openai/gpt-oss-20b',
-  '@cf/qwen/qwen3-30b-a3b-fp8', '@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/deepseek-ai/deepseek-v4-pro-0813', '@cf/zai-org/glm-5.3',
+  '@cf/qwen/qwen3-30b-a3b-fp8', '@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/zai-org/glm-5.3',
   '@cf/moonshotai/kimi-k2.6', '@cf/moonshotai/kimi-k2.7-code', '@cf/nvidia/nemotron-3-120b-a12b', '@cf/mistralai/mistral-small-3.1-24b-instruct',
   '@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/qwen/qwen3.8-27b', '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
 ].join(',')).split(',');
 
-const JUDGES = ['@cf/deepseek-ai/deepseek-v4-pro-0813', '@cf/zai-org/glm-5.3'];
+const JUDGES = ['@cf/zai-org/glm-5.3'];
 
 function scoreTriage(got, want) {
   if (!got) return 0;

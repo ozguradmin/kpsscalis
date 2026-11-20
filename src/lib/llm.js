@@ -5,17 +5,18 @@ import { aiCostToday, getSecret, log, bumpUsage } from './db.js';
 
 // 30 Eylül 2026 değerlendirmesi (eval/): 16 model, 14 çok dilli ilan + form + araç çağrısı + ön yazı.
 // Sıralama: ilk model birincil, diğerleri yedek. Beyin haftalık yeniden değerlendirip settings.models ile değiştirir.
+// 20 Kasım 2026: deepseek-v4-pro-0813 Workers AI'dan kaldırıldı (hata 5028); zincirlerden çıkarıldı, yerini zaten yedek olan glm-5.3 aldı.
 export const DEFAULT_MODELS = {
   triage: ['@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-5.3-flash', '@cf/zai-org/glm-4.7-flash'],
-  analysis: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/zai-org/glm-5.3-flash', '@cf/deepseek-ai/deepseek-v4-pro-0813'],
-  letter: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/deepseek-ai/deepseek-v4-pro-0813', '@cf/moonshotai/kimi-k2.7-code'],
-  answers: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/zai-org/glm-5.3-flash', '@cf/deepseek-ai/deepseek-v4-pro-0813'],
-  agent: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/deepseek-ai/deepseek-v4-pro-0813', '@cf/zai-org/glm-5.3'],
-  agent_hard: ['@cf/deepseek-ai/deepseek-v4-pro-0813', '@cf/zai-org/glm-5.3', '@cf/moonshotai/kimi-k2.7-code'],
+  analysis: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/zai-org/glm-5.3-flash', '@cf/zai-org/glm-5.3'],
+  letter: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/moonshotai/kimi-k2.7-code', '@cf/zai-org/glm-5.3'],
+  answers: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/zai-org/glm-5.3-flash', '@cf/zai-org/glm-5.3'],
+  agent: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/zai-org/glm-5.3', '@cf/moonshotai/kimi-k2.7-code'],
+  agent_hard: ['@cf/zai-org/glm-5.3', '@cf/moonshotai/kimi-k2.7-code'],
   mail: ['@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-5.3-flash'],
-  brain: ['@cf/deepseek-ai/deepseek-v4-pro-0813', '@cf/zai-org/glm-5.3', '@cf/deepseek-ai/deepseek-v4-flash-0731'],
-  review: ['@cf/deepseek-ai/deepseek-v4-pro-0813', '@cf/zai-org/glm-5.3'],
-  judge: ['@cf/deepseek-ai/deepseek-v4-pro-0813', '@cf/zai-org/glm-5.3'],
+  brain: ['@cf/zai-org/glm-5.3', '@cf/deepseek-ai/deepseek-v4-flash-0731'],
+  review: ['@cf/zai-org/glm-5.3', '@cf/deepseek-ai/deepseek-v4-flash-0731'],
+  judge: ['@cf/zai-org/glm-5.3', '@cf/deepseek-ai/deepseek-v4-flash-0731'],
 };
 
 export function modelsFor(settings, task) {
@@ -43,21 +44,23 @@ export async function llm(env, settings, opts) {
   const chain = opts.models || modelsFor(settings, task);
   const runner = (model, body) => env.AI.run(model, body);
   let lastErr;
+  const errs = []; // zincirdeki her modelin hatası (yalnız sonuncusu yazılınca asıl neden gizleniyordu)
   for (const model of chain) {
     try {
       const out = await chatCore(runner, { ...opts, model });
       await record(env, model, task, out.usage, out.cost);
-      if ((opts.json || opts.schema) && out.json == null) { lastErr = new Error(`JSON çözülemedi (${model}): ${out.content.slice(0, 160)}`); continue; }
-      if (opts.validate && !opts.validate(out.json ?? out.content)) { lastErr = new Error(`Çıktı doğrulanamadı (${model}): ${out.content.slice(0, 160)}`); continue; }
-      if (!opts.json && !opts.schema && !opts.tools && !out.content.trim()) { lastErr = new Error(`Boş cevap (${model})`); continue; }
+      if ((opts.json || opts.schema) && out.json == null) { lastErr = new Error(`JSON çözülemedi (${model}): ${out.content.slice(0, 160)}`); errs.push(lastErr.message); continue; }
+      if (opts.validate && !opts.validate(out.json ?? out.content)) { lastErr = new Error(`Çıktı doğrulanamadı (${model}): ${out.content.slice(0, 160)}`); errs.push(lastErr.message); continue; }
+      if (!opts.json && !opts.schema && !opts.tools && !out.content.trim()) { lastErr = new Error(`Boş cevap (${model})`); errs.push(lastErr.message); continue; }
       return out;
     } catch (e) {
       lastErr = e;
+      errs.push(`${model.split('/').pop()}: ${String(e.message).slice(0, 200)}`);
       await record(env, model, task, null, 0, true);
       if (/budget|quota|4006|neurons/i.test(String(e.message))) break;
     }
   }
-  await log(env, 'llm', `Model zinciri başarısız (${task}): ${lastErr?.message}`, { level: 'warn' });
+  await log(env, 'llm', `Model zinciri başarısız (${task}): ${lastErr?.message}`, { level: 'warn', data: { errors: errs } });
   throw lastErr || new Error('LLM başarısız');
 }
 

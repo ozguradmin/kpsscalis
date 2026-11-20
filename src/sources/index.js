@@ -523,7 +523,8 @@ export const SOURCES = [
     id: '4dayweek', label: '4 Day Week', cadence: 480, lang: 'en',
     async fetch() {
       const d = await fetchJSON('https://4dayweek.io/api/jobs?limit=100');
-      return (d.jobs || []).filter((j) => j.work_arrangement === 'remote').map((j) => job({ source: '4dayweek', external_id: j.id, url: `https://4dayweek.io/remote-job/${j.slug}`, company: j.company_name, title: j.title,
+      // Kilitli (locked) ilanlarda slug ve şirket adı boş gelir; link ana sayfaya düşer, başvuru "ilan kapanmış" diye biter.
+      return (d.jobs || []).filter((j) => j.work_arrangement === 'remote' && !j.locked && j.slug && j.company_name).map((j) => job({ source: '4dayweek', external_id: j.id, url: `https://4dayweek.io/remote-job/${j.slug}`, company: j.company_name, title: j.title,
         location: 'Remote: ' + (j.locations || []).map((l) => l.country || l.continent).filter(Boolean).join(', '), description: `${j.category || ''} · ${j.level || ''} · ${j.schedule_type || ''}`, posted_at: j.posted, remote_hint: 'remote' }));
     },
   },
