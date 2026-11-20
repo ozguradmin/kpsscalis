@@ -52,6 +52,8 @@ export async function llm(env, settings, opts) {
       if ((opts.json || opts.schema) && out.json == null) { lastErr = new Error(`JSON çözülemedi (${model}): ${out.content.slice(0, 160)}`); errs.push(lastErr.message); continue; }
       if (opts.validate && !opts.validate(out.json ?? out.content)) { lastErr = new Error(`Çıktı doğrulanamadı (${model}): ${out.content.slice(0, 160)}`); errs.push(lastErr.message); continue; }
       if (!opts.json && !opts.schema && !opts.tools && !out.content.trim()) { lastErr = new Error(`Boş cevap (${model})`); errs.push(lastErr.message); continue; }
+      // Yedek modelle kurtarıldıysa da öndeki modellerin hatası görünsün (günde birkaç kayıt; sessiz kalınca birincil modelin bozulduğu fark edilmiyor)
+      if (errs.length) await log(env, 'llm', `Yedek modele geçildi (${task}): ${model.split('/').pop()}`, { level: 'warn', data: { errors: errs } });
       return out;
     } catch (e) {
       lastErr = e;

@@ -115,7 +115,8 @@ async function analysisStage(env, settings, jobs) {
   const add = settings.prompt_addenda?.analysis ? `\nLearned rules:\n${settings.prompt_addenda.analysis}` : '';
   await Promise.all(jobs.map(async (j) => {
     try {
-      const o = await llm(env, settings, { task: 'analysis', json: true, maxTokens: 1200, messages: [
+      // Çıktı nesne olmalı ve fit içermeli: 20 Kasım'da yedek model ["en"] döndürdü, ilan fit 0 ve boş gerekçeyle reddedildi
+      const o = await llm(env, settings, { task: 'analysis', json: true, maxTokens: 1200, validate: (a) => !!a && typeof a === 'object' && !Array.isArray(a) && a.fit != null, messages: [
         { role: 'system', content: ANALYSIS_SYS + add },
         { role: 'user', content: `CANDIDATE:\n${PROFILE_BRIEF}\n\nJOB (source ${j.source}, url ${j.url}, apply ${j.apply_url || ''}):\nTITLE: ${j.title}\nCOMPANY: ${j.company}\nLOCATION: ${j.location}\nSALARY: ${j.salary || ''}\n\n${clip(j.description, 9000)}` }] });
       const a = o.json || {};
