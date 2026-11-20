@@ -12,6 +12,8 @@ export const PRICES = {
   '@cf/moonshotai/kimi-k2.7-code': [0.95, 4],
   '@cf/deepseek-ai/deepseek-v4-flash-0731': [0.44, 1.32],
   '@cf/deepseek-ai/deepseek-v4-pro-0813': [1.32, 3.96],
+  '@cf/deepseek-ai/deepseek-v4.1-flash-1017': [0.3, 1.2],
+  '@cf/thinkingmachines/inkling-2-small': [0.3, 1],
   '@cf/google/gemma-4-26b-a4b-it': [0.1, 0.3],
   '@cf/qwen/qwen3-30b-a3b-fp8': [0.0509, 0.335],
   '@cf/qwen/qwen3.8-27b': [0.45, 3.2],

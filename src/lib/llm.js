@@ -5,18 +5,21 @@ import { aiCostToday, getSecret, log, bumpUsage } from './db.js';
 
 // 30 Eylül 2026 değerlendirmesi (eval/): 16 model, 14 çok dilli ilan + form + araç çağrısı + ön yazı.
 // Sıralama: ilk model birincil, diğerleri yedek. Beyin haftalık yeniden değerlendirip settings.models ile değiştirir.
-// 20 Kasım 2026: deepseek-v4-pro-0813 Workers AI'dan kaldırıldı (hata 5028); zincirlerden çıkarıldı, yerini zaten yedek olan glm-5.3 aldı.
+// 20 Kasım 2026: Workers AI aynı gün deepseek-v4-flash-0731, deepseek-v4-pro-0813, glm-5.3-flash, kimi-k2.7-code ve nemotron'u kaldırdı (hata 5028).
+// Yerlerine 14 Kasım haftalık yarışmasında ölçülmüş ve hâlâ yayında olan modeller kondu: qwen3.8-27b (eleme 0.94, form 0.89, ön yazı 0.925),
+// gemma-4, gpt-oss. glm-5.3 yalnız son yedek: yarışmada ön yazıyı boş döndürdü, JSON çağrılarında da boş cevap veriyor.
+// deepseek-v4.1-flash-1017 ölçülmediği için zincire konmadı; evals.js adayı, haftalık yarışma iyi bulursa kendisi seçer.
 export const DEFAULT_MODELS = {
-  triage: ['@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-5.3-flash', '@cf/zai-org/glm-4.7-flash'],
-  analysis: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/zai-org/glm-5.3-flash', '@cf/zai-org/glm-5.3'],
-  letter: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/moonshotai/kimi-k2.7-code', '@cf/zai-org/glm-5.3'],
-  answers: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/zai-org/glm-5.3-flash', '@cf/zai-org/glm-5.3'],
-  agent: ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/zai-org/glm-5.3', '@cf/moonshotai/kimi-k2.7-code'],
-  agent_hard: ['@cf/zai-org/glm-5.3', '@cf/moonshotai/kimi-k2.7-code'],
-  mail: ['@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-5.3-flash'],
-  brain: ['@cf/zai-org/glm-5.3', '@cf/deepseek-ai/deepseek-v4-flash-0731'],
-  review: ['@cf/zai-org/glm-5.3', '@cf/deepseek-ai/deepseek-v4-flash-0731'],
-  judge: ['@cf/zai-org/glm-5.3', '@cf/deepseek-ai/deepseek-v4-flash-0731'],
+  triage: ['@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash', '@cf/openai/gpt-oss-20b'],
+  analysis: ['@cf/qwen/qwen3.8-27b', '@cf/google/gemma-4-26b-a4b-it', '@cf/openai/gpt-oss-20b'],
+  letter: ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/google/gemma-4-26b-a4b-it'],
+  answers: ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-20b', '@cf/zai-org/glm-4.7-flash'],
+  agent: ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-20b', '@cf/zai-org/glm-4.7-flash'],
+  agent_hard: ['@cf/openai/gpt-oss-120b', '@cf/qwen/qwen3.8-27b', '@cf/zai-org/glm-5.3'],
+  mail: ['@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash'],
+  brain: ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/zai-org/glm-5.3'],
+  review: ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/zai-org/glm-5.3'],
+  judge: ['@cf/openai/gpt-oss-120b', '@cf/qwen/qwen3.8-27b'],
 };
 
 export function modelsFor(settings, task) {

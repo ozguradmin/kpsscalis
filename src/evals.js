@@ -8,9 +8,9 @@ import { DEFAULT_MODELS } from './lib/llm.js';
 import { now, uid } from './lib/util.js';
 
 export const CANDIDATES = [
-  '@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-5.3-flash', '@cf/zai-org/glm-4.7-flash', '@cf/deepseek-ai/deepseek-v4-flash-0731',
-  '@cf/zai-org/glm-5.3', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/openai/gpt-oss-20b', '@cf/nvidia/nemotron-3-120b-a12b',
-  '@cf/mistralai/mistral-small-3.1-24b-instruct', '@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/moonshotai/kimi-k2.7-code',
+  '@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash', '@cf/deepseek-ai/deepseek-v4.1-flash-1017', '@cf/thinkingmachines/inkling-2-small',
+  '@cf/zai-org/glm-5.3', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/openai/gpt-oss-20b',
+  '@cf/mistralai/mistral-small-3.1-24b-instruct', '@cf/meta/llama-4-scout-17b-16e-instruct',
 ];
 
 function scoreTriage(got, want) {
