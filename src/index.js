@@ -15,6 +15,7 @@ import { CV_EN, CV_TR } from './cv-text.js';
 import { dispatch, recoverStuck, createApplication, ApplyWorkflow } from './apply/index.js';
 import { chat, dailyReview, stateSummary, validateSetting, runTool, learnSourceWeights } from './brain.js';
 import { runModelEval } from './evals.js';
+import { runwareProbe } from './rwprobe.js';
 import { SOURCES, SEED_VERSION } from './sources/index.js';
 import { DEFAULT_MODELS } from './lib/llm.js';
 
@@ -32,6 +33,7 @@ export class TaskWorkflow extends WorkflowEntrypoint {
     }
     return step.do(task || 'task', { retries: { limit: 1, delay: '2 minutes' }, timeout: task === 'eval' ? '45 minutes' : '20 minutes' }, async () => {
       if (task === 'eval') { const r = await runModelEval(this.env); return { chosen: r.chosen }; }
+      if (task === 'rwprobe') return runwareProbe(this.env);
       if (task === 'review') { const r = await dailyReview(this.env); return { applied: r.applied }; }
       return { error: 'bilinmeyen iş' };
     });

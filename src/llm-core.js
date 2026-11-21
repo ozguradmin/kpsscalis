@@ -41,7 +41,7 @@ export const PRICES = {
 const RUNWARE_URL = 'https://api.runware.ai/v1/chat/completions';
 export async function runwareChat(key, model, body) {
   if (!key) throw new Error('RUNWARE_KEY yok');
-  const { chat_template_kwargs, reasoning_effort, max_completion_tokens, ...rest } = body;
+  const { chat_template_kwargs, max_completion_tokens, ...rest } = body;
   // 429/503: istek işlenmeden reddedilir (çift ücret yok); Retry-After kadar bekleyip en fazla 3 kez dene
   const send = async (b) => {
     for (let i = 0; ; i++) {
@@ -53,7 +53,10 @@ export async function runwareChat(key, model, body) {
     }
   };
   const b = { ...rest, model, max_tokens: max_completion_tokens };
+  // 22 Kasım canlı ölçüm (src/rwprobe.js): Claude temperature'ı ve json_object'i reddediyor (sadece json_schema)
+  if (model.startsWith('anthropic:')) { delete b.temperature; if (b.response_format?.type === 'json_object') delete b.response_format; }
   try { return await send(b); } catch (e) {
+    if (e.status === 400 && 'temperature' in b && /temperature/i.test(e.message)) { const { temperature, ...nb } = b; return send(nb); }
     // JSON modu desteklenmiyorsa onsuz bir kez daha dene (çıktıdaki JSON parseJSON ile ayıklanır)
     if (e.status === 400 && b.response_format && /response_format|json/i.test(e.message)) { const { response_format, ...nb } = b; return send(nb); }
     throw e;
@@ -107,6 +110,8 @@ export async function chatCore(runner, { model, messages, json = false, schema =
   const body = { messages, max_completion_tokens: maxTokens, temperature };
   if (THINK_TOGGLE.test(model)) body.chat_template_kwargs = { enable_thinking: !!thinking };
   if (model.includes('gpt-oss')) body.reasoning_effort = thinking ? 'medium' : effort;
+  // Runware: düşünmeyi kapatan tek parametre reasoning_effort 'none' (açıkken düşünme token sınırını yiyip cevap yarıda kalıyordu)
+  if (model.startsWith('rw:')) body.reasoning_effort = thinking ? 'medium' : 'none';
   if (schema) body.response_format = { type: 'json_schema', json_schema: { name: 'out', schema, strict: false } };
   else if (json) body.response_format = { type: 'json_object' };
   if (tools) { body.tools = tools; body.tool_choice = 'auto'; }
