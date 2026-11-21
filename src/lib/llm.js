@@ -10,10 +10,11 @@ import { aiCostToday, getSecret, log, bumpUsage } from './db.js';
 // gemma-4, gpt-oss. glm-5.3 yalnız son yedek: yarışmada ön yazıyı boş döndürdü, JSON çağrılarında da boş cevap veriyor.
 // deepseek-v4.1-flash-1017 ölçülmediği için zincire konmadı; evals.js adayı, haftalık yarışma iyi bulursa kendisi seçer.
 export const DEFAULT_MODELS = {
-  triage: ['@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash', '@cf/openai/gpt-oss-20b'],
-  analysis: ['@cf/qwen/qwen3.8-27b', '@cf/google/gemma-4-26b-a4b-it', '@cf/openai/gpt-oss-20b'],
-  letter: ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/google/gemma-4-26b-a4b-it'],
-  answers: ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-20b', '@cf/zai-org/glm-4.7-flash'],
+  // 22 Kasım ölçümü: Runware modelleri başta (deepseek-v4.1-flash eleme 0.97, qwen3.8'den ~4 kat ucuz; Claude Haiku ön yazı 0.71, qwen 0.41). Runware düşerse Workers AI devralır.
+  triage: ['rw:deepseek:v4.1@flash', '@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash', '@cf/openai/gpt-oss-20b'],
+  analysis: ['rw:deepseek:v4.1@flash', '@cf/qwen/qwen3.8-27b', '@cf/google/gemma-4-26b-a4b-it', '@cf/openai/gpt-oss-20b'],
+  letter: ['rw:anthropic:claude@haiku-5.5', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/google/gemma-4-26b-a4b-it'],
+  answers: ['rw:deepseek:v4.1@flash', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-20b', '@cf/zai-org/glm-4.7-flash'],
   agent: ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-20b', '@cf/zai-org/glm-4.7-flash'],
   agent_hard: ['@cf/openai/gpt-oss-120b', '@cf/qwen/qwen3.8-27b', '@cf/zai-org/glm-5.3'],
   mail: ['@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash'],
