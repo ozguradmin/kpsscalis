@@ -1,5 +1,5 @@
 // Haftalık model yarışması: aynı görevlerde modelleri ölçer, her görev için en iyi fiyat/başarı modelini seçer.
-import { chatCore, costOf } from './llm-core.js';
+import { chatCore, costOf, makeRunner } from './llm-core.js';
 import { TRIAGE, FORM, LETTER_JOB, PROFILE_BRIEF } from './eval-dataset.js';
 import { TRIAGE_SYS } from './triage.js';
 import { validLetter } from './apply/materials.js';
@@ -8,10 +8,16 @@ import { DEFAULT_MODELS } from './lib/llm.js';
 import { now, uid } from './lib/util.js';
 
 export const CANDIDATES = [
-  '@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash', '@cf/deepseek-ai/deepseek-v4.1-flash-1017', '@cf/thinkingmachines/inkling-2-small',
-  '@cf/zai-org/glm-5.3', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/openai/gpt-oss-20b',
-  '@cf/mistralai/mistral-small-3.1-24b-instruct', '@cf/meta/llama-4-scout-17b-16e-instruct',
+  '@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash', '@cf/deepseek-ai/deepseek-v4.1-flash-1017',
+  '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/openai/gpt-oss-20b', '@cf/mistralai/mistral-small-3.1-24b-instruct',
+  // Runware (Özgür'ün kredisi; 21 Kasım)
+  'rw:deepseek:v4@flash', 'rw:deepseek:v4.1@flash', 'rw:deepseek:v4@pro', 'rw:zai:glm@5.3-flash', 'rw:google:gemma@4-31b',
+  'rw:google:gemini@3.8-flash', 'rw:anthropic:claude@haiku-5.5', 'rw:anthropic:claude@sonnet-5.5', 'rw:alibaba:qwen@4-max',
 ];
+// Ön yazı hakemi: güçlü model, olmazsa Workers AI hakemi
+const JUDGES = ['rw:anthropic:claude@sonnet-5.5', ...DEFAULT_MODELS.judge];
+// Üretimdeki STYLE_RULES ile yasak kalıplar: hakem görmese bile puan düşer
+const BANNED = /I am writing to (express|apply)|excited to|passionate about|leverage|delve|seamless|[—–]/i;
 
 function scoreTriage(got, want) {
   if (!got) return 0;
@@ -29,7 +35,7 @@ function scoreTriage(got, want) {
 
 // Tek model, tüm görevler. Dönen: {triage, form, tools, letterText, cost, ms}
 async function evalOne(env, model) {
-  const runner = (m, body) => env.AI.run(m, body);
+  const runner = makeRunner(env);
   const chat = (o) => chatCore(runner, { ...o, model });
   const r = { model, triage: 0, form: 0, tools: 0, letter: '', cost: 0, ms: [] };
   const tri = await Promise.allSettled(TRIAGE.map((c) => chat({ json: true, maxTokens: 400, messages: [{ role: 'system', content: TRIAGE_SYS }, { role: 'user', content: c.text }] }).then((o) => ({ o, c }))));
@@ -44,23 +50,32 @@ async function evalOne(env, model) {
     const o = await chat({ maxTokens: 300, tools: [{ type: 'function', function: { name: 'get_stats', description: 'Application statistics for a period', parameters: { type: 'object', properties: { period: { type: 'string', enum: ['today', 'week', 'month'] } }, required: ['period'] } } }], messages: [{ role: 'user', content: 'Bu hafta kaç başvuru yaptın?' }] });
     r.tools = o.toolCalls[0]?.name === 'get_stats' ? (o.toolCalls[0]?.args?.period === 'week' ? 1 : 0.6) : 0; r.cost += o.cost;
   } catch (e) { /* 0 */ }
-  try {
-    // Üretimdeki gibi JSON içinde istenir; düşünce sızdıran ya da biçimi bozuk çıktı 0 puan alır
-    const o = await chat({ json: true, maxTokens: 1400, temperature: 0.45, messages: [{ role: 'system', content: 'Write a short, specific, human-sounding cover letter (120-180 words, English) for the candidate. Use ONLY facts from the profile; never invent employers, years, metrics or skills. No placeholders. Return ONLY JSON {"letter":"..."}' }, { role: 'user', content: `PROFILE:\n${PROFILE_BRIEF}\n\nJOB: ${LETTER_JOB.title} at ${LETTER_JOB.company}\n${LETTER_JOB.text}` }] });
-    const t = String(o.json?.letter || '');
-    r.letter = validLetter(t) ? t : ''; r.cost += o.cost;
-  } catch (e) { /* boş */ }
+  // Üretimdeki gibi JSON içinde istenir; düşünce sızdıran ya da biçimi bozuk çıktı 0 puan alır. Şans payı için iki örnek.
+  r.letters = [];
+  for (let k = 0; k < 2; k++) {
+    try {
+      const o = await chat({ json: true, maxTokens: 1400, temperature: 0.45, messages: [{ role: 'system', content: 'Write a short, specific, human-sounding cover letter (120-180 words, English) for the candidate. Use ONLY facts from the profile; never invent employers, years, metrics or skills. No placeholders. Return ONLY JSON {"letter":"..."}' }, { role: 'user', content: `PROFILE:\n${PROFILE_BRIEF}\n\nJOB: ${LETTER_JOB.title} at ${LETTER_JOB.company}\n${LETTER_JOB.text}` }] });
+      const t = String(o.json?.letter || '');
+      r.letters.push(validLetter(t) ? t : ''); r.cost += o.cost; r.ms.push(o.ms);
+    } catch (e) { r.letters.push(''); }
+  }
+  r.letter = r.letters.find(Boolean) || '';
   return r;
 }
 
 async function judge(env, letter) {
   if (!letter || letter.length < 300 || /let me|analy[sz]e this task|here is/i.test(letter.slice(0, 80))) return 0;
-  const runner = (m, body) => env.AI.run(m, body);
-  try {
-    const o = await chatCore(runner, { model: DEFAULT_MODELS.judge[0], json: true, maxTokens: 400, messages: [{ role: 'system', content: 'Grade the cover letter. Return ONLY JSON {"truthful":0-10,"specific":0-10,"natural":0-10}. Any invented fact caps truthful at 3.' }, { role: 'user', content: `PROFILE:\n${PROFILE_BRIEF}\n\nJOB: ${LETTER_JOB.title} at ${LETTER_JOB.company}: ${LETTER_JOB.text}\n\nLETTER:\n${letter}` }] });
-    const g = o.json || {};
-    return (Number(g.truthful) * 0.5 + Number(g.specific) * 0.25 + Number(g.natural) * 0.25) / 10 || 0;
-  } catch (e) { return 0; }
+  const runner = makeRunner(env);
+  for (const model of JUDGES) {
+    try {
+      const o = await chatCore(runner, { model, json: true, maxTokens: 400, messages: [{ role: 'system', content: 'Grade the cover letter strictly. Return ONLY JSON {"truthful":0-10,"specific":0-10,"natural":0-10}. Any invented fact caps truthful at 3. Generic or cliche openings cap natural at 5.' }, { role: 'user', content: `PROFILE:\n${PROFILE_BRIEF}\n\nJOB: ${LETTER_JOB.title} at ${LETTER_JOB.company}: ${LETTER_JOB.text}\n\nLETTER:\n${letter}` }] });
+      const g = o.json || {};
+      const sc = (Number(g.truthful) * 0.5 + Number(g.specific) * 0.25 + Number(g.natural) * 0.25) / 10;
+      if (!Number.isFinite(sc)) continue;
+      return BANNED.test(letter) ? sc * 0.8 : sc;
+    } catch (e) { /* sonraki hakem */ }
+  }
+  return 0;
 }
 
 export async function runModelEval(env, { apply = true } = {}) {
@@ -70,7 +85,7 @@ export async function runModelEval(env, { apply = true } = {}) {
     const part = await Promise.allSettled(CANDIDATES.slice(i, i + 4).map((m) => evalOne(env, m)));
     for (const p of part) if (p.status === 'fulfilled') results.push(p.value);
   }
-  for (const r of results) { r.letterScore = await judge(env, r.letter); r.p50 = r.ms.sort((a, b) => a - b)[Math.floor(r.ms.length / 2)] || 0; delete r.ms; r.letter = r.letter.slice(0, 600); }
+  for (const r of results) { const sc = []; for (const l of r.letters || [r.letter]) sc.push(await judge(env, l)); r.letterScore = sc.reduce((a, b) => a + b, 0) / (sc.length || 1); delete r.letters; r.p50 = r.ms.sort((a, b) => a - b)[Math.floor(r.ms.length / 2)] || 0; delete r.ms; r.letter = r.letter.slice(0, 600); }
   // Görev bazında seçim: kalite önce; fark küçükse ucuz ve hızlı olan
   // Güvenlik: derin analiz ve form cevapları sadece güvenilir (derin denenmiş) modeller arasından seçilir
   const pick = (score, minQ, allow = null) => results.filter((r) => score(r) >= minQ && (!allow || allow.includes(r.model))).sort((a, b) => (score(b) - score(a)) * 10 - (b.cost - a.cost) * 20 - (b.p50 - a.p50) / 20000)[0]?.model;

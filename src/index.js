@@ -30,7 +30,7 @@ export class TaskWorkflow extends WorkflowEntrypoint {
         return liveLogin(this.env, settings, { url, openBrowser, liveHandoff, alertUser });
       });
     }
-    return step.do(task || 'task', { retries: { limit: 1, delay: '2 minutes' }, timeout: '20 minutes' }, async () => {
+    return step.do(task || 'task', { retries: { limit: 1, delay: '2 minutes' }, timeout: task === 'eval' ? '45 minutes' : '20 minutes' }, async () => {
       if (task === 'eval') { const r = await runModelEval(this.env); return { chosen: r.chosen }; }
       if (task === 'review') { const r = await dailyReview(this.env); return { applied: r.applied }; }
       return { error: 'bilinmeyen iş' };

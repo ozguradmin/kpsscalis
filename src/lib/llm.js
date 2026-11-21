@@ -1,5 +1,5 @@
 // Model yönlendirici: görev → model zinciri (yedekli), bütçe kontrolü, kullanım kaydı; TypeSafe Jev istemcisi.
-import { chatCore, costOf, parseJSON } from '../llm-core.js';
+import { chatCore, costOf, parseJSON, makeRunner } from '../llm-core.js';
 import { dayKey } from './util.js';
 import { aiCostToday, getSecret, log, bumpUsage } from './db.js';
 
@@ -45,7 +45,7 @@ export async function llm(env, settings, opts) {
   const spent = await aiCostToday(env);
   if (spent >= (settings?.daily_ai_budget_usd ?? 6) && !opts.ignoreBudget) throw new BudgetError(`Günlük yapay zekâ bütçesi doldu (${spent.toFixed(2)} $)`);
   const chain = opts.models || modelsFor(settings, task);
-  const runner = (model, body) => env.AI.run(model, body);
+  const runner = makeRunner(env);
   let lastErr;
   const errs = []; // zincirdeki her modelin hatası (yalnız sonuncusu yazılınca asıl neden gizleniyordu)
   for (const model of chain) {

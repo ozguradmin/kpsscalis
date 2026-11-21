@@ -27,6 +27,7 @@ Her şey Cloudflare üzerinde. Cloudflare hesabı `3c39c225b3a27de7822833feb24b6
 | R2 | `ozgur-is-ajani`, bağlama `R2`. CV, kanıt ekranları, adım adım kayıtlar (`rec/` 3 gün sonra silinir), önbellekler. |
 | Workflows | `ozgur-is-ajani-apply` (`APPLY`, `ApplyWorkflow`: tek başvuru), `ozgur-is-ajani-task` (`TASKS`, `TaskWorkflow`: keşif, eleme, öğrenme gibi uzun işler) |
 | Browser Run | bağlama `BROWSER` (`@cloudflare/puppeteer`). Canlı devralma için CDP `Cloudflare.getLiveView` / `Cloudflare.handoff`. |
+| Runware | Worker secret `RUNWARE_KEY` (21 Kasım). Model adı `rw:` ile başlarsa OpenAI uyumlu `api.runware.ai/v1/chat/completions` kullanılır (`llm-core.js` → `makeRunner`). |
 | Workers AI | bağlama `AI`. Modeller D1 `settings.models` içinde: eleme `@cf/google/gemma-4-26b-a4b-it`, ön yazı/cevap/analiz `@cf/deepseek-ai/deepseek-v4-flash-0731`. |
 | E-posta gönderimi | `send_email` bağlaması `EMAIL`. Gönderen destek@ozgurguler.tech. |
 | Cron | `*/10 * * * *` → `tick()` |
@@ -58,7 +59,7 @@ Her şey Cloudflare üzerinde. Cloudflare hesabı `3c39c225b3a27de7822833feb24b6
 
 ## 3. Yayın
 
-- `is-ajani` dalına her push → GitHub Actions (`.github/workflows/is-ajani.yml`) → `wrangler deploy` → `/api/health` duman testi.
+- **21 Kasım 2026'dan beri yayın yerelden:** `bash scripts/deploy.sh` (testler → çalışan başvuru kontrolü → `wrangler deploy` OAuth oturumuyla → `/api/health`). Özgür Cloudflare API token'larını sildi; GitHub Actions işi sadece elle tetiklenir ve token yoksa çalışmaz. Push artık yayın başlatmaz.
 - **Yayın, o anda süren başvuru workflow'larını keser.** Push'tan önce panelde çalışan başvuru olmadığını kontrol et (`GET /api/overview` → `running` boş olmalı).
 - Canlı log: `git push origin HEAD:is-ajani-log --force` (12 dakika `wrangler tail`, özet Actions çıktısında).
 - Push'tan önce yerelde: `node --check` + modülleri içe aktar + `node --import ./test/register.mjs scripts/smoke-dispatch.mjs`.

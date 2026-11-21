@@ -24,10 +24,49 @@ export const PRICES = {
   '@cf/ibm-granite/granite-4.0-h-micro': [0.017, 0.112],
   '@cf/meta/llama-3.2-11b-vision-instruct': [0.0485, 0.676],
   '@cf/baai/bge-m3': [0.012, 0],
+  // Runware (rw: öneki, OpenAI uyumlu uç nokta). Kaynak: runware.ai/docs/models, Kasım 2026.
+  'rw:deepseek:v4@flash': [0.076, 0.153],
+  'rw:deepseek:v4@pro': [0.961, 1.92],
+  'rw:deepseek:v4.1@flash': [0.15, 0.6],
+  'rw:zai:glm@5.3-flash': [0.15, 0.5],
+  'rw:google:gemma@4-31b': [0.102, 0.297],
+  'rw:google:gemini@3.8-flash': [0.75, 3.75],
+  'rw:anthropic:claude@haiku-5.5': [0.1, 0.5],
+  'rw:anthropic:claude@sonnet-5.5': [2, 10],
+  'rw:alibaba:qwen@4-max': [1.5, 4.5],
+  'rw:openai:gpt@6.2-sol': [2, 10],
 };
 
+// Runware: OpenAI uyumlu sohbet uç noktası. Workers AI'a özel alanlar gönderilmez.
+const RUNWARE_URL = 'https://api.runware.ai/v1/chat/completions';
+export async function runwareChat(key, model, body) {
+  if (!key) throw new Error('RUNWARE_KEY yok');
+  const { chat_template_kwargs, reasoning_effort, max_completion_tokens, ...rest } = body;
+  // 429/503: istek işlenmeden reddedilir (çift ücret yok); Retry-After kadar bekleyip en fazla 3 kez dene
+  const send = async (b) => {
+    for (let i = 0; ; i++) {
+      const res = await fetch(RUNWARE_URL, { method: 'POST', headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify(b) });
+      const text = await res.text();
+      if (res.ok) return JSON.parse(text);
+      if ((res.status === 429 || res.status === 503) && i < 3) { await new Promise((r) => setTimeout(r, Math.min(Number(res.headers.get('retry-after')) * 1000 || 2000 * (i + 1), 15000))); continue; }
+      const e = new Error(`Runware ${res.status}: ${text.slice(0, 300)}`); e.status = res.status; throw e;
+    }
+  };
+  const b = { ...rest, model, max_tokens: max_completion_tokens };
+  try { return await send(b); } catch (e) {
+    // JSON modu desteklenmiyorsa onsuz bir kez daha dene (çıktıdaki JSON parseJSON ile ayıklanır)
+    if (e.status === 400 && b.response_format && /response_format|json/i.test(e.message)) { const { response_format, ...nb } = b; return send(nb); }
+    throw e;
+  }
+}
+
+// Model adına göre sağlayıcı: "rw:" → Runware, diğerleri → Workers AI bağlaması
+export function makeRunner(env) {
+  return (model, body) => (model.startsWith('rw:') ? runwareChat(env.RUNWARE_KEY, model.slice(3), body) : env.AI.run(model, body));
+}
+
 // Düşünme (reasoning) açma/kapama desteği olan aileler; Mistral/Llama/Nemotron bu parametreyi reddediyor.
-const THINK_TOGGLE = /zai-org|qwen|deepseek|moonshotai|gemma-4/;
+const THINK_TOGGLE = /^@cf\/.*(zai-org|qwen|deepseek|moonshotai|gemma-4)/;
 
 export function costOf(model, usage) {
   const p = PRICES[model];

@@ -1,8 +1,8 @@
 name: İş ajanını yayınla
 
+# 21 Kasım 2026: Özgür Cloudflare API token'larını siliyor. Yayın artık yerelden: scripts/deploy.sh (wrangler OAuth oturumu).
+# Bu iş sadece elle tetiklenir ve CLOUDFLARE_API_TOKEN secret'ı varsa çalışır.
 on:
-  push:
-    branches: [is-ajani]
   workflow_dispatch:
 
 concurrency:

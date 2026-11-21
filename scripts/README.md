@@ -5,6 +5,7 @@ Yerel ortam `test/env.mjs` içindeki taklitleri kullanır (bellek içi D1/R2, sa
 
 | Betik | Ne yapar |
 |---|---|
+| `deploy.sh` | Yerelden yayın: testler, çalışan başvuru kontrolü, `wrangler deploy`, `/api/health`. `bash scripts/deploy.sh` (21 Kasım'dan beri tek yayın yolu). |
 | `smoke-dispatch.mjs` | Duman testi: `dispatch` + `mailTick` bir kez çalışır. Her push'tan önce çalıştır (`node --check` çalışma anı hatalarını yakalamaz). |
 | `letter-guard-test.mjs` | Ön yazı uydurma denetimi (ücret, haftalık saat, saat örtüşmesi, olay hikâyesi): LLM taklit edilir, `CF_TOKEN` gerekmez. Ön yazı koduna dokununca çalıştır. |
 | `own-page-test.mjs` | "Kendi tarayıcından gönder" sayfası: imzalı link, Kopyala butonları, şifre sızmıyor mu, POST ile `submitted` oluyor mu. |
