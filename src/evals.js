@@ -36,8 +36,16 @@ function scoreTriage(got, want) {
 // Tek model, tüm görevler. Dönen: {triage, form, tools, letterText, cost, ms}
 async function evalOne(env, model) {
   const runner = makeRunner(env);
-  const chat = (o) => chatCore(runner, { ...o, model });
-  const r = { model, triage: 0, form: 0, tools: 0, letter: '', cost: 0, ms: [] };
+  const r = { model, triage: 0, form: 0, tools: 0, letter: '', cost: 0, ms: [], diag: { errors: [], finish: {}, reasoningChars: 0, emptyJson: 0 } };
+  // Teşhis: hata metni, bitiş nedeni (length = token sınırı), düşünme uzunluğu, JSON çözülemeyen çıktı sayısı
+  const chat = async (o) => {
+    try {
+      const out = await chatCore(runner, { ...o, model });
+      const d = r.diag; d.finish[out.finish || '?'] = (d.finish[out.finish || '?'] || 0) + 1; d.reasoningChars += (out.reasoning || '').length;
+      if (o.json && out.json == null) { d.emptyJson++; if (d.errors.length < 3) d.errors.push('json yok: ' + String(out.content).slice(0, 120)); }
+      return out;
+    } catch (e) { if (r.diag.errors.length < 3) r.diag.errors.push(String(e.message).slice(0, 300)); throw e; }
+  };
   const tri = await Promise.allSettled(TRIAGE.map((c) => chat({ json: true, maxTokens: 400, messages: [{ role: 'system', content: TRIAGE_SYS }, { role: 'user', content: c.text }] }).then((o) => ({ o, c }))));
   for (const x of tri) if (x.status === 'fulfilled') { r.triage += scoreTriage(x.value.o.json, x.value.c.want) / TRIAGE.length; r.cost += x.value.o.cost; r.ms.push(x.value.o.ms); }
   try {
@@ -80,9 +88,13 @@ async function judge(env, letter) {
 
 export async function runModelEval(env, { apply = true } = {}) {
   const settings = await getSettings(env);
+  // settings.eval_only: sadece bu modelleri ölç (teşhis turu); kısmi ölçüm seçimi uygulamaz
+  const only = Array.isArray(settings.eval_only) && settings.eval_only.length ? settings.eval_only : null;
+  const list = only || CANDIDATES;
+  if (only) { apply = false; await setSetting(env, 'eval_only', null, 'model-eval'); }
   const results = [];
-  for (let i = 0; i < CANDIDATES.length; i += 4) {
-    const part = await Promise.allSettled(CANDIDATES.slice(i, i + 4).map((m) => evalOne(env, m)));
+  for (let i = 0; i < list.length; i += 4) {
+    const part = await Promise.allSettled(list.slice(i, i + 4).map((m) => evalOne(env, m)));
     for (const p of part) if (p.status === 'fulfilled') results.push(p.value);
   }
   for (const r of results) { const sc = []; for (const l of r.letters || [r.letter]) sc.push(await judge(env, l)); r.letterScore = sc.reduce((a, b) => a + b, 0) / (sc.length || 1); delete r.letters; r.p50 = r.ms.sort((a, b) => a - b)[Math.floor(r.ms.length / 2)] || 0; delete r.ms; r.letter = r.letter.slice(0, 600); }
@@ -96,7 +108,7 @@ export async function runModelEval(env, { apply = true } = {}) {
     analysis: pick((r) => r.triage * 0.6 + r.form * 0.4, 0.85, DEFAULT_MODELS.analysis),
   };
   const id = uid('eval_');
-  await env.DB.prepare('INSERT INTO model_evals (id, ts, source, results, chosen) VALUES (?,?,?,?,?)').bind(id, now(), 'weekly', JSON.stringify(results), JSON.stringify(chosen)).run();
+  await env.DB.prepare('INSERT INTO model_evals (id, ts, source, results, chosen) VALUES (?,?,?,?,?)').bind(id, now(), only ? 'probe' : 'weekly', JSON.stringify(results), JSON.stringify(chosen)).run();
   if (apply) {
     const models = { ...(settings.models || {}) };
     for (const [task, m] of Object.entries(chosen)) if (m) models[task] = m;
