@@ -101,9 +101,11 @@ export async function mailTick(env, settings, { limit = 25 } = {}) {
     // Tek kelimelik kısa adlar (Open, FIRST…) sıradan kelime de olabilir: sadece gönderen adında / alan adında eşleşsin
     const hay = ` ${normKey(`${m.from_name} ${m.subject} ${body.slice(0, 1500)} ${dom}`)} `;
     const sender = ` ${normKey(`${m.from_name} ${dom.replace(/\./g, ' ')}`)} `;
+    // Tek kelimelik adlar ("Translated", "Constructor") gövdede sıradan kelime olarak geçebilir: gönderen + konuda ara
+    const head = ` ${normKey(`${m.from_name} ${m.subject} ${dom.replace(/\./g, ' ')}`)} `;
     const eligible = apps.filter((a) => (a.created_at || 0) - 5 * 60000 <= recvT);
     const ATS_HOSTS = /greenhouse|lever|ashby|workable|recruitee|personio|teamtailor|breezy|smartrecruiters|himalayas|getonbrd|remoteok|djinni|jobicy|pstmrk|sendgrid|mailgun/i;
-    const app = eligible.find((a) => { const c = normKey(a.company); if (c.length <= 2) return false; return (!c.includes(' ') && c.length <= 5 ? sender : hay).includes(` ${c} `); })
+    const app = eligible.find((a) => { const c = normKey(a.company); if (c.length <= 2) return false; return (c.includes(' ') ? hay : c.length <= 5 ? sender : head).includes(` ${c} `); })
       || eligible.find((a) => { const h = hostOf(a.apply_url || a.url).split('.').slice(-2, -1)[0]; return h && h.length > 3 && !ATS_HOSTS.test(h) && dom.includes(h); });
     // 2) Sınıflandır (başvuru bağlamıyla) + takip eylemi türü
     let category = 'other', conf = 0, action = 'none';
