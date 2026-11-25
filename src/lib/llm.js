@@ -15,12 +15,13 @@ export const DEFAULT_MODELS = {
   analysis: ['rw:deepseek:v4.1@flash', '@cf/qwen/qwen3.8-27b', '@cf/google/gemma-4-26b-a4b-it', '@cf/openai/gpt-oss-20b'],
   letter: ['rw:anthropic:claude@haiku-5.5', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/google/gemma-4-26b-a4b-it'],
   answers: ['rw:deepseek:v4.1@flash', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-20b', '@cf/zai-org/glm-4.7-flash'],
-  agent: ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-20b', '@cf/zai-org/glm-4.7-flash'],
-  agent_hard: ['@cf/openai/gpt-oss-120b', '@cf/qwen/qwen3.8-27b', '@cf/zai-org/glm-5.3'],
-  mail: ['@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash'],
-  brain: ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/zai-org/glm-5.3'],
-  review: ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/zai-org/glm-5.3'],
-  judge: ['@cf/openai/gpt-oss-120b', '@cf/qwen/qwen3.8-27b'],
+  // 25 Kasım: kalan işler de Runware'e (Özgür Workers AI neuron harcaması istemiyor); Workers AI sadece yedek
+  agent: ['rw:anthropic:claude@haiku-5.5', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-20b', '@cf/zai-org/glm-4.7-flash'],
+  agent_hard: ['rw:anthropic:claude@sonnet-5.5', '@cf/openai/gpt-oss-120b', '@cf/qwen/qwen3.8-27b', '@cf/zai-org/glm-5.3'],
+  mail: ['rw:deepseek:v4.1@flash', '@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash'],
+  brain: ['rw:anthropic:claude@haiku-5.5', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/zai-org/glm-5.3'],
+  review: ['rw:anthropic:claude@haiku-5.5', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/zai-org/glm-5.3'],
+  judge: ['rw:anthropic:claude@haiku-5.5', '@cf/openai/gpt-oss-120b', '@cf/qwen/qwen3.8-27b'],
 };
 
 export function modelsFor(settings, task) {

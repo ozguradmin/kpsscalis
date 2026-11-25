@@ -77,6 +77,18 @@ export function costOf(model, usage) {
   return ((usage.prompt_tokens || 0) * p[0] + (usage.completion_tokens || 0) * p[1]) / 1e6;
 }
 
+function escapeCtrlInStrings(s) {
+  let out = '', inStr = false, esc = false;
+  for (const c of s) {
+    if (inStr) {
+      if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false;
+      else if (c === '\n') { out += '\\n'; continue; } else if (c === '\r') { out += '\\r'; continue; } else if (c === '\t') { out += '\\t'; continue; }
+    } else if (c === '"') inStr = true;
+    out += c;
+  }
+  return out;
+}
+
 // Çıktıdaki ilk geçerli JSON nesnesini/dizisini bulur (kod bloğu, önsöz vb. temizlenir).
 export function parseJSON(text) {
   if (text == null) return null;
@@ -98,7 +110,9 @@ export function parseJSON(text) {
     else if (c === close && --depth === 0) {
       const chunk = s.slice(start, i + 1);
       try { return JSON.parse(chunk); } catch (e) {
-        try { return JSON.parse(chunk.replace(/,\s*([}\]])/g, '$1')); } catch (e2) { return null; }
+        try { return JSON.parse(chunk.replace(/,\s*([}\]])/g, '$1')); } catch (e2) { /* devam */ }
+        // Claude (Runware'de json_object yok) metin içine kaçışsız satır sonu yazabiliyor (24 Kasım ön yazı yedeğe düştü)
+        try { return JSON.parse(escapeCtrlInStrings(chunk)); } catch (e3) { return null; }
       }
     }
   }
