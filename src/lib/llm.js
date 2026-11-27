@@ -54,7 +54,8 @@ export async function llm(env, settings, opts) {
     try {
       const out = await chatCore(runner, { ...opts, model });
       await record(env, model, task, out.usage, out.cost);
-      if ((opts.json || opts.schema) && out.json == null) { lastErr = new Error(`JSON çözülemedi (${model}): ${out.content.slice(0, 160)}`); errs.push(lastErr.message); continue; }
+      // Bitiş nedeni, uzunluk ve metnin sonu da yazılsın: yalnız baş görününce Haiku'nun neden çözülemediği anlaşılmıyordu (24 ve 26 Kasım)
+      if ((opts.json || opts.schema) && out.json == null) { const c = out.content || ''; lastErr = new Error(`JSON çözülemedi (${model}; bitiş=${out.finish || '?'}, ${c.length} krk, çıktı ${out.usage?.completion_tokens ?? '?'} tok): ${c.slice(0, 160)}${c.length > 160 ? ` … ${JSON.stringify(c.slice(-200))}` : ''}`); errs.push(lastErr.message); continue; }
       if (opts.validate && !opts.validate(out.json ?? out.content)) { lastErr = new Error(`Çıktı doğrulanamadı (${model}): ${out.content.slice(0, 160)}`); errs.push(lastErr.message); continue; }
       if (!opts.json && !opts.schema && !opts.tools && !out.content.trim()) { lastErr = new Error(`Boş cevap (${model})`); errs.push(lastErr.message); continue; }
       // Yedek modelle kurtarıldıysa da öndeki modellerin hatası görünsün (günde birkaç kayıt; sessiz kalınca birincil modelin bozulduğu fark edilmiyor)
